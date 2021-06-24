@@ -12,9 +12,10 @@ func newReviewClearCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:     "clear <DiffID> [<id>]",
-		Short:   "Clear the Differential Revision data associated with a ticket.",
-		PreRunE: loadRepoEnsureUser(env),
+		Use:      "clear <DiffID> [<id>]",
+		Short:    "Clear the Differential Revision data associated with a ticket.",
+		PreRunE:  loadBackendEnsureUser(env),
+		PostRunE: closeBackend(env),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runReviewClear(env, args)
 		},
