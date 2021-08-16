@@ -150,6 +150,9 @@ func SetStatus(b Interface, author identity.Interface, unixTime int64, status St
 	if err := snap.ValidateTransition(status); err != nil {
 		return nil, err
 	}
+	if err := snap.CheckCcbApproved(); err != nil {
+		return nil, err
+	}
 	b.Append(op)
 	return op, nil
 }

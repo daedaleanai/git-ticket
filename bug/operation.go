@@ -29,6 +29,7 @@ const (
 	SetChecklistOp
 	SetAssigneeOp
 	SetReviewOp
+	SetCcbOp
 )
 
 // Operation define the interface to fulfill for an edit operation of a Bug

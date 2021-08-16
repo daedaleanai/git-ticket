@@ -115,6 +115,10 @@ func (opp *OperationPack) unmarshalOp(raw []byte, _type OperationType) (Operatio
 		op := &SetReviewOperation{}
 		err := json.Unmarshal(raw, &op)
 		return op, err
+	case SetCcbOp:
+		op := &SetCcbOperation{}
+		err := json.Unmarshal(raw, &op)
+		return op, err
 	default:
 		return nil, fmt.Errorf("unknown operation type %v", _type)
 	}

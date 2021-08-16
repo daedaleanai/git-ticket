@@ -22,6 +22,7 @@ type Snapshot struct {
 	Assignee     identity.Interface
 	Actors       []identity.Interface
 	Participants []identity.Interface
+	Ccb          []CcbInfo
 	CreateTime   time.Time
 
 	Timeline []TimelineItem
@@ -130,6 +131,29 @@ func (snap *Snapshot) HasAnyActor(ids ...entity.Id) bool {
 		}
 	}
 	return false
+}
+
+// GetCcbState returns the state assocated with the id in the ticket CCB group
+func (snap *Snapshot) GetCcbState(id entity.Id) CcbState {
+	for _, c := range snap.Ccb {
+		if c.User.Id() == id {
+			return c.State
+		}
+	}
+	return RemovedCcbState
+}
+
+// CheckCcbApproved returns an error if the CCB group is not large enough or not all have approved the ticket
+func (snap *Snapshot) CheckCcbApproved() error {
+	if len(snap.Ccb) < 2 {
+		return fmt.Errorf("ticket has insufficient CCB group (min: 2)")
+	}
+	for _, c := range snap.Ccb {
+		if c.State != ApprovedCcbState {
+			return fmt.Errorf("not all CCB group have approved ticket")
+		}
+	}
+	return nil
 }
 
 // Sign post method for gqlgen
