@@ -55,7 +55,7 @@ func runCcbAdd(env *Env, args []string) error {
 		return errors.New("you must be a CCB member to perform this operation")
 	}
 
-	// Search through all known users looking for and Id that matches or Name that
+	// Search through all known users looking for an Id that matches or Name that
 	// contains the supplied string
 
 	var userToAddId entity.Id
@@ -93,7 +93,8 @@ func runCcbAdd(env *Env, args []string) error {
 	}
 
 	if b.Snapshot().GetCcbState(userToAddId) != bug.RemovedCcbState {
-		return errors.New(userToAddIdentity.DisplayName() + " is already in the ticket CCB group")
+		fmt.Printf("%s is already in the ticket CCB group\n", userToAddIdentity.DisplayName())
+		return nil
 	}
 
 	// Everything looks ok, add the user

@@ -9,6 +9,7 @@ import (
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/repository"
+	"github.com/pkg/errors"
 )
 
 // CcbState represents the status of a CCB group member with respect to a ticket
@@ -45,9 +46,8 @@ func (s CcbState) String() string {
 	}
 }
 
-// ccbMembers holds a map of users who are in the master CCB member list, which is defined in the git ticket
-// configuration. Configurations must be of the form "map[string]interface{}" so is stored as {"<user id>":1}.
-var ccbMembers map[entity.Id]int
+// ccbMembers holds a slice of users who are in the master CCB member list.
+var ccbMembers []entity.Id
 
 // readCcbMembers attempts to read the ccb group out of the current repository and store it in ccbMembers
 func readCcbMembers() error {
@@ -66,14 +66,20 @@ func readCcbMembers() error {
 		return fmt.Errorf("unable to read ccb config: %q", err)
 	}
 
-	ccbMembersTemp := make(map[entity.Id]int)
+	// Parse the CCB member list from the configuration. Configurations must be of the form "map[string]interface{}" so
+	// is stored as {"ccbMembers" : ["<user id1>", "<user id2>", "..."]}.
+	ccbMembersTemp := make(map[string][]entity.Id)
 
 	err = json.Unmarshal(ccbData, &ccbMembersTemp)
 	if err != nil {
 		return fmt.Errorf("unable to load ccb: %q", err)
 	}
 
-	ccbMembers = ccbMembersTemp
+	var present bool
+	ccbMembers, present = ccbMembersTemp["ccbMembers"]
+	if !present {
+		return errors.New("unexpected ccb config format")
+	}
 
 	return nil
 }
@@ -85,8 +91,10 @@ func IsCcbMember(user identity.Interface) (bool, error) {
 			return false, err
 		}
 	}
-
-	_, present := ccbMembers[user.Id()]
-
-	return present, nil
+	for _, c := range ccbMembers {
+		if c == user.Id() {
+			return true, nil
+		}
+	}
+	return false, nil
 }

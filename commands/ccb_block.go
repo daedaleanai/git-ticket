@@ -44,7 +44,8 @@ func runCcbBlock(env *Env, args []string) error {
 		return errors.New("you are not in the ticket CCB group")
 	}
 	if currentUserState == bug.BlockedCcbState {
-		return errors.New("you have already blocked this ticket")
+		fmt.Println("you have already blocked this ticket")
+		return nil
 	}
 
 	// Everything looks ok, block

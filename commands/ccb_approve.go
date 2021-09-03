@@ -44,7 +44,8 @@ func runCcbApprove(env *Env, args []string) error {
 		return errors.New("you are not in the ticket CCB group")
 	}
 	if currentUserState == bug.ApprovedCcbState {
-		return errors.New("you have already approved this ticket")
+		fmt.Println("you have already approved this ticket")
+		return nil
 	}
 
 	// Everything looks ok, approve

@@ -54,7 +54,7 @@ func runCcbRm(env *Env, args []string) error {
 		return errors.New("you must be a CCB member to perform this operation")
 	}
 
-	// Search through all known users looking for and Id that matches or Name that
+	// Search through all known users looking for an Id that matches or Name that
 	// contains the supplied string
 
 	var userToRemoveId entity.Id
@@ -84,10 +84,11 @@ func runCcbRm(env *Env, args []string) error {
 	}
 
 	if b.Snapshot().GetCcbState(userToRemoveId) == bug.RemovedCcbState {
-		return errors.New(userToRemoveIdentity.DisplayName() + " is not in the ticket CCB group")
+		fmt.Printf("%s is not in the ticket CCB group\n", userToRemoveIdentity.DisplayName())
+		return nil
 	}
 
-	// Everything looks ok, add the user
+	// Everything looks ok, remove the user
 
 	_, err = b.CcbRm(userToRemoveIdentity)
 	if err != nil {
