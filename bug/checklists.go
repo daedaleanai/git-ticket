@@ -41,7 +41,6 @@ type ChecklistSnapshot struct {
 }
 
 var checklistStore map[Label]Checklist
-var repo repository.ClockedRepo
 
 // initChecklistStore attempts to read the checklists configuration out of the
 // current repository and use it to initialise the checklistStore

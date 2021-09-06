@@ -39,7 +39,7 @@ func runAssign(env *Env, args []string) error {
 		return err
 	}
 
-	// Search through all known users looking for and Id that matches or Name that
+	// Search through all known users looking for an Id that matches or Name that
 	// contains the supplied string
 
 	var assigneeId entity.Id

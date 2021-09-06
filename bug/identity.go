@@ -64,6 +64,21 @@ func (bug *Bug) EnsureIdentities(resolver identity.Resolver) error {
 				setRev.Review.Updates[i].Author = found[entity]
 			}
 		}
+
+		// and for ccb operations, the user being added / removed
+		if setCcb, ok := op.(*SetCcbOperation); ok {
+			entity := setCcb.Ccb.User.Id()
+
+			if _, ok := found[entity]; !ok {
+				id, err := resolver.ResolveIdentity(entity)
+				if err != nil {
+					return err
+				}
+				found[entity] = id
+			}
+
+			setCcb.Ccb.User = found[entity]
+		}
 	}
 	return nil
 }

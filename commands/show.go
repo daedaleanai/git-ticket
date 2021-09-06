@@ -40,7 +40,7 @@ func newShowCommand() *cobra.Command {
 	flags.BoolVarP(&options.timeline, "timeline", "t", false,
 		"Output the timeline of the ticket")
 	flags.StringVarP(&options.fields, "field", "", "",
-		"Select field to display. Valid values are [assignee,author,authorEmail,checklists,createTime,lastEdit,humanId,id,labels,reviews,shortId,status,title,workflow,actors,participants]")
+		"Select field to display. Valid values are [assignee,author,authorEmail,ccb,checklists,createTime,lastEdit,humanId,id,labels,reviews,shortId,status,title,workflow,actors,participants]")
 	flags.StringVarP(&options.format, "format", "f", "default",
 		"Select the output formatting style. Valid values are [default,json,org-mode]")
 
@@ -133,6 +133,10 @@ func runShow(env *Env, opts showOptions, args []string) error {
 			for _, p := range snap.Participants {
 				env.out.Printf("%s\n", p.DisplayName())
 			}
+		case "ccb":
+			for _, c := range snap.Ccb {
+				env.out.Printf("%s (%s)\n", c.User.DisplayName(), c.State)
+			}
 		case "shortId":
 			env.out.Printf("%s\n", snap.Id().Human())
 		case "status":
@@ -200,6 +204,16 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 	// Workflow
 	workflow, labels := workflowAndLabels(snapshot)
 	env.out.Printf("workflow: %s\n", workflow)
+
+	// CCB
+	var ccb = make([]string, len(snapshot.Ccb))
+	for i, c := range snapshot.Ccb {
+		ccb[i] = fmt.Sprintf("%s (%s)", c.User.DisplayName(), c.State)
+	}
+
+	env.out.Printf("ccb: %s\n",
+		strings.Join(ccb, ", "),
+	)
 
 	// Checklists
 	var checklistStates []string

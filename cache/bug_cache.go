@@ -416,6 +416,55 @@ func (c *BugCache) SetMetadataRaw(author *IdentityCache, unixTime int64, target 
 	return op, c.notifyUpdated()
 }
 
+func (c *BugCache) CcbAdd(user *IdentityCache) (*bug.SetCcbOperation, error) {
+	author, err := c.repoCache.GetUserIdentity()
+	if err != nil {
+		return nil, err
+	}
+
+	return c.SetCcbRaw(author, time.Now().Unix(), nil, user, bug.AddedCcbState)
+}
+
+func (c *BugCache) CcbApprove() (*bug.SetCcbOperation, error) {
+	author, err := c.repoCache.GetUserIdentity()
+	if err != nil {
+		return nil, err
+	}
+
+	return c.SetCcbRaw(author, time.Now().Unix(), nil, author, bug.ApprovedCcbState)
+}
+
+func (c *BugCache) CcbBlock() (*bug.SetCcbOperation, error) {
+	author, err := c.repoCache.GetUserIdentity()
+	if err != nil {
+		return nil, err
+	}
+
+	return c.SetCcbRaw(author, time.Now().Unix(), nil, author, bug.BlockedCcbState)
+}
+
+func (c *BugCache) CcbRm(user *IdentityCache) (*bug.SetCcbOperation, error) {
+	author, err := c.repoCache.GetUserIdentity()
+	if err != nil {
+		return nil, err
+	}
+
+	return c.SetCcbRaw(author, time.Now().Unix(), nil, user, bug.RemovedCcbState)
+}
+
+func (c *BugCache) SetCcbRaw(author *IdentityCache, unixTime int64, metadata map[string]string, user *IdentityCache, state bug.CcbState) (*bug.SetCcbOperation, error) {
+	op, err := bug.SetCcb(c.bug, author.Identity, unixTime, user.Identity, state)
+	if err != nil {
+		return nil, err
+	}
+
+	for key, value := range metadata {
+		op.SetMetadata(key, value)
+	}
+
+	return op, c.notifyUpdated()
+}
+
 func (c *BugCache) Commit() error {
 	c.mu.Lock()
 	err := c.bug.Commit(c.repoCache.repo)

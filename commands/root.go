@@ -62,6 +62,7 @@ _git_bug() {
 
 	cmd.AddCommand(newAddCommand())
 	cmd.AddCommand(newAssignCommand())
+	cmd.AddCommand(newCcbCommand())
 	cmd.AddCommand(newCommandsCommand())
 	cmd.AddCommand(newCommentCommand())
 	cmd.AddCommand(newConfigCommand())
