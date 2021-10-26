@@ -159,14 +159,15 @@ func (snap *Snapshot) CheckCcbApproved() error {
 // Sign post method for gqlgen
 func (snap *Snapshot) IsAuthored() {}
 
-// GetUserChecklists returns a map of checklists associated with this snapshot for the given reviewer id
-func (snap *Snapshot) GetUserChecklists(reviewer entity.Id) (map[Label]Checklist, error) {
+// GetUserChecklists returns a map of checklists associated with this snapshot for the given reviewer id,
+// if the reset flag is set then always return a clean set of checklists
+func (snap *Snapshot) GetUserChecklists(reviewer entity.Id, reset bool) (map[Label]Checklist, error) {
 	checklists := make(map[Label]Checklist)
 
 	// Only checklists named in the labels list are currently valid
 	for _, l := range snap.Labels {
 		if l.IsChecklist() {
-			if snapshotChecklist, present := snap.Checklists[l][reviewer]; present {
+			if snapshotChecklist, present := snap.Checklists[l][reviewer]; !reset && present {
 				checklists[l] = snapshotChecklist.Checklist
 			} else {
 				var err error
