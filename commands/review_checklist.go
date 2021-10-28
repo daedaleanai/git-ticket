@@ -12,7 +12,7 @@ import (
 )
 
 type reviewChecklistOptions struct {
-	reset bool
+	blank bool
 }
 
 func newReviewChecklistCommand() *cobra.Command {
@@ -32,8 +32,8 @@ func newReviewChecklistCommand() *cobra.Command {
 	flags := cmd.Flags()
 	flags.SortFlags = false
 
-	flags.BoolVarP(&options.reset, "reset", "r", false,
-		"Discard any previously edited checklist",
+	flags.BoolVarP(&options.blank, "blank", "b", false,
+		"Discard any previously edited checklist and start again with a blank one",
 	)
 
 	return cmd
@@ -51,7 +51,7 @@ func runReviewChecklist(env *Env, opts reviewChecklistOptions, args []string) er
 		return err
 	}
 
-	ticketChecklists, err := b.Snapshot().GetUserChecklists(id.Id(), opts.reset)
+	ticketChecklists, err := b.Snapshot().GetUserChecklists(id.Id(), opts.blank)
 	if err != nil {
 		return err
 	}
