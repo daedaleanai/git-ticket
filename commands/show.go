@@ -92,13 +92,18 @@ func runShow(env *Env, opts showOptions, args []string) error {
 		case "workflow":
 			env.out.Printf("%s\n", workflow)
 		case "checklists":
-			for _, clMap := range snap.Checklists {
-				for user, cl := range clMap {
-					reviewer, err := env.backend.ResolveIdentityExcerpt(user)
-					if err != nil {
-						return err
+			// only display checklists which are currently associated with the ticket
+			for _, l := range snap.Labels {
+				if l.IsChecklist() {
+					if clMap, present := snap.Checklists[l]; present {
+						for user, cl := range clMap {
+							reviewer, err := env.backend.ResolveIdentityExcerpt(user)
+							if err != nil {
+								return err
+							}
+							env.out.Printf("%s reviewed %s: %s\n", reviewer.DisplayName(), cl.LastEdit, cl)
+						}
 					}
-					env.out.Printf("%s reviewed %s: %s\n", reviewer.DisplayName(), cl.LastEdit, cl)
 				}
 			}
 		case "reviews":

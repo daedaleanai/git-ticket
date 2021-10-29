@@ -11,8 +11,13 @@ import (
 	"github.com/daedaleanai/git-ticket/input"
 )
 
+type reviewChecklistOptions struct {
+	blank bool
+}
+
 func newReviewChecklistCommand() *cobra.Command {
 	env := newEnv()
+	options := reviewChecklistOptions{}
 
 	cmd := &cobra.Command{
 		Use:      "checklist [ID]",
@@ -20,15 +25,22 @@ func newReviewChecklistCommand() *cobra.Command {
 		PreRunE:  loadBackendEnsureUser(env),
 		PostRunE: closeBackend(env),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runReviewChecklist(env, args)
+			return runReviewChecklist(env, options, args)
 		},
 	}
+
+	flags := cmd.Flags()
+	flags.SortFlags = false
+
+	flags.BoolVarP(&options.blank, "blank", "b", false,
+		"Discard any previously edited checklist and start again with a blank one",
+	)
 
 	return cmd
 
 }
 
-func runReviewChecklist(env *Env, args []string) error {
+func runReviewChecklist(env *Env, opts reviewChecklistOptions, args []string) error {
 	b, args, err := _select.ResolveBug(env.backend, args)
 	if err != nil {
 		return err
@@ -39,7 +51,7 @@ func runReviewChecklist(env *Env, args []string) error {
 		return err
 	}
 
-	ticketChecklists, err := b.Snapshot().GetUserChecklists(id.Id())
+	ticketChecklists, err := b.Snapshot().GetUserChecklists(id.Id(), opts.blank)
 	if err != nil {
 		return err
 	}
