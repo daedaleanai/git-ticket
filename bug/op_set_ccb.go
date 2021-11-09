@@ -33,7 +33,7 @@ func (op *SetCcbOperation) Apply(snapshot *Snapshot) {
 	inCcb := false
 	inCcbIndex := 0
 	for i, c := range snapshot.Ccb {
-		if c.User.Id() == op.Ccb.User.Id() {
+		if c.User.Id() == op.Ccb.User.Id() && c.Status == op.Ccb.Status {
 			inCcb = true
 			inCcbIndex = i
 		}
@@ -104,8 +104,9 @@ func (op *SetCcbOperation) UnmarshalJSON(data []byte) error {
 	}
 
 	type CcbInfoJson struct {
-		User  json.RawMessage `json:"user"`
-		State CcbState        `json:"state"`
+		User   json.RawMessage `json:"user"`
+		Status Status          `json:"status"`
+		State  CcbState        `json:"state"`
 	}
 	aux := struct {
 		Ccb CcbInfoJson `json:"ccb"`
@@ -124,6 +125,7 @@ func (op *SetCcbOperation) UnmarshalJSON(data []byte) error {
 
 	op.OpBase = base
 	op.Ccb.User = user
+	op.Ccb.Status = aux.Ccb.Status
 	op.Ccb.State = aux.Ccb.State
 
 	return nil
@@ -132,10 +134,10 @@ func (op *SetCcbOperation) UnmarshalJSON(data []byte) error {
 // Sign post method for gqlgen
 func (op *SetCcbOperation) IsAuthored() {}
 
-func NewSetCcbOp(author identity.Interface, unixTime int64, user identity.Interface, state CcbState) *SetCcbOperation {
+func NewSetCcbOp(author identity.Interface, unixTime int64, user identity.Interface, status Status, state CcbState) *SetCcbOperation {
 	return &SetCcbOperation{
 		OpBase: newOpBase(SetCcbOp, author, unixTime),
-		Ccb:    CcbInfo{User: user, State: state},
+		Ccb:    CcbInfo{User: user, Status: status, State: state},
 	}
 }
 
@@ -158,13 +160,13 @@ func (s SetCcbTimelineItem) String() string {
 	var output strings.Builder
 	switch s.Ccb.State {
 	case AddedCcbState:
-		output.WriteString("added \"" + s.Ccb.User.DisplayName() + "\" to CCB")
+		output.WriteString("added \"" + s.Ccb.User.DisplayName() + "\" to CCB status " + s.Ccb.Status.String())
 	case RemovedCcbState:
-		output.WriteString("removed \"" + s.Ccb.User.DisplayName() + "\" from CCB")
+		output.WriteString("removed \"" + s.Ccb.User.DisplayName() + "\" from CCB status " + s.Ccb.Status.String())
 	case ApprovedCcbState:
-		output.WriteString("approved ticket")
+		output.WriteString("approved ticket status " + s.Ccb.Status.String())
 	case BlockedCcbState:
-		output.WriteString("blocked ticket")
+		output.WriteString("blocked ticket status " + s.Ccb.Status.String())
 	}
 	return fmt.Sprintf("(%s) %-20s: %s",
 		s.UnixTime.Time().Format(time.RFC822),
@@ -176,8 +178,8 @@ func (s SetCcbTimelineItem) String() string {
 func (s *SetCcbTimelineItem) IsAuthored() {}
 
 // Convenience function to apply the operation
-func SetCcb(b Interface, author identity.Interface, unixTime int64, user identity.Interface, state CcbState) (*SetCcbOperation, error) {
-	op := NewSetCcbOp(author, unixTime, user, state)
+func SetCcb(b Interface, author identity.Interface, unixTime int64, user identity.Interface, status Status, state CcbState) (*SetCcbOperation, error) {
+	op := NewSetCcbOp(author, unixTime, user, status, state)
 	if err := op.Validate(); err != nil {
 		return nil, err
 	}

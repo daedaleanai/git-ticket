@@ -66,7 +66,10 @@ func (w *Workflow) ValidateTransition(from, to Status) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("invalid transition %s -> %s", from, to)
+
+	// invalid transition, return error with list of valid transitions
+	nextStates, _ := w.NextStates(from)
+	return fmt.Errorf("invalid transition %s->%s, possible next states: %s", from, to, nextStates)
 }
 
 func init() {

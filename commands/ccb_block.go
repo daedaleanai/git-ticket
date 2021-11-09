@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/daedaleanai/git-ticket/bug"
@@ -33,26 +32,33 @@ func runCcbBlock(env *Env, args []string) error {
 	}
 
 	// Perform some checks before blocking the CCB of the ticket:
-	//   is the current user in the CCB group of the ticket?
+	//   is the current user in the CCB group of the ticket status?
 	//   has the current user already blocked the ticket?
 
 	currentUserIdentity, err := env.backend.GetUserIdentity()
 
-	currentUserState := b.Snapshot().GetCcbState(currentUserIdentity.Id())
-
-	if currentUserState == bug.RemovedCcbState {
-		return errors.New("you are not in the ticket CCB group")
-	}
-	if currentUserState == bug.BlockedCcbState {
-		fmt.Println("you have already blocked this ticket")
-		return nil
-	}
-
-	// Everything looks ok, block
-
-	_, err = b.CcbBlock()
+	nextStates, err := b.Snapshot().NextStates()
 	if err != nil {
 		return err
+	}
+
+	for _, s := range nextStates {
+		currentUserState := b.Snapshot().GetCcbState(currentUserIdentity.Id(), s)
+
+		if currentUserState == bug.RemovedCcbState {
+			return fmt.Errorf("you are not in the ticket %s CCB group", s)
+		}
+		if currentUserState == bug.BlockedCcbState {
+			fmt.Println("you have already blocked this ticket")
+			return nil
+		}
+
+		// Everything looks ok, block
+
+		_, err = b.CcbBlock(s)
+		if err != nil {
+			return err
+		}
 	}
 
 	fmt.Printf("Blocking ticket %s\n", b.Id().Human())

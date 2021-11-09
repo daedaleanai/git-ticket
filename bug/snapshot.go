@@ -134,25 +134,25 @@ func (snap *Snapshot) HasAnyActor(ids ...entity.Id) bool {
 }
 
 // GetCcbState returns the state assocated with the id in the ticket CCB group
-func (snap *Snapshot) GetCcbState(id entity.Id) CcbState {
+func (snap *Snapshot) GetCcbState(id entity.Id, status Status) CcbState {
 	for _, c := range snap.Ccb {
-		if c.User.Id() == id {
+		if c.User.Id() == id && c.Status == status {
 			return c.State
 		}
 	}
 	return RemovedCcbState
 }
 
-// CheckCcbApproved returns an error if the CCB group is not large enough or not all have approved the ticket
-func (snap *Snapshot) CheckCcbApproved() error {
-	if len(snap.Ccb) < 2 {
-		return fmt.Errorf("ticket has insufficient CCB group (min: 2)")
-	}
+// CheckCcbApproved returns an error if not all the CCB group for the given status have approved the ticket
+func (snap *Snapshot) CheckCcbApproved(status Status) error {
 	for _, c := range snap.Ccb {
-		if c.State != ApprovedCcbState {
-			return fmt.Errorf("not all CCB group have approved ticket")
+		if c.Status == status {
+			if c.State != ApprovedCcbState {
+				return fmt.Errorf("not all CCB group have approved ticket status %s", status)
+			}
 		}
 	}
+
 	return nil
 }
 

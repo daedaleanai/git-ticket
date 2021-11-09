@@ -416,44 +416,44 @@ func (c *BugCache) SetMetadataRaw(author *IdentityCache, unixTime int64, target 
 	return op, c.notifyUpdated()
 }
 
-func (c *BugCache) CcbAdd(user *IdentityCache) (*bug.SetCcbOperation, error) {
+func (c *BugCache) CcbAdd(user *IdentityCache, status bug.Status) (*bug.SetCcbOperation, error) {
 	author, err := c.repoCache.GetUserIdentity()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.SetCcbRaw(author, time.Now().Unix(), nil, user, bug.AddedCcbState)
+	return c.SetCcbRaw(author, time.Now().Unix(), nil, user, status, bug.AddedCcbState)
 }
 
-func (c *BugCache) CcbApprove() (*bug.SetCcbOperation, error) {
+func (c *BugCache) CcbApprove(status bug.Status) (*bug.SetCcbOperation, error) {
 	author, err := c.repoCache.GetUserIdentity()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.SetCcbRaw(author, time.Now().Unix(), nil, author, bug.ApprovedCcbState)
+	return c.SetCcbRaw(author, time.Now().Unix(), nil, author, status, bug.ApprovedCcbState)
 }
 
-func (c *BugCache) CcbBlock() (*bug.SetCcbOperation, error) {
+func (c *BugCache) CcbBlock(status bug.Status) (*bug.SetCcbOperation, error) {
 	author, err := c.repoCache.GetUserIdentity()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.SetCcbRaw(author, time.Now().Unix(), nil, author, bug.BlockedCcbState)
+	return c.SetCcbRaw(author, time.Now().Unix(), nil, author, status, bug.BlockedCcbState)
 }
 
-func (c *BugCache) CcbRm(user *IdentityCache) (*bug.SetCcbOperation, error) {
+func (c *BugCache) CcbRm(user *IdentityCache, status bug.Status) (*bug.SetCcbOperation, error) {
 	author, err := c.repoCache.GetUserIdentity()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.SetCcbRaw(author, time.Now().Unix(), nil, user, bug.RemovedCcbState)
+	return c.SetCcbRaw(author, time.Now().Unix(), nil, user, status, bug.RemovedCcbState)
 }
 
-func (c *BugCache) SetCcbRaw(author *IdentityCache, unixTime int64, metadata map[string]string, user *IdentityCache, state bug.CcbState) (*bug.SetCcbOperation, error) {
-	op, err := bug.SetCcb(c.bug, author.Identity, unixTime, user.Identity, state)
+func (c *BugCache) SetCcbRaw(author *IdentityCache, unixTime int64, metadata map[string]string, user *IdentityCache, status bug.Status, state bug.CcbState) (*bug.SetCcbOperation, error) {
+	op, err := bug.SetCcb(c.bug, author.Identity, unixTime, user.Identity, status, state)
 	if err != nil {
 		return nil, err
 	}

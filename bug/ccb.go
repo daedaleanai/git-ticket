@@ -26,8 +26,9 @@ const (
 // CcbInfo is stored in a ticket history every time a user is added or removed,
 // or has approved or blocked the ticket
 type CcbInfo struct {
-	User  identity.Interface
-	State CcbState
+	User   identity.Interface
+	Status Status
+	State  CcbState
 }
 
 // Stringify function for CcbState
