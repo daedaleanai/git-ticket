@@ -160,9 +160,9 @@ func (s SetCcbTimelineItem) String() string {
 	var output strings.Builder
 	switch s.Ccb.State {
 	case AddedCcbState:
-		output.WriteString("added \"" + s.Ccb.User.DisplayName() + "\" to CCB status " + s.Ccb.Status.String())
+		output.WriteString("added \"" + s.Ccb.User.DisplayName() + "\" as CCB approver for status " + s.Ccb.Status.String())
 	case RemovedCcbState:
-		output.WriteString("removed \"" + s.Ccb.User.DisplayName() + "\" from CCB status " + s.Ccb.Status.String())
+		output.WriteString("removed \"" + s.Ccb.User.DisplayName() + "\" as CCB approver for status " + s.Ccb.Status.String())
 	case ApprovedCcbState:
 		output.WriteString("approved ticket status " + s.Ccb.Status.String())
 	case BlockedCcbState:

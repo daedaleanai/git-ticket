@@ -16,7 +16,7 @@ func newCcbAddCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:      "add <user> <status> [<id>]",
-		Short:    "Add a CCB member to a ticket status.",
+		Short:    "Add a CCB member as an approver of a ticket status.",
 		PreRunE:  loadBackendEnsureUser(env),
 		PostRunE: closeBackend(env),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -46,10 +46,10 @@ func runCcbAdd(env *Env, args []string) error {
 		return err
 	}
 
-	// Perform some checks before adding the user to the CCB of the ticket:
+	// Perform some checks before adding the user as an approver of the ticket status:
 	//   is the current user a CCB member?
 	//   is the user to add a CCB member?
-	//   is the user to add already in the CCB group of the ticket status?
+	//   is the user to add already an approver of the ticket status?
 
 	currentUserIdentity, err := env.backend.GetUserIdentity()
 
@@ -99,7 +99,7 @@ func runCcbAdd(env *Env, args []string) error {
 	}
 
 	if b.Snapshot().GetCcbState(userToAddId, status) != bug.RemovedCcbState {
-		fmt.Printf("%s is already in the ticket %s CCB group\n", userToAddIdentity.DisplayName(), status)
+		fmt.Printf("%s is already an approver of the ticket status %s\n", userToAddIdentity.DisplayName(), status)
 		return nil
 	}
 
@@ -110,7 +110,7 @@ func runCcbAdd(env *Env, args []string) error {
 		return err
 	}
 
-	fmt.Printf("Adding %s to %s CCB group of ticket %s\n", userToAddIdentity.DisplayName(), status, b.Id().Human())
+	fmt.Printf("Adding %s as an approver of the ticket %s status %s\n", userToAddIdentity.DisplayName(), b.Id().Human(), status)
 
 	return b.Commit()
 }

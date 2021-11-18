@@ -148,7 +148,7 @@ func (snap *Snapshot) CheckCcbApproved(status Status) error {
 	for _, c := range snap.Ccb {
 		if c.Status == status {
 			if c.State != ApprovedCcbState {
-				return fmt.Errorf("not all CCB group have approved ticket status %s", status)
+				return fmt.Errorf("not all CCB approvers have approved ticket status %s", status)
 			}
 		}
 	}
@@ -213,15 +213,15 @@ func (snap *Snapshot) GetChecklistCompoundStates() map[Label]ChecklistState {
 	return states
 }
 
-// NextStates returns a slice of next possible states for the assigned workflow
-func (snap *Snapshot) NextStates() ([]Status, error) {
+// NextStatuses returns a slice of next possible statuses for the assigned workflow
+func (snap *Snapshot) NextStatuses() ([]Status, error) {
 	for _, l := range snap.Labels {
 		if l.IsWorkflow() {
 			w := FindWorkflow(l)
 			if w == nil {
 				return nil, fmt.Errorf("invalid workflow %s", l)
 			}
-			return w.NextStates(snap.Status)
+			return w.NextStatuses(snap.Status)
 		}
 	}
 	return nil, fmt.Errorf("ticket has no associated workflow")

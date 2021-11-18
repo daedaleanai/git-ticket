@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// CcbState represents the status of a CCB group member with respect to a ticket
+// CcbState represents the state of an approver with respect to a ticket status
 type CcbState int
 
 const (
@@ -23,12 +23,12 @@ const (
 	RemovedCcbState           // removed from the ticket
 )
 
-// CcbInfo is stored in a ticket history every time a user is added or removed,
+// CcbInfo is stored in a ticket history every time an approver is added or removed,
 // or has approved or blocked the ticket
 type CcbInfo struct {
-	User   identity.Interface
-	Status Status
-	State  CcbState
+	User   identity.Interface // The approver
+	Status Status             // The ticket status (e.g. vetted) that the approver is associated with
+	State  CcbState           // The state of the approval
 }
 
 // Stringify function for CcbState
