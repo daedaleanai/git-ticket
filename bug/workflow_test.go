@@ -36,9 +36,9 @@ func TestWorkflow_FindWorkflow(t *testing.T) {
 	}
 }
 
-func TestWorkflow_NextStates(t *testing.T) {
-	// The valid next states for each status in the testWorkflow
-	var nextStates = [][]Status{
+func TestWorkflow_NextStatuses(t *testing.T) {
+	// The valid next statuses for each status in the testWorkflow
+	var nextStatuses = [][]Status{
 		nil,                                // first status is 1
 		{VettedStatus},                     // from ProposedStatus
 		{ProposedStatus, InProgressStatus}, // from VettedStatus
@@ -50,12 +50,12 @@ func TestWorkflow_NextStates(t *testing.T) {
 		nil,                                // from DoneStatus
 	}
 
-	for currentState := FirstStatus; currentState <= LastStatus; currentState++ {
-		next, err := testWorkflow.NextStates(currentState)
+	for currentStatus := FirstStatus; currentStatus <= LastStatus; currentStatus++ {
+		next, err := testWorkflow.NextStatuses(currentStatus)
 		if err != nil {
-			t.Fatal("Invalid next states", currentState, ">", next, "(error", err, ")")
+			t.Fatal("Invalid next statuses", currentStatus, ">", next, "(error", err, ")")
 		}
-		assert.Equal(t, nextStates[currentState], next)
+		assert.Equal(t, nextStatuses[currentStatus], next)
 	}
 }
 

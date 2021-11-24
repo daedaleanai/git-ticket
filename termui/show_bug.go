@@ -109,7 +109,7 @@ func (sb *showBug) layout(g *gocui.Gui) error {
 
 	currentBugHelp := showBugHelp
 
-	validStates, err := sb.bug.Snapshot().NextStates()
+	validStates, err := sb.bug.Snapshot().NextStatuses()
 	for _, vs := range validStates {
 		currentBugHelp = append(currentBugHelp,
 			struct {

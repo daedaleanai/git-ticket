@@ -134,25 +134,25 @@ func (snap *Snapshot) HasAnyActor(ids ...entity.Id) bool {
 }
 
 // GetCcbState returns the state assocated with the id in the ticket CCB group
-func (snap *Snapshot) GetCcbState(id entity.Id) CcbState {
+func (snap *Snapshot) GetCcbState(id entity.Id, status Status) CcbState {
 	for _, c := range snap.Ccb {
-		if c.User.Id() == id {
+		if c.User.Id() == id && c.Status == status {
 			return c.State
 		}
 	}
 	return RemovedCcbState
 }
 
-// CheckCcbApproved returns an error if the CCB group is not large enough or not all have approved the ticket
-func (snap *Snapshot) CheckCcbApproved() error {
-	if len(snap.Ccb) < 2 {
-		return fmt.Errorf("ticket has insufficient CCB group (min: 2)")
-	}
+// CheckCcbApproved returns an error if not all the CCB group for the given status have approved the ticket
+func (snap *Snapshot) CheckCcbApproved(status Status) error {
 	for _, c := range snap.Ccb {
-		if c.State != ApprovedCcbState {
-			return fmt.Errorf("not all CCB group have approved ticket")
+		if c.Status == status {
+			if c.State != ApprovedCcbState {
+				return fmt.Errorf("not all CCB approvers have approved ticket status %s", status)
+			}
 		}
 	}
+
 	return nil
 }
 
@@ -213,15 +213,15 @@ func (snap *Snapshot) GetChecklistCompoundStates() map[Label]ChecklistState {
 	return states
 }
 
-// NextStates returns a slice of next possible states for the assigned workflow
-func (snap *Snapshot) NextStates() ([]Status, error) {
+// NextStatuses returns a slice of next possible statuses for the assigned workflow
+func (snap *Snapshot) NextStatuses() ([]Status, error) {
 	for _, l := range snap.Labels {
 		if l.IsWorkflow() {
 			w := FindWorkflow(l)
 			if w == nil {
 				return nil, fmt.Errorf("invalid workflow %s", l)
 			}
-			return w.NextStates(snap.Status)
+			return w.NextStatuses(snap.Status)
 		}
 	}
 	return nil, fmt.Errorf("ticket has no associated workflow")

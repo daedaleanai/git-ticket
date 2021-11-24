@@ -139,8 +139,18 @@ func runShow(env *Env, opts showOptions, args []string) error {
 				env.out.Printf("%s\n", p.DisplayName())
 			}
 		case "ccb":
+			// first map all states by user
+			ccbUserMap := make(map[string][]bug.CcbInfo)
 			for _, c := range snap.Ccb {
-				env.out.Printf("%s (%s)\n", c.User.DisplayName(), c.State)
+				ccbUserMap[c.User.DisplayName()] = append(ccbUserMap[c.User.DisplayName()], c)
+			}
+			// for each user construct a list of status/states and output
+			for user, states := range ccbUserMap {
+				stateStrings := make([]string, len(states))
+				for i, s := range states {
+					stateStrings[i] = fmt.Sprintf("%s:%s", s.Status, s.State)
+				}
+				env.out.Printf("%s (%s)\n", user, strings.Join(stateStrings, ", "))
 			}
 		case "shortId":
 			env.out.Printf("%s\n", snap.Id().Human())
@@ -211,13 +221,23 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 	env.out.Printf("workflow: %s\n", workflow)
 
 	// CCB
-	var ccb = make([]string, len(snapshot.Ccb))
-	for i, c := range snapshot.Ccb {
-		ccb[i] = fmt.Sprintf("%s (%s)", c.User.DisplayName(), c.State)
+	// first map all states by user
+	ccbUserMap := make(map[string][]bug.CcbInfo)
+	for _, c := range snapshot.Ccb {
+		ccbUserMap[c.User.DisplayName()] = append(ccbUserMap[c.User.DisplayName()], c)
+	}
+	// for each user construct a list of status/states
+	var ccbStrings []string
+	for user, states := range ccbUserMap {
+		stateStrings := make([]string, len(states))
+		for i, s := range states {
+			stateStrings[i] = fmt.Sprintf("%s:%s", s.Status, s.State)
+		}
+		ccbStrings = append(ccbStrings, fmt.Sprintf("%s (%s)", user, strings.Join(stateStrings, ", ")))
 	}
 
 	env.out.Printf("ccb: %s\n",
-		strings.Join(ccb, ", "),
+		strings.Join(ccbStrings, ", "),
 	)
 
 	// Checklists

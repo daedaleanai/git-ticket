@@ -40,16 +40,16 @@ func GetWorkflowLabels() []Label {
 	return labels
 }
 
-// NextStates returns a slice of next possible states in the workflow
+// NextStatuses returns a slice of next possible statuses in the workflow
 // for the given one
-func (w *Workflow) NextStates(s Status) ([]Status, error) {
-	var validStates []Status
+func (w *Workflow) NextStatuses(s Status) ([]Status, error) {
+	var validStatuses []Status
 	for _, t := range w.transitions {
 		if t.start == s {
-			validStates = append(validStates, t.end)
+			validStatuses = append(validStatuses, t.end)
 		}
 	}
-	return validStates, nil
+	return validStatuses, nil
 }
 
 // ValidateTransition checks if the transition is valid for a given start and end
@@ -66,7 +66,10 @@ func (w *Workflow) ValidateTransition(from, to Status) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("invalid transition %s -> %s", from, to)
+
+	// invalid transition, return error with list of valid transitions
+	nextStatuses, _ := w.NextStatuses(from)
+	return fmt.Errorf("invalid transition %s->%s, possible next statuses: %s", from, to, nextStatuses)
 }
 
 func init() {

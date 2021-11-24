@@ -15,8 +15,8 @@ func newCcbAddCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "add <user> [<id>]",
-		Short:    "Add the CCB member to a ticket.",
+		Use:      "add <user> <status> [<id>]",
+		Short:    "Add a CCB member as an approver of a ticket status.",
 		PreRunE:  loadBackendEnsureUser(env),
 		PostRunE: closeBackend(env),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -28,22 +28,28 @@ func newCcbAddCommand() *cobra.Command {
 }
 
 func runCcbAdd(env *Env, args []string) error {
-	if len(args) < 1 {
-		return errors.New("no user supplied")
+	if len(args) < 2 {
+		return errors.New("no user and/or status supplied")
 	}
 
 	userToAddString := args[0]
-	args = args[1:]
+
+	status, err := bug.StatusFromString(args[1])
+	if err != nil {
+		return err
+	}
+
+	args = args[2:]
 
 	b, args, err := _select.ResolveBug(env.backend, args)
 	if err != nil {
 		return err
 	}
 
-	// Perform some checks before adding the user to the CCB of the ticket:
+	// Perform some checks before adding the user as an approver of the ticket status:
 	//   is the current user a CCB member?
 	//   is the user to add a CCB member?
-	//   is the user to add already in the CCB group of the ticket?
+	//   is the user to add already an approver of the ticket status?
 
 	currentUserIdentity, err := env.backend.GetUserIdentity()
 
@@ -92,19 +98,19 @@ func runCcbAdd(env *Env, args []string) error {
 		return errors.New(userToAddIdentity.DisplayName() + " is not a CCB member")
 	}
 
-	if b.Snapshot().GetCcbState(userToAddId) != bug.RemovedCcbState {
-		fmt.Printf("%s is already in the ticket CCB group\n", userToAddIdentity.DisplayName())
+	if b.Snapshot().GetCcbState(userToAddId, status) != bug.RemovedCcbState {
+		fmt.Printf("%s is already an approver of the ticket status %s\n", userToAddIdentity.DisplayName(), status)
 		return nil
 	}
 
 	// Everything looks ok, add the user
 
-	_, err = b.CcbAdd(userToAddIdentity)
+	_, err = b.CcbAdd(userToAddIdentity, status)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Adding %s to CCB group of ticket %s\n", userToAddIdentity.DisplayName(), b.Id().Human())
+	fmt.Printf("Adding %s as an approver of the ticket %s status %s\n", userToAddIdentity.DisplayName(), b.Id().Human(), status)
 
 	return b.Commit()
 }

@@ -13,7 +13,7 @@ func TestSetCcbSerialize(t *testing.T) {
 	var rene = identity.NewBare("René Descartes", "rene@descartes.fr")
 	var mickey = identity.NewBare("Mickey Mouse", "mm@disney.com")
 	unix := time.Now().Unix()
-	before := NewSetCcbOp(rene, unix, mickey, AddedCcbState)
+	before := NewSetCcbOp(rene, unix, mickey, VettedStatus, ApprovedCcbState)
 
 	data, err := json.Marshal(before)
 	assert.NoError(t, err)
