@@ -17,7 +17,7 @@ func TestCache(t *testing.T) {
 
 	repository.SetupSigningKey(t, repo, "a@e.org")
 
-	cache, err := NewRepoCache(repo)
+	cache, err := NewRepoCache(repo, false)
 	require.NoError(t, err)
 
 	// Create, set and get user identity
@@ -109,7 +109,7 @@ func TestCache(t *testing.T) {
 	require.Empty(t, cache.identitiesExcerpts)
 
 	// Reload, only excerpt are loaded
-	cache, err = NewRepoCache(repo)
+	cache, err = NewRepoCache(repo, false)
 	require.NoError(t, err)
 	require.Empty(t, cache.bugs)
 	require.Empty(t, cache.identities)
@@ -139,10 +139,10 @@ func TestPushPull(t *testing.T) {
 	repository.SetupSigningKey(t, repoA, "a@e.org")
 	repository.SetupSigningKey(t, repoB, "a@e.org")
 
-	cacheA, err := NewRepoCache(repoA)
+	cacheA, err := NewRepoCache(repoA, false)
 	require.NoError(t, err)
 
-	cacheB, err := NewRepoCache(repoB)
+	cacheB, err := NewRepoCache(repoB, false)
 	require.NoError(t, err)
 
 	// Create, set and get user identity
@@ -243,7 +243,7 @@ func TestRemove(t *testing.T) {
 	err = repo.AddRemote("remoteB", "file://"+remoteB.GetPath())
 	require.NoError(t, err)
 
-	repoCache, err := NewRepoCache(repo)
+	repoCache, err := NewRepoCache(repo, false)
 	require.NoError(t, err)
 
 	rene, err := repoCache.NewIdentity("René Descartes", "rene@descartes.fr")
@@ -283,7 +283,7 @@ func TestRemove(t *testing.T) {
 func TestCacheEviction(t *testing.T) {
 	repo := repository.CreateTestRepo(false)
 	repository.SetupSigningKey(t, repo, "a@e.org")
-	repoCache, err := NewRepoCache(repo)
+	repoCache, err := NewRepoCache(repo, false)
 	require.NoError(t, err)
 	repoCache.setCacheSize(2)
 

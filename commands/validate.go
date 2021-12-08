@@ -9,8 +9,13 @@ import (
 	"github.com/daedaleanai/git-ticket/validate"
 )
 
+type validateOptions struct {
+	external string
+}
+
 func newValidateCommand() *cobra.Command {
 	env := newEnv()
+	options := validateOptions{}
 
 	cmd := &cobra.Command{
 		Use:      "validate COMMIT...",
@@ -18,14 +23,19 @@ func newValidateCommand() *cobra.Command {
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runValidate(env, args)
+			return runValidate(env, options, args)
 		},
 	}
+
+	flags := cmd.Flags()
+	flags.SortFlags = false
+
+	flags.StringVarP(&options.external, "external", "e", "", "Validate commit in an external repository at this path")
 
 	return cmd
 }
 
-func runValidate(env *Env, args []string) error {
+func runValidate(env *Env, options validateOptions, args []string) error {
 	validator, err := validate.NewValidator(env.repo, env.backend)
 	if err != nil {
 		return err
@@ -38,12 +48,14 @@ func runValidate(env *Env, args []string) error {
 
 	var refErr error
 	for _, ref := range args {
-		hash, err := env.backend.ResolveRef(ref)
-		if err != nil {
-			return err
+		var err error
+
+		if options.external == "" {
+			_, err = validator.ValidateCommit(ref)
+		} else {
+			_, err = validator.ValidateExternalCommit(options.external, ref)
 		}
 
-		_, err = validator.ValidateCommit(hash)
 		if err != nil {
 			if refErr == nil {
 				refErr = errors.Errorf("ref %s check fail", ref)

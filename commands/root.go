@@ -15,6 +15,9 @@ var GitCommit string
 var GitLastTag string
 var GitExactTag string
 
+// Global flags
+var RebuildCache bool
+
 func NewRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   rootCommandName,
@@ -59,6 +62,8 @@ _git_bug() {
 }
 `,
 	}
+
+	cmd.PersistentFlags().BoolVarP(&RebuildCache, "rebuild-cache", "", false, "force the cache to be rebuilt")
 
 	cmd.AddCommand(newAddCommand())
 	cmd.AddCommand(newAssignCommand())
