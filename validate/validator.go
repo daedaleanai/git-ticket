@@ -291,7 +291,7 @@ func (v *Validator) ValidateCommit(ref string) (*packet.PublicKey, error) {
 	return signingKey, nil
 }
 
-// ValidateExternalCommit checks the commit (located in an another repository) signature along with the key's expire time.
+// ValidateExternalCommit checks the commit (located in another repository) signature along with the key's expire time.
 // Returns the pubkey used to sign the specified commit, or an error.
 func (v *Validator) ValidateExternalCommit(repoPath string, ref string) (*packet.PublicKey, error) {
 	repo, err := repository.NewGitRepoNoInit(repoPath)

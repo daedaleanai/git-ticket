@@ -81,11 +81,11 @@ type RepoCache struct {
 	commits  map[repository.Hash]*object.Commit
 }
 
-func NewRepoCache(r repository.ClockedRepo, forceBuild bool) (*RepoCache, error) {
-	return NewNamedRepoCache(r, forceBuild, "")
+func NewRepoCache(r repository.ClockedRepo, rebuild bool) (*RepoCache, error) {
+	return NewNamedRepoCache(r, rebuild, "")
 }
 
-func NewNamedRepoCache(r repository.ClockedRepo, forceBuild bool, name string) (*RepoCache, error) {
+func NewNamedRepoCache(r repository.ClockedRepo, rebuild bool, name string) (*RepoCache, error) {
 	c := &RepoCache{
 		repo:          r,
 		name:          name,
@@ -101,7 +101,7 @@ func NewNamedRepoCache(r repository.ClockedRepo, forceBuild bool, name string) (
 		return &RepoCache{}, err
 	}
 
-	if forceBuild == false {
+	if rebuild == false {
 		err = c.load()
 		if err == nil {
 			return c, nil
