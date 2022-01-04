@@ -101,7 +101,7 @@ func NewGitRepo(path string, clockLoaders []ClockLoader) (*GitRepo, error) {
 	}
 
 	// Check the repo and retrieve the root path
-	stdout, err := repo.runGitCommand("rev-parse", "--git-dir")
+	stdout, err := repo.runGitCommand("rev-parse", "--absolute-git-dir")
 
 	// Now dir is fetched with "git rev-parse --git-dir". May be it can
 	// still return nothing in some cases. Then empty stdout check is
@@ -141,7 +141,7 @@ func NewGitRepoNoInit(path string) (*GitRepo, error) {
 	}
 
 	// Check the repo and retrieve the root path
-	stdout, err := repo.runGitCommand("rev-parse", "--git-dir")
+	stdout, err := repo.runGitCommand("rev-parse", "--absolute-git-dir")
 
 	// Now dir is fetched with "git rev-parse --git-dir". May be it can
 	// still return nothing in some cases. Then empty stdout check is
@@ -153,7 +153,7 @@ func NewGitRepoNoInit(path string) (*GitRepo, error) {
 	// Fix the path to be sure we are at the root
 	repo.path = stdout
 
-	return repo, nil
+	return setupGitRepo(repo)
 }
 
 // InitGitRepo create a new empty git repo at the given path

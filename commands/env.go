@@ -95,7 +95,7 @@ func loadBackend(env *Env) func(*cobra.Command, []string) error {
 			return err
 		}
 
-		env.backend, err = cache.NewRepoCache(env.repo)
+		env.backend, err = cache.NewRepoCache(env.repo, RebuildCache)
 		if err != nil {
 			return err
 		}

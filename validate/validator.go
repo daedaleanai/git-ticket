@@ -263,7 +263,11 @@ func (v *Validator) checkCommitForKey(hash repository.Hash) error {
 
 // ValidateCommit checks the commit signature along with the key's expire time.
 // Returns the pubkey used to sign the specified commit, or an error.
-func (v *Validator) ValidateCommit(hash repository.Hash) (*packet.PublicKey, error) {
+func (v *Validator) ValidateCommit(ref string) (*packet.PublicKey, error) {
+	hash, err := v.backend.ResolveRef(ref)
+	if err != nil {
+		return nil, err
+	}
 	commit, err := v.backend.ResolveCommit(hash)
 	if err != nil {
 		return nil, err
@@ -277,6 +281,32 @@ func (v *Validator) ValidateCommit(hash repository.Hash) (*packet.PublicKey, err
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	signingKey, err := v.verifyCommitSignature(commit)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid signature")
+	}
+
+	return signingKey, nil
+}
+
+// ValidateExternalCommit checks the commit (located in another repository) signature along with the key's expire time.
+// Returns the pubkey used to sign the specified commit, or an error.
+func (v *Validator) ValidateExternalCommit(repoPath string, ref string) (*packet.PublicKey, error) {
+	repo, err := repository.NewGitRepoNoInit(repoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	hash, err := repo.ResolveRevision(plumbing.Revision(ref))
+	if err != nil {
+		return nil, err
+	}
+
+	commit, err := repo.CommitObject(plumbing.NewHash(hash.String()))
+	if err != nil {
+		return nil, err
 	}
 
 	signingKey, err := v.verifyCommitSignature(commit)

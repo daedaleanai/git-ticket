@@ -16,7 +16,7 @@ func TestSelect(t *testing.T) {
 
 	repository.SetupSigningKey(t, repo, "a@e.org")
 
-	repoCache, err := cache.NewRepoCache(repo)
+	repoCache, err := cache.NewRepoCache(repo, false)
 	require.NoError(t, err)
 
 	_, _, err = ResolveBug(repoCache, []string{})

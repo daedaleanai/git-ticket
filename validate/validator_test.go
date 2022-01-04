@@ -64,7 +64,7 @@ func TestNewValidator_EmptyRepo(t *testing.T) {
 	repo := repository.CreateTestRepo(false)
 	defer repository.CleanupTestRepos(repo)
 
-	backend, err := cache.NewRepoCache(repo)
+	backend, err := cache.NewRepoCache(repo, false)
 	require.NoError(t, err)
 
 	checkValidator(t, repo, backend, "", "")
@@ -77,7 +77,7 @@ func TestNewValidator_OneIdentity(t *testing.T) {
 	repo := repository.CreateTestRepo(false)
 	defer repository.CleanupTestRepos(repo)
 
-	backend, err := cache.NewRepoCache(repo)
+	backend, err := cache.NewRepoCache(repo, false)
 	require.NoError(t, err)
 
 	armoredPubkey := repository.SetupSigningKey(t, repo, "a@e.org")
@@ -90,7 +90,7 @@ func TestNewValidator_TwoSeparateIdentities(t *testing.T) {
 	repo := repository.CreateTestRepo(false)
 	defer repository.CleanupTestRepos(repo)
 
-	backend, err := cache.NewRepoCache(repo)
+	backend, err := cache.NewRepoCache(repo, false)
 	require.NoError(t, err)
 
 	armoredPubkey := repository.SetupSigningKey(t, repo, "a@e.org")
@@ -108,7 +108,7 @@ func TestNewValidator_IdentityWithSameKeyTwice(t *testing.T) {
 	repo := repository.CreateTestRepo(false)
 	defer repository.CleanupTestRepos(repo)
 
-	backend, err := cache.NewRepoCache(repo)
+	backend, err := cache.NewRepoCache(repo, false)
 	require.NoError(t, err)
 
 	armoredPubkey := repository.SetupSigningKey(t, repo, "a@e.org")
@@ -125,7 +125,7 @@ func TestNewValidator_TwoIdentitiesWithSameKey(t *testing.T) {
 	repo := repository.CreateTestRepo(false)
 	defer repository.CleanupTestRepos(repo)
 
-	backend, err := cache.NewRepoCache(repo)
+	backend, err := cache.NewRepoCache(repo, false)
 	require.NoError(t, err)
 
 	armoredPubkey := repository.SetupSigningKey(t, repo, "a@e.org")
@@ -147,7 +147,7 @@ func TestNewValidator_TwoIdentitiesTwoVersions(t *testing.T) {
 	repo := repository.CreateTestRepo(false)
 	defer repository.CleanupTestRepos(repo)
 
-	backend, err := cache.NewRepoCache(repo)
+	backend, err := cache.NewRepoCache(repo, false)
 	require.NoError(t, err)
 
 	armoredPubkey := repository.SetupSigningKey(t, repo, "a@e.org")
@@ -170,7 +170,7 @@ func TestNewValidator_WrongEmail(t *testing.T) {
 	repo := repository.CreateTestRepo(false)
 	defer repository.CleanupTestRepos(repo)
 
-	backend, err := cache.NewRepoCache(repo)
+	backend, err := cache.NewRepoCache(repo, false)
 	require.NoError(t, err)
 
 	armoredPubkey := repository.SetupSigningKey(t, repo, "a@e.org")
@@ -186,7 +186,7 @@ func TestNewValidator_RemovedKey(t *testing.T) {
 	repo := repository.CreateTestRepo(false)
 	defer repository.CleanupTestRepos(repo)
 
-	backend, err := cache.NewRepoCache(repo)
+	backend, err := cache.NewRepoCache(repo, false)
 	require.NoError(t, err)
 
 	armoredPubkey := repository.SetupSigningKey(t, repo, "a@e.org")

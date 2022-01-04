@@ -81,11 +81,11 @@ type RepoCache struct {
 	commits  map[repository.Hash]*object.Commit
 }
 
-func NewRepoCache(r repository.ClockedRepo) (*RepoCache, error) {
-	return NewNamedRepoCache(r, "")
+func NewRepoCache(r repository.ClockedRepo, rebuild bool) (*RepoCache, error) {
+	return NewNamedRepoCache(r, rebuild, "")
 }
 
-func NewNamedRepoCache(r repository.ClockedRepo, name string) (*RepoCache, error) {
+func NewNamedRepoCache(r repository.ClockedRepo, rebuild bool, name string) (*RepoCache, error) {
 	c := &RepoCache{
 		repo:          r,
 		name:          name,
@@ -101,9 +101,11 @@ func NewNamedRepoCache(r repository.ClockedRepo, name string) (*RepoCache, error
 		return &RepoCache{}, err
 	}
 
-	err = c.load()
-	if err == nil {
-		return c, nil
+	if !rebuild {
+		err = c.load()
+		if err == nil {
+			return c, nil
+		}
 	}
 
 	// Cache is either missing, broken or outdated. Rebuilding.
