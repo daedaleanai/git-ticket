@@ -101,7 +101,7 @@ func NewNamedRepoCache(r repository.ClockedRepo, rebuild bool, name string) (*Re
 		return &RepoCache{}, err
 	}
 
-	if rebuild == false {
+	if !rebuild {
 		err = c.load()
 		if err == nil {
 			return c, nil
