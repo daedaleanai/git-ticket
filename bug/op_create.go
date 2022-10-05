@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
+
+	termtext "github.com/MichaelMure/go-term-text"
 
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
@@ -135,9 +136,9 @@ type CreateTimelineItem struct {
 }
 
 func (c CreateTimelineItem) String() string {
-	return fmt.Sprintf("(%s) %-20s: created ticket",
-		c.CreatedAt.Time().Format(time.RFC822),
-		c.Author.DisplayName())
+	return fmt.Sprintf("(%s) %s: created ticket",
+		c.CreatedAt.Time().Format("2006-01-02 15:04:05"),
+		termtext.LeftPadMaxLine(c.Author.DisplayName(), 15, 0))
 }
 
 // Sign post method for gqlgen

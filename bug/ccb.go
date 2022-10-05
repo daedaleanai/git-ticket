@@ -9,6 +9,7 @@ import (
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/repository"
+	"github.com/daedaleanai/git-ticket/util/colors"
 	"github.com/pkg/errors"
 )
 
@@ -31,6 +32,13 @@ type CcbInfo struct {
 	State  CcbState           // The state of the approval
 }
 
+// CcbInfoByStatus provides functions to fulfill the sort interface
+type CcbInfoByStatus []CcbInfo
+
+func (a CcbInfoByStatus) Len() int           { return len(a) }
+func (a CcbInfoByStatus) Less(i, j int) bool { return a[i].Status < a[j].Status }
+func (a CcbInfoByStatus) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
 // Stringify function for CcbState
 func (s CcbState) String() string {
 	switch s {
@@ -40,6 +48,22 @@ func (s CcbState) String() string {
 		return "Approved"
 	case BlockedCcbState:
 		return "Blocked"
+	case RemovedCcbState:
+		return "Removed"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// Colored strings function for CcbState
+func (s CcbState) ColorString() string {
+	switch s {
+	case AddedCcbState:
+		return colors.Blue("Added")
+	case ApprovedCcbState:
+		return colors.Green("Approved")
+	case BlockedCcbState:
+		return colors.Red("Blocked")
 	case RemovedCcbState:
 		return "Removed"
 	default:

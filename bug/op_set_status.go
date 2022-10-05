@@ -3,8 +3,8 @@ package bug
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
+	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/pkg/errors"
 
 	"github.com/daedaleanai/git-ticket/entity"
@@ -108,9 +108,9 @@ func (s SetStatusTimelineItem) When() timestamp.Timestamp {
 }
 
 func (s SetStatusTimelineItem) String() string {
-	return fmt.Sprintf("(%s) %-20s: %s",
-		s.UnixTime.Time().Format(time.RFC822),
-		s.Author.DisplayName(),
+	return fmt.Sprintf("(%s) %s: %s",
+		s.UnixTime.Time().Format("2006-01-02 15:04:05"),
+		termtext.LeftPadMaxLine(s.Author.DisplayName(), 15, 0),
 		s.Status.Action())
 }
 

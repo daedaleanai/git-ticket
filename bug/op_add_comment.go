@@ -3,7 +3,8 @@ package bug
 import (
 	"encoding/json"
 	"fmt"
-	"time"
+
+	termtext "github.com/MichaelMure/go-term-text"
 
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
@@ -116,10 +117,10 @@ type AddCommentTimelineItem struct {
 }
 
 func (a AddCommentTimelineItem) String() string {
-	return fmt.Sprintf("(%s) %-20s: commented \"%s\"",
-		a.CreatedAt.Time().Format(time.RFC822),
-		a.Author.DisplayName(),
-		a.Message)
+	return fmt.Sprintf("(%s) %s: commented \"%s\"",
+		a.CreatedAt.Time().Format("2006-01-02 15:04:05"),
+		termtext.LeftPadMaxLine(a.Author.DisplayName(), 15, 0),
+		termtext.LeftPadMaxLine(a.Message, 50, 0))
 }
 
 // Sign post method for gqlgen

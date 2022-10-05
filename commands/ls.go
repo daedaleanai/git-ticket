@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	termtext "github.com/MichaelMure/go-term-text"
 	text "github.com/MichaelMure/go-term-text"
 	"github.com/spf13/cobra"
 
@@ -220,10 +221,10 @@ func lsDefaultFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 		}
 
 		// truncate + pad if needed
-		labelsFmt := text.TruncateMax(labelsTxt.String(), 10)
-		titleFmt := text.LeftPadMaxLine(strings.TrimSpace(b.Title), 50-text.Len(labelsFmt), 0)
-		authorFmt := text.LeftPadMaxLine(authorName, 15, 0)
-		assigneeFmt := text.LeftPadMaxLine(assigneeName, 15, 0)
+		labelsFmt := termtext.TruncateMax(labelsTxt.String(), 10)
+		titleFmt := termtext.LeftPadMaxLine(strings.TrimSpace(b.Title), 50-termtext.Len(labelsFmt), 0)
+		authorFmt := termtext.LeftPadMaxLine(authorName, 15, 0)
+		assigneeFmt := termtext.LeftPadMaxLine(assigneeName, 15, 0)
 
 		comments := fmt.Sprintf("%4d 💬", b.LenComments)
 		if b.LenComments > 9999 {

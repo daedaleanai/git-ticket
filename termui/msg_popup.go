@@ -3,7 +3,7 @@ package termui
 import (
 	"fmt"
 
-	text "github.com/MichaelMure/go-term-text"
+	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/awesome-gocui/gocui"
 )
 
@@ -45,7 +45,7 @@ func (ep *msgPopup) layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 
 	width := minInt(60, maxX)
-	wrapped, lines := text.Wrap(ep.message, width-2)
+	wrapped, lines := termtext.Wrap(ep.message, width-2)
 	height := minInt(lines+1, maxY-3)
 	x0 := (maxX - width) / 2
 	y0 := (maxY - height) / 2

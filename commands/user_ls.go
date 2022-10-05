@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/spf13/cobra"
 
@@ -48,6 +49,8 @@ func runUserLs(env *Env, opts userLsOptions) error {
 		users = append(users, user)
 	}
 
+	sort.Sort(byDisplayName(users))
+
 	switch opts.format {
 	case "json":
 		return userLsJsonFormatter(env, users)
@@ -79,3 +82,9 @@ func userLsJsonFormatter(env *Env, users []*cache.IdentityExcerpt) error {
 	env.out.Printf("%s\n", jsonObject)
 	return nil
 }
+
+type byDisplayName []*cache.IdentityExcerpt
+
+func (a byDisplayName) Len() int           { return len(a) }
+func (a byDisplayName) Less(i, j int) bool { return a[i].DisplayName() < a[j].DisplayName() }
+func (a byDisplayName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }

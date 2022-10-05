@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	text "github.com/MichaelMure/go-term-text"
+	termtext "github.com/MichaelMure/go-term-text"
 
 	"github.com/daedaleanai/git-ticket/util/colors"
 )
@@ -21,7 +21,7 @@ func (hb helpBar) Render(maxX int) string {
 		builder.WriteByte(' ')
 	}
 
-	l := text.Len(builder.String())
+	l := termtext.Len(builder.String())
 	if l < maxX {
 		builder.WriteString(colors.BlueBg(strings.Repeat(" ", maxX-l)))
 	}

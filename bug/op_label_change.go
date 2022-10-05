@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
+	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/pkg/errors"
 
 	"github.com/daedaleanai/git-ticket/entity"
@@ -171,9 +171,9 @@ func (l LabelChangeTimelineItem) String() string {
 			output.WriteString("\"" + string(label) + "\" ")
 		}
 	}
-	return fmt.Sprintf("(%s) %-20s: %s",
-		l.UnixTime.Time().Format(time.RFC822),
-		l.Author.DisplayName(),
+	return fmt.Sprintf("(%s) %s: %s",
+		l.UnixTime.Time().Format("2006-01-02 15:04:05"),
+		termtext.LeftPadMaxLine(l.Author.DisplayName(), 15, 0),
 		output.String())
 }
 

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	text "github.com/MichaelMure/go-term-text"
+	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/awesome-gocui/gocui"
 
 	"github.com/daedaleanai/git-ticket/bug"
@@ -262,7 +262,7 @@ func (sb *showBug) renderMain(g *gocui.Gui, mainView *gocui.View) error {
 		snap.CreateTime.Format(timeLayout),
 		edited,
 	)
-	bugHeader, lines := text.Wrap(bugHeader, maxX, text.WrapIndent("   "))
+	bugHeader, lines := termtext.Wrap(bugHeader, maxX, termtext.WrapIndent("   "))
 
 	v, err := sb.createOpView(g, showBugHeaderView, x0, y0, maxX+1, lines, false)
 	if err != nil {
@@ -285,9 +285,9 @@ func (sb *showBug) renderMain(g *gocui.Gui, mainView *gocui.View) error {
 			var lines int
 
 			if op.MessageIsEmpty() {
-				content, lines = text.WrapLeftPadded(emptyMessagePlaceholder(), maxX-1, 4)
+				content, lines = termtext.WrapLeftPadded(emptyMessagePlaceholder(), maxX-1, 4)
 			} else {
-				content, lines = text.WrapLeftPadded(op.Message, maxX-1, 4)
+				content, lines = termtext.WrapLeftPadded(op.Message, maxX-1, 4)
 			}
 
 			v, err := sb.createOpView(g, viewName, x0, y0, maxX+1, lines, true)
@@ -305,9 +305,9 @@ func (sb *showBug) renderMain(g *gocui.Gui, mainView *gocui.View) error {
 
 			var message string
 			if op.MessageIsEmpty() {
-				message, _ = text.WrapLeftPadded(emptyMessagePlaceholder(), maxX-1, 4)
+				message, _ = termtext.WrapLeftPadded(emptyMessagePlaceholder(), maxX-1, 4)
 			} else {
-				message, _ = text.WrapLeftPadded(op.Message, maxX-1, 4)
+				message, _ = termtext.WrapLeftPadded(op.Message, maxX-1, 4)
 			}
 
 			content := fmt.Sprintf("%s commented on %s%s\n\n%s",
@@ -316,7 +316,7 @@ func (sb *showBug) renderMain(g *gocui.Gui, mainView *gocui.View) error {
 				edited,
 				message,
 			)
-			content, lines = text.Wrap(content, maxX)
+			content, lines = termtext.Wrap(content, maxX)
 
 			v, err := sb.createOpView(g, viewName, x0, y0, maxX+1, lines, true)
 			if err != nil {
@@ -331,7 +331,7 @@ func (sb *showBug) renderMain(g *gocui.Gui, mainView *gocui.View) error {
 				colors.Bold(op.Title),
 				op.UnixTime.Time().Format(timeLayout),
 			)
-			content, lines := text.Wrap(content, maxX)
+			content, lines := termtext.Wrap(content, maxX)
 
 			v, err := sb.createOpView(g, viewName, x0, y0, maxX+1, lines, true)
 			if err != nil {
@@ -346,7 +346,7 @@ func (sb *showBug) renderMain(g *gocui.Gui, mainView *gocui.View) error {
 				colors.Bold(op.Status.Action()),
 				op.UnixTime.Time().Format(timeLayout),
 			)
-			content, lines := text.Wrap(content, maxX)
+			content, lines := termtext.Wrap(content, maxX)
 
 			v, err := sb.createOpView(g, viewName, x0, y0, maxX+1, lines, true)
 			if err != nil {
@@ -393,7 +393,7 @@ func (sb *showBug) renderMain(g *gocui.Gui, mainView *gocui.View) error {
 				action.String(),
 				op.UnixTime.Time().Format(timeLayout),
 			)
-			content, lines := text.Wrap(content, maxX)
+			content, lines := termtext.Wrap(content, maxX)
 
 			v, err := sb.createOpView(g, viewName, x0, y0, maxX+1, lines, true)
 			if err != nil {
@@ -408,7 +408,7 @@ func (sb *showBug) renderMain(g *gocui.Gui, mainView *gocui.View) error {
 				colors.Bold(op.Checklist.Title),
 				op.UnixTime.Time().Format(timeLayout),
 			)
-			content, lines := text.Wrap(content, maxX)
+			content, lines := termtext.Wrap(content, maxX)
 
 			v, err := sb.createOpView(g, viewName, x0, y0, maxX+1, lines, true)
 			if err != nil {
@@ -481,7 +481,7 @@ func (sb *showBug) renderSidebar(g *gocui.Gui, sideView *gocui.View) error {
 	}
 
 	labels := strings.Join(labelStr, "\n")
-	labels, lines := text.WrapLeftPadded(labels, maxX, 2)
+	labels, lines := termtext.WrapLeftPadded(labels, maxX, 2)
 
 	content := fmt.Sprintf("%s\n\n%s", colors.Bold("  Labels"), labels)
 
