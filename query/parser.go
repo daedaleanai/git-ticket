@@ -26,6 +26,10 @@ func Parse(query string) (*Query, error) {
 	for _, t := range tokens {
 		switch t.qualifier {
 		case "status", "state":
+			if t.value == "ALL" {
+				q.Status = bug.AllStatuses()
+				continue
+			}
 			status, err := bug.StatusFromString(t.value)
 			if err != nil {
 				return nil, err
