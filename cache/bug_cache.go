@@ -277,7 +277,7 @@ func (c *BugCache) SetReview(review *bug.ReviewInfo) (*bug.SetReviewOperation, e
 	for i, t := range review.Updates {
 		user, err := c.repoCache.ResolveIdentityPhabID(t.PhabUser)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%s: %s", err, t.PhabUser)
 		}
 		review.Updates[i].Author = user.Identity
 	}

@@ -57,7 +57,7 @@ func runReviewFetch(env *Env, args []string) error {
 
 	review, err := bug.FetchReviewInfo(diffId, lastUpdate)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to fetch review info: %s", err)
 	}
 
 	if len(review.Updates) == 0 {
@@ -67,7 +67,7 @@ func runReviewFetch(env *Env, args []string) error {
 
 	_, err = b.SetReview(review)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to store review info: %s", err)
 	}
 
 	return b.Commit()
