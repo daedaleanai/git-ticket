@@ -17,10 +17,11 @@ const (
 	AcceptedStatus
 	MergedStatus
 	DoneStatus
+	RejectedStatus
 )
 
 const FirstStatus = ProposedStatus
-const LastStatus = DoneStatus
+const LastStatus = RejectedStatus
 const NumStatuses = 8
 
 func (s Status) String() string {
@@ -41,6 +42,8 @@ func (s Status) String() string {
 		return "merged"
 	case DoneStatus:
 		return "done"
+	case RejectedStatus:
+		return "rejected"
 	default:
 		return "unknown status"
 	}
@@ -64,6 +67,8 @@ func (s Status) Action() string {
 		return "set MERGED"
 	case DoneStatus:
 		return "set DONE"
+	case RejectedStatus:
+		return "set REJECTED"
 	default:
 		return "unknown status"
 	}
@@ -89,6 +94,8 @@ func StatusFromString(str string) (Status, error) {
 		return MergedStatus, nil
 	case "done":
 		return DoneStatus, nil
+	case "rejected":
+		return RejectedStatus, nil
 	default:
 		return 0, fmt.Errorf("unknown status: %s", cleaned)
 	}

@@ -9,16 +9,16 @@ import (
 var testWorkflow = Workflow{label: "workflow:test",
 	initialState: ProposedStatus,
 	transitions: []Transition{
-		Transition{start: ProposedStatus, end: VettedStatus, hook: "echo TEST transitioning from proposed to vetted"},
-		Transition{start: VettedStatus, end: ProposedStatus},
-		Transition{start: VettedStatus, end: InProgressStatus},
-		Transition{start: InProgressStatus, end: InReviewStatus},
-		Transition{start: InReviewStatus, end: InProgressStatus, hook: "true"},
-		Transition{start: InReviewStatus, end: ReviewedStatus},
-		Transition{start: ReviewedStatus, end: AcceptedStatus},
-		Transition{start: AcceptedStatus, end: MergedStatus},
-		Transition{start: MergedStatus, end: AcceptedStatus, hook: "false"},
-		Transition{start: MergedStatus, end: DoneStatus},
+		{start: ProposedStatus, end: VettedStatus, hook: "echo TEST transitioning from proposed to vetted"},
+		{start: VettedStatus, end: ProposedStatus},
+		{start: VettedStatus, end: InProgressStatus},
+		{start: InProgressStatus, end: InReviewStatus},
+		{start: InReviewStatus, end: InProgressStatus, hook: "true"},
+		{start: InReviewStatus, end: ReviewedStatus},
+		{start: ReviewedStatus, end: AcceptedStatus},
+		{start: AcceptedStatus, end: MergedStatus},
+		{start: MergedStatus, end: AcceptedStatus, hook: "false"},
+		{start: MergedStatus, end: DoneStatus},
 	},
 }
 
@@ -48,6 +48,7 @@ func TestWorkflow_NextStatuses(t *testing.T) {
 		{MergedStatus},                     // from AcceptedStatus
 		{AcceptedStatus, DoneStatus},       // from MergedStatus
 		nil,                                // from DoneStatus
+		nil,                                // from RejectedStatus
 	}
 
 	for currentStatus := FirstStatus; currentStatus <= LastStatus; currentStatus++ {
@@ -71,6 +72,7 @@ func TestWorkflow_ValidateTransition(t *testing.T) {
 		{MergedStatus},                     // from AcceptedStatus
 		{DoneStatus},                       // from MergedStatus
 		nil,                                // from DoneStatus
+		nil,                                // from RejectedStatus
 	}
 
 	// Test validation of state transition
