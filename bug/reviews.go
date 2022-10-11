@@ -8,10 +8,12 @@ import (
 	"strings"
 	"time"
 
+	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/thought-machine/gonduit/requests"
 
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/repository"
+	"github.com/daedaleanai/git-ticket/util/colors"
 )
 
 type TransactionType int
@@ -71,19 +73,12 @@ const RemoveReviewInfo = "-1"
 // comment the file & line details, on a single line. Comments over 50 characters
 // are truncated.
 func (c PhabTransaction) OneLineComment() string {
-	var output string
-
 	if c.Type != CommentTransaction {
 		return ""
 	}
 
 	// Put the comment on one line and output the first 50 characters
-	oneLineText := strings.ReplaceAll(c.Text, "\n", " ")
-	if len(oneLineText) > 50 {
-		output = fmt.Sprintf("%.47s...", oneLineText)
-	} else {
-		output = fmt.Sprintf("%-50s", oneLineText)
-	}
+	output := termtext.LeftPadMaxLine(strings.ReplaceAll(c.Text, "\n", " "), 50, 0)
 
 	// If it's an inline comment append the file and line number
 	if c.Path != "" {
@@ -129,7 +124,11 @@ func (r ReviewInfo) LatestOverallStatus() string {
 		}
 	}
 
-	return ls.Status
+	if ls.Status == "accepted" {
+		return colors.Green("accepted")
+	} else {
+		return ls.Status
+	}
 }
 
 // LatestUserStatuses returns a map of users and the latest status they set for

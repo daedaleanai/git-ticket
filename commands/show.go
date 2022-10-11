@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
+	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/spf13/cobra"
 
 	"github.com/daedaleanai/git-ticket/bug"
@@ -113,7 +115,7 @@ func runShow(env *Env, opts showOptions, args []string) error {
 
 				// The statuses
 				for _, s := range r.LatestUserStatuses() {
-					env.out.Printf("(%s) %-20s: %s\n", time.Unix(s.Timestamp, 0).Format(time.RFC822), s.Author.DisplayName(), s.Status)
+					env.out.Printf("(%s) %s: %s\n", time.Unix(s.Timestamp, 0).Format("2006-01-02 15:04:05"), termtext.LeftPadMaxLine(s.Author.DisplayName(), 15, 0), s.Status)
 				}
 
 				// Output all the comments
@@ -123,7 +125,7 @@ func runShow(env *Env, opts showOptions, args []string) error {
 					if c.Type != bug.CommentTransaction {
 						continue
 					}
-					env.out.Printf("(%s) %-20s: %s\n", time.Unix(c.Timestamp, 0).Format(time.RFC822), c.Author.DisplayName(), c.OneLineComment())
+					env.out.Printf("(%s) %s: %s\n", time.Unix(c.Timestamp, 0).Format("2006-01-02 15:04:05"), termtext.LeftPadMaxLine(c.Author.DisplayName(), 15, 0), c.OneLineComment())
 				}
 			}
 		case "labels":
@@ -139,19 +141,7 @@ func runShow(env *Env, opts showOptions, args []string) error {
 				env.out.Printf("%s\n", p.DisplayName())
 			}
 		case "ccb":
-			// first map all states by user
-			ccbUserMap := make(map[string][]bug.CcbInfo)
-			for _, c := range snap.Ccb {
-				ccbUserMap[c.User.DisplayName()] = append(ccbUserMap[c.User.DisplayName()], c)
-			}
-			// for each user construct a list of status/states and output
-			for user, states := range ccbUserMap {
-				stateStrings := make([]string, len(states))
-				for i, s := range states {
-					stateStrings[i] = fmt.Sprintf("%s:%s", s.Status, s.State)
-				}
-				env.out.Printf("%s (%s)\n", user, strings.Join(stateStrings, ", "))
-			}
+			env.out.Printf("%s\n", strings.Join(ccbSummary(snap), "\n"))
 		case "shortId":
 			env.out.Printf("%s\n", snap.Id().Human())
 		case "status":
@@ -175,6 +165,29 @@ func runShow(env *Env, opts showOptions, args []string) error {
 	default:
 		return fmt.Errorf("unknown format %s", opts.format)
 	}
+}
+
+func ccbSummary(snap *bug.Snapshot) []string {
+	// first map all states by user
+	ccbUserMap := make(map[string][]bug.CcbInfo)
+
+	for _, c := range snap.Ccb {
+		ccbUserMap[c.User.DisplayName()] = append(ccbUserMap[c.User.DisplayName()], c)
+	}
+
+	// for each user construct a list of status/states
+	var ccbStrings []string
+	for user, states := range ccbUserMap {
+		sort.Sort(bug.CcbInfoByStatus(states))
+		stateStrings := make([]string, len(states))
+		for i, s := range states {
+			stateStrings[i] = fmt.Sprintf("%s:%s", s.Status, s.State.ColorString())
+		}
+		ccbStrings = append(ccbStrings, fmt.Sprintf("%s (%s)", user, strings.Join(stateStrings, ", ")))
+	}
+
+	sort.Strings(ccbStrings)
+	return ccbStrings
 }
 
 func workflowAndLabels(snap *bug.Snapshot) (string, []string) {
@@ -209,11 +222,11 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 
 	env.out.Printf("%s opened this issue %s\n",
 		colors.Magenta(snapshot.Author.DisplayName()),
-		snapshot.CreateTime.String(),
+		snapshot.CreateTime.Format("2006-01-02 15:04:05"),
 	)
 
 	env.out.Printf("This was last edited at %s\n\n",
-		snapshot.EditTime().String(),
+		snapshot.EditTime().Format("2006-01-02 15:04:05"),
 	)
 
 	// Workflow
@@ -221,24 +234,7 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 	env.out.Printf("workflow: %s\n", workflow)
 
 	// CCB
-	// first map all states by user
-	ccbUserMap := make(map[string][]bug.CcbInfo)
-	for _, c := range snapshot.Ccb {
-		ccbUserMap[c.User.DisplayName()] = append(ccbUserMap[c.User.DisplayName()], c)
-	}
-	// for each user construct a list of status/states
-	var ccbStrings []string
-	for user, states := range ccbUserMap {
-		stateStrings := make([]string, len(states))
-		for i, s := range states {
-			stateStrings[i] = fmt.Sprintf("%s:%s", s.Status, s.State)
-		}
-		ccbStrings = append(ccbStrings, fmt.Sprintf("%s (%s)", user, strings.Join(stateStrings, ", ")))
-	}
-
-	env.out.Printf("ccb: %s\n",
-		strings.Join(ccbStrings, ", "),
-	)
+	env.out.Printf("ccb: %s\n", strings.Join(ccbSummary(snapshot), ", "))
 
 	// Checklists
 	var checklistStates []string
@@ -251,6 +247,7 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 
 		checklistStates = append(checklistStates, fmt.Sprintf("%s (%s)", cl.Title, st.ColorString()))
 	}
+	sort.Strings(checklistStates)
 	env.out.Printf("checklists: %s\n", strings.Join(checklistStates, ", "))
 
 	// Reviews
@@ -258,6 +255,7 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 	for _, review := range snapshot.Reviews {
 		reviewStates = append(reviewStates, fmt.Sprintf("%s (%s)", review.RevisionId, review.LatestOverallStatus()))
 	}
+	sort.Strings(reviewStates)
 	env.out.Printf("reviews: %s\n", strings.Join(reviewStates, ", "))
 
 	// Labels

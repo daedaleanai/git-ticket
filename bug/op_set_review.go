@@ -6,7 +6,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
+
+	termtext "github.com/MichaelMure/go-term-text"
 
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
@@ -185,9 +186,9 @@ func (s SetReviewTimelineItem) String() string {
 		output.WriteString("[1 comment] ")
 	}
 
-	return fmt.Sprintf("(%s) %-20s: updated revision %s %s",
-		s.UnixTime.Time().Format(time.RFC822),
-		s.Author.DisplayName(),
+	return fmt.Sprintf("(%s) %s: updated revision %s %s",
+		s.UnixTime.Time().Format("2006-01-02 15:04:05"),
+		termtext.LeftPadMaxLine(s.Author.DisplayName(), 15, 0),
 		s.Review.RevisionId,
 		output.String())
 }

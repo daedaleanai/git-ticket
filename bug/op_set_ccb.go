@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
+
+	termtext "github.com/MichaelMure/go-term-text"
 
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
@@ -168,9 +169,9 @@ func (s SetCcbTimelineItem) String() string {
 	case BlockedCcbState:
 		output.WriteString("blocked ticket status " + s.Ccb.Status.String())
 	}
-	return fmt.Sprintf("(%s) %-20s: %s",
-		s.UnixTime.Time().Format(time.RFC822),
-		s.Author.DisplayName(),
+	return fmt.Sprintf("(%s) %s: %s",
+		s.UnixTime.Time().Format("2006-01-02 15:04:05"),
+		termtext.LeftPadMaxLine(s.Author.DisplayName(), 15, 0),
 		output.String())
 }
 

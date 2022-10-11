@@ -1,7 +1,7 @@
 package commands
 
 import (
-	text "github.com/MichaelMure/go-term-text"
+	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/spf13/cobra"
 
 	_select "github.com/daedaleanai/git-ticket/commands/select"
@@ -42,7 +42,7 @@ func runComment(env *Env, args []string) error {
 		env.out.Printf("Author: %s\n", colors.Magenta(comment.Author.DisplayName()))
 		env.out.Printf("Id: %s\n", colors.Cyan(comment.Id().Human()))
 		env.out.Printf("Date: %s\n\n", comment.FormatTime())
-		env.out.Println(text.LeftPadLines(comment.Message, 4))
+		env.out.Println(termtext.LeftPadLines(comment.Message, 4))
 	}
 
 	return nil

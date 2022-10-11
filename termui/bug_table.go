@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	text "github.com/MichaelMure/go-term-text"
+	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/awesome-gocui/gocui"
 	"github.com/dustin/go-humanize"
 
@@ -327,13 +327,13 @@ func (bt *bugTable) render(v *gocui.View, maxX int) {
 
 		lastEditTime := excerpt.EditTime()
 
-		id := text.LeftPadMaxLine(excerpt.Id.Human(), columnWidths["id"], 0)
-		status := text.LeftPadMaxLine(excerpt.Status.String(), columnWidths["status"], 0)
-		labels := text.TruncateMax(labelsTxt.String(), minInt(columnWidths["title"]-2, 10))
-		title := text.LeftPadMaxLine(strings.TrimSpace(excerpt.Title), columnWidths["title"]-text.Len(labels), 0)
-		author := text.LeftPadMaxLine(authorDisplayName, columnWidths["author"], 0)
-		comments := text.LeftPadMaxLine(summaryTxt, columnWidths["comments"], 0)
-		lastEdit := text.LeftPadMaxLine(humanize.Time(lastEditTime), columnWidths["lastEdit"], 1)
+		id := termtext.LeftPadMaxLine(excerpt.Id.Human(), columnWidths["id"], 0)
+		status := termtext.LeftPadMaxLine(excerpt.Status.String(), columnWidths["status"], 0)
+		labels := termtext.TruncateMax(labelsTxt.String(), minInt(columnWidths["title"]-2, 10))
+		title := termtext.LeftPadMaxLine(strings.TrimSpace(excerpt.Title), columnWidths["title"]-termtext.Len(labels), 0)
+		author := termtext.LeftPadMaxLine(authorDisplayName, columnWidths["author"], 0)
+		comments := termtext.LeftPadMaxLine(summaryTxt, columnWidths["comments"], 0)
+		lastEdit := termtext.LeftPadMaxLine(humanize.Time(lastEditTime), columnWidths["lastEdit"], 1)
 
 		_, _ = fmt.Fprintf(v, "%s %s %s%s %s %s %s\n",
 			colors.Cyan(id),
@@ -352,12 +352,12 @@ func (bt *bugTable) render(v *gocui.View, maxX int) {
 func (bt *bugTable) renderHeader(v *gocui.View, maxX int) {
 	columnWidths := bt.getColumnWidths(maxX)
 
-	id := text.LeftPadMaxLine("ID", columnWidths["id"], 0)
-	status := text.LeftPadMaxLine("STATUS", columnWidths["status"], 0)
-	title := text.LeftPadMaxLine("TITLE", columnWidths["title"], 0)
-	author := text.LeftPadMaxLine("AUTHOR", columnWidths["author"], 0)
-	comments := text.LeftPadMaxLine("CMT", columnWidths["comments"], 0)
-	lastEdit := text.LeftPadMaxLine("LAST EDIT", columnWidths["lastEdit"], 1)
+	id := termtext.LeftPadMaxLine("ID", columnWidths["id"], 0)
+	status := termtext.LeftPadMaxLine("STATUS", columnWidths["status"], 0)
+	title := termtext.LeftPadMaxLine("TITLE", columnWidths["title"], 0)
+	author := termtext.LeftPadMaxLine("AUTHOR", columnWidths["author"], 0)
+	comments := termtext.LeftPadMaxLine("CMT", columnWidths["comments"], 0)
+	lastEdit := termtext.LeftPadMaxLine("LAST EDIT", columnWidths["lastEdit"], 1)
 
 	_, _ = fmt.Fprintf(v, "%s %s %s %s %s %s\n", id, status, title, author, comments, lastEdit)
 }
