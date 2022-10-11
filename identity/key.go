@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/openpgp/armor"
@@ -109,6 +110,10 @@ func (k Key) Armored() string {
 
 func (k Key) Fingerprint() string {
 	return encodeKeyFingerprint(k.PublicKey().Fingerprint)
+}
+
+func (k Key) CreationTime() time.Time {
+	return k.PublicKey().CreationTime
 }
 
 func parsePublicKey(armoredPublicKey string) (*packet.PublicKey, error) {
