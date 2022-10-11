@@ -34,7 +34,7 @@ func newLsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ls [QUERY]",
 		Short: "List tickets.",
-		Long: `Display a summary of each ticket.
+		Long: `Display a summary of each ticket. By default shows only "active" tickets, i.e. In Progress, In Review, Reviewed and Accepted.
 
 You can pass an additional query to filter and order the list. This query can be expressed either with a simple query language or with flags.`,
 		Example: `List vetted tickets sorted by last edition with a query:
@@ -54,7 +54,7 @@ git ticket ls --status merged --by creation
 	flags.SortFlags = false
 
 	flags.StringSliceVarP(&options.statusQuery, "status", "s", nil,
-		"Filter by status. Valid values are [open,closed]")
+		"Filter by status. Valid values are [proposed,vetted,inprogress,inreview,reviewed,accepted,merged,done,rejected,ALL]")
 	flags.StringSliceVarP(&options.query.Author, "author", "a", nil,
 		"Filter by author")
 	flags.StringSliceVarP(&options.query.Participant, "participant", "p", nil,
@@ -84,17 +84,22 @@ func runLs(env *Env, opts lsOptions, args []string) error {
 	var err error
 
 	if len(args) >= 1 {
+		// construct filter from query language
 		q, err = query.Parse(strings.Join(args, " "))
 
 		if err != nil {
 			return err
 		}
 	} else {
+		// construct filter from flags
 		err = completeQuery(&opts)
 		if err != nil {
 			return err
 		}
 		q = &opts.query
+	}
+	if len(q.Status) == 0 {
+		q.Status = bug.ActiveStatuses()
 	}
 
 	allIds := env.backend.QueryBugs(q)
@@ -338,6 +343,10 @@ func lsOrgmodeFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 // Finish the command flags transformation into the query.Query
 func completeQuery(opts *lsOptions) error {
 	for _, str := range opts.statusQuery {
+		if strings.EqualFold(str, "ALL") {
+			opts.query.Status = bug.AllStatuses()
+			break
+		}
 		status, err := bug.StatusFromString(str)
 		if err != nil {
 			return err

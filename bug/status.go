@@ -24,6 +24,13 @@ const FirstStatus = ProposedStatus
 const LastStatus = RejectedStatus
 const NumStatuses = 8
 
+func ActiveStatuses() []Status {
+	return []Status{InProgressStatus, InReviewStatus, ReviewedStatus, AcceptedStatus}
+}
+func AllStatuses() []Status {
+	return []Status{ProposedStatus, VettedStatus, InProgressStatus, InReviewStatus, ReviewedStatus, AcceptedStatus, MergedStatus, DoneStatus, RejectedStatus}
+}
+
 func (s Status) String() string {
 	switch s {
 	case ProposedStatus:
