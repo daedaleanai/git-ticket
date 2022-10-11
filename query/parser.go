@@ -2,6 +2,7 @@ package query
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/daedaleanai/git-ticket/bug"
 )
@@ -26,7 +27,7 @@ func Parse(query string) (*Query, error) {
 	for _, t := range tokens {
 		switch t.qualifier {
 		case "status", "state":
-			if t.value == "ALL" {
+			if strings.EqualFold(t.value, "ALL") {
 				q.Status = bug.AllStatuses()
 				continue
 			}

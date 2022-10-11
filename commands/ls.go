@@ -342,7 +342,7 @@ func lsOrgmodeFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 // Finish the command flags transformation into the query.Query
 func completeQuery(opts *lsOptions) error {
 	for _, str := range opts.statusQuery {
-		if str == "ALL" {
+		if strings.EqualFold(str, "ALL") {
 			opts.query.Status = bug.AllStatuses()
 			break
 		}
