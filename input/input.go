@@ -270,8 +270,10 @@ func ChecklistEditorInput(repo repository.RepoCommon, checklist bug.Checklist) (
 		template = template + fmt.Sprintf("#\n#### %s ####\n#\n", s.Title)
 		for qn, q := range s.Questions {
 			template = template + fmt.Sprintf("# %d.%d : %s\n", sn+1, qn+1, q.Question)
-			template = template + fmt.Sprintf("%s\n", q.Comment)
-			template = template + fmt.Sprintf("[%s]\n", q.State.ShortString())
+			if len(strings.TrimSpace(q.Comment)) != 0 {
+				template = template + fmt.Sprintf("%s\n", q.Comment)
+			}
+			template = template + fmt.Sprintf("[%s]\n\n", q.State.ShortString())
 		}
 	}
 
@@ -299,6 +301,10 @@ func ChecklistEditorInput(repo repository.RepoCommon, checklist bug.Checklist) (
 
 	for l, line := range lines {
 		if !inComment {
+			if len(strings.TrimSpace(line)) == 0 {
+				continue
+			}
+
 			if questionSearch.MatchString(line) {
 				// check question number and reset comment
 				matches := questionSearch.FindStringSubmatch(line)
