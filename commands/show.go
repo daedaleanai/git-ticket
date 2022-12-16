@@ -20,6 +20,7 @@ type showOptions struct {
 	fields   string
 	format   string
 	timeline bool
+	since    string
 }
 
 func newShowCommand() *cobra.Command {
@@ -42,9 +43,11 @@ func newShowCommand() *cobra.Command {
 	flags.BoolVarP(&options.timeline, "timeline", "t", false,
 		"Output the timeline of the ticket")
 	flags.StringVarP(&options.fields, "field", "", "",
-		"Select field to display. Valid values are [assignee,author,authorEmail,ccb,checklists,createTime,lastEdit,humanId,id,labels,reviews,shortId,status,title,workflow,actors,participants]")
+		"Select field to display. Valid values are [assignee,author,authorEmail,ccb,checklists,createTime,lastEdit,humanId,id,labels,reviews,shortId,status,nextStatuses,title,workflow,actors,participants]")
 	flags.StringVarP(&options.format, "format", "f", "default",
 		"Select the output formatting style. Valid values are [default,json,org-mode]")
+	flags.StringVarP(&options.since, "since", "s", "",
+		"Limit the timeline to changes since the given date/time. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd")
 
 	return cmd
 }
@@ -58,8 +61,17 @@ func runShow(env *Env, opts showOptions, args []string) error {
 	snap := b.Snapshot()
 
 	if opts.timeline {
+		var since time.Time
+		if opts.since != "" {
+			since, err = parseTime(opts.since)
+			if err != nil {
+				return err
+			}
+		}
 		for _, op := range snap.Timeline {
-			env.out.Println(op)
+			if op.When().Time().After(since) {
+				env.out.Println(op)
+			}
 		}
 
 		return nil
@@ -141,11 +153,20 @@ func runShow(env *Env, opts showOptions, args []string) error {
 				env.out.Printf("%s\n", p.DisplayName())
 			}
 		case "ccb":
-			env.out.Printf("%s\n", strings.Join(ccbSummary(snap), "\n"))
+			if ccbState := ccbSummary(snap); ccbState != nil {
+				env.out.Printf("%s\n", strings.Join(ccbState, "\n"))
+			}
 		case "shortId":
 			env.out.Printf("%s\n", snap.Id().Human())
 		case "status":
 			env.out.Printf("%s\n", snap.Status)
+		case "nextStatuses":
+			validStatuses, err := snap.NextStatuses()
+			if err == nil && validStatuses != nil {
+				for _, s := range validStatuses {
+					env.out.Println(s)
+				}
+			}
 		case "title":
 			env.out.Printf("%s\n", snap.Title)
 		default:
@@ -308,6 +329,18 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 	}
 
 	return nil
+}
+
+func parseTime(input string) (time.Time, error) {
+	var formats = []string{"2006-01-02T15:04:05", "2006-01-02"}
+
+	for _, format := range formats {
+		t, err := time.ParseInLocation(format, input, time.Local)
+		if err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, errors.New("Unrecognized time format")
 }
 
 type JSONBugSnapshot struct {

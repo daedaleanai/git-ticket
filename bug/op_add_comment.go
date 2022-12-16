@@ -120,7 +120,7 @@ func (a AddCommentTimelineItem) String() string {
 	return fmt.Sprintf("(%s) %s: commented \"%s\"",
 		a.CreatedAt.Time().Format("2006-01-02 15:04:05"),
 		termtext.LeftPadMaxLine(a.Author.DisplayName(), 15, 0),
-		termtext.LeftPadMaxLine(a.Message, 50, 0))
+		a.Message)
 }
 
 // Sign post method for gqlgen
