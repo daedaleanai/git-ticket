@@ -10,9 +10,9 @@ func newUserEditCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "edit USER-ID",
+		Use:      "edit [<username/id>]",
 		Short:    "Edit a user identity.",
-		PreRunE:  loadBackendEnsureUser(env),
+		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),
 		Args:     cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

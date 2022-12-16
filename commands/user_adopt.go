@@ -8,7 +8,7 @@ func newUserAdoptCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "adopt USER-ID",
+		Use:      "adopt <username/id>",
 		Short:    "Adopt an existing identity as your own.",
 		Args:     cobra.ExactArgs(1),
 		PreRunE:  loadBackend(env),
@@ -22,9 +22,7 @@ func newUserAdoptCommand() *cobra.Command {
 }
 
 func runUserAdopt(env *Env, args []string) error {
-	prefix := args[0]
-
-	i, err := env.backend.ResolveIdentityPrefix(prefix)
+	i, args, err := ResolveUser(env.backend, args)
 	if err != nil {
 		return err
 	}
