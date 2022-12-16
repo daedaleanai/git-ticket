@@ -104,6 +104,12 @@ type Repo interface {
 	// ListCommits will return the list of tree hashes of a ref, in chronological order
 	ListCommits(ref string) ([]Hash, error)
 
+	// CommitsBetween will return the commits reachable from 'after' which are not reachable from 'before'
+	CommitsBetween(beforeRef, afterRef string) ([]Hash, error)
+
+	// LastCommit will return the latest commit hash of a ref
+	LastCommit(ref string) (Hash, error)
+
 	// CommitObject return a Commit with the given hash. If not found
 	// plumbing.ErrObjectNotFound is returned.
 	CommitObject(h plumbing.Hash) (*object.Commit, error)

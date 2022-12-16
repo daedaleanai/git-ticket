@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/daedaleanai/git-ticket/config"
 	"github.com/pkg/errors"
@@ -138,6 +139,80 @@ func (c *RepoCache) MergeAll(remote string) <-chan entity.MergeResult {
 	}()
 
 	return out
+}
+
+// RefreshResult holds the state of each if that was updated
+type RefreshResult struct {
+	Id   entity.Id
+	From time.Time
+	To   time.Time
+}
+
+// RefreshCache synchronizes the local cache with the bugs and identity commits
+func (c *RepoCache) RefreshCache() ([]RefreshResult, error) {
+	var results []RefreshResult
+
+	// Bugs. Compare the last edit time of each bug in cache with the last edit time of
+	// the bug in the repo. Refresh the cache if it's out of date.
+	localBugIds, err := bug.ListLocalIds(c.repo)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, bugId := range localBugIds {
+		updateCache := false
+		result := RefreshResult{Id: bugId}
+
+		cachedBug, present := c.bugExcerpts[bugId]
+		if !present {
+			// local bug not in the cache!
+			updateCache = true
+		} else {
+			localBugEditTime, err := bug.PeakLocalBugEditTime(c.repo, bugId)
+			if err != nil {
+				return nil, err
+			}
+
+			if cachedBug.EditTime().Before(localBugEditTime) {
+				// local bug has been updated!
+				result.From = cachedBug.EditTime()
+				result.To = localBugEditTime
+				updateCache = true
+			}
+		}
+
+		if updateCache {
+			bug, err := bug.ReadLocalBug(c.repo, bugId)
+			if err != nil {
+				return nil, err
+			}
+
+			snap := bug.Compile()
+			c.muBug.Lock()
+			c.bugExcerpts[bugId] = NewBugExcerpt(bug, &snap)
+			c.muBug.Unlock()
+
+			results = append(results, result)
+		}
+	}
+
+	// Identities. Nothing clever, just load all the identities again into cache.
+	// Note, if at some point this takes too long then the Identity Excerpts need to be
+	// updated to include the last edit time, then we could so something clever like with
+	// the bugs.
+	for i := range identity.ReadAllLocalIdentities(c.repo) {
+		if i.Err != nil {
+			return nil, i.Err
+		}
+
+		c.muIdentity.Lock()
+		c.identitiesExcerpts[i.Identity.Id()] = NewIdentityExcerpt(i.Identity)
+		c.muIdentity.Unlock()
+	}
+
+	err = c.write()
+
+	return results, err
 }
 
 // UpdateConfigs will update all the configs from the remote

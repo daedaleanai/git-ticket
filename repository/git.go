@@ -414,6 +414,37 @@ func (repo *GitRepo) ListCommits(ref string) ([]Hash, error) {
 
 }
 
+// CommitsBetween will return the commits reachable from 'after' which are not reachable from 'before'
+func (repo *GitRepo) CommitsBetween(beforeRef, afterRef string) ([]Hash, error) {
+	stdout, err := repo.runGitCommand("rev-list", "^"+beforeRef, afterRef)
+	if err != nil {
+		return nil, err
+	}
+	if stdout == "" {
+		return nil, nil
+	}
+
+	split := strings.Split(stdout, "\n")
+
+	casted := make([]Hash, len(split))
+	for i, line := range split {
+		casted[i] = Hash(line)
+	}
+
+	return casted, nil
+}
+
+// LastCommit will return the latest commit hash of a ref
+func (repo *GitRepo) LastCommit(ref string) (Hash, error) {
+	stdout, err := repo.runGitCommand("rev-list", "-1", ref)
+
+	if err != nil {
+		return "", err
+	}
+
+	return Hash(stdout), nil
+}
+
 // ReadTree will return the list of entries in a Git tree
 func (repo *GitRepo) ReadTree(hash Hash) ([]TreeEntry, error) {
 	stdout, err := repo.runGitCommand("ls-tree", string(hash))

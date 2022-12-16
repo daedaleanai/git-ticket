@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -100,6 +101,50 @@ func FindLocalBug(repo repository.ClockedRepo, prefix string) (*Bug, error) {
 	}
 
 	return ReadLocalBug(repo, matching[0])
+}
+
+// PeakLocalBugEditTime will read the latest edit time of a bug without loading it
+func PeakLocalBugEditTime(repo repository.ClockedRepo, id entity.Id) (time.Time, error) {
+	if err := id.Validate(); err != nil {
+		return time.Time{}, errors.Wrap(err, "invalid ref ")
+	}
+
+	lastHash, err := repo.LastCommit(bugsRefPattern + id.String())
+	if err != nil {
+		return time.Time{}, ErrBugNotExist
+	}
+
+	entries, err := repo.ReadTree(lastHash)
+	if err != nil {
+		return time.Time{}, errors.Wrap(err, "can't list git tree entries")
+	}
+
+	var opsEntry repository.TreeEntry
+	opsFound := false
+	for _, entry := range entries {
+		if entry.Name == opsEntryName {
+			opsEntry = entry
+			opsFound = true
+			break
+		}
+	}
+	if !opsFound {
+		return time.Time{}, errors.New("invalid tree, missing the ops entry")
+	}
+
+	data, err := repo.ReadData(opsEntry.Hash)
+	if err != nil {
+		return time.Time{}, errors.Wrap(err, "failed to read git blob data")
+	}
+
+	opp := &OperationPack{}
+	err = json.Unmarshal(data, &opp)
+
+	if err != nil {
+		return time.Time{}, errors.Wrap(err, "failed to decode OperationPack json")
+	}
+
+	return opp.Operations[len(opp.Operations)-1].Time(), nil
 }
 
 // ReadLocalBug will read a local bug from its hash
