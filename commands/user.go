@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/daedaleanai/git-ticket/cache"
-	"github.com/daedaleanai/git-ticket/entity"
 )
 
 type userOptions struct {
@@ -19,8 +18,6 @@ func ResolveUser(repo *cache.RepoCache, args []string) (*cache.IdentityCache, []
 	var err error
 	var id *cache.IdentityCache
 	if len(args) > 0 {
-		var userToSelectId entity.Id
-
 		for _, userId := range repo.AllIdentityIds() {
 			i, err := repo.ResolveIdentityExcerpt(userId)
 			if err != nil {
@@ -28,20 +25,19 @@ func ResolveUser(repo *cache.RepoCache, args []string) (*cache.IdentityCache, []
 			}
 
 			if i.Id.HasPrefix(args[0]) || strings.Contains(i.Name, args[0]) {
-				if userToSelectId != "" {
-					return id, nil, fmt.Errorf("multiple users matching %s", args[0])
+				if id != nil {
+					return id, nil, fmt.Errorf("multiple users matching %s:\n%s\n%s", args[0], id.Name(), i.Name)
 				}
-				userToSelectId = i.Id
+
+				id, err = repo.ResolveIdentity(i.Id)
+				if err != nil {
+					return id, nil, err
+				}
 			}
 		}
 
-		if userToSelectId == "" {
+		if id == nil {
 			return id, nil, fmt.Errorf("no users matching %s", args[0])
-		}
-
-		id, err = repo.ResolveIdentity(userToSelectId)
-		if err != nil {
-			return id, nil, err
 		}
 
 		args = args[1:]
