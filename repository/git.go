@@ -414,13 +414,14 @@ func (repo *GitRepo) ListCommits(ref string) ([]Hash, error) {
 
 }
 
-// CommitsBetween will return the commits reachable from 'after' which are not reachable from 'before'
-func (repo *GitRepo) CommitsBetween(beforeRef, afterRef string) ([]Hash, error) {
-	stdout, err := repo.runGitCommand("rev-list", "^"+beforeRef, afterRef)
+// CommitsBetween will return the commits reachable from 'mainRef' which are not reachable from 'excludeRef'
+func (repo *GitRepo) CommitsBetween(excludeRef, mainRef string) ([]Hash, error) {
+	stdout, err := repo.runGitCommand("rev-list", "^"+excludeRef, mainRef)
 	if err != nil {
 		return nil, err
 	}
 	if stdout == "" {
+		// Return a nil slice if no commits are between the two references
 		return nil, nil
 	}
 
@@ -437,7 +438,6 @@ func (repo *GitRepo) CommitsBetween(beforeRef, afterRef string) ([]Hash, error) 
 // LastCommit will return the latest commit hash of a ref
 func (repo *GitRepo) LastCommit(ref string) (Hash, error) {
 	stdout, err := repo.runGitCommand("rev-list", "-1", ref)
-
 	if err != nil {
 		return "", err
 	}

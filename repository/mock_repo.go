@@ -196,7 +196,7 @@ func (r *mockRepoForTest) ListCommits(ref string) ([]Hash, error) {
 	return hashes, nil
 }
 
-func (r *mockRepoForTest) CommitsBetween(beforeRef, afterRef string) ([]Hash, error) {
+func (r *mockRepoForTest) CommitsBetween(excludeRef, mainRef string) ([]Hash, error) {
 	panic("implement me")
 }
 

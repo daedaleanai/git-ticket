@@ -61,6 +61,9 @@ func MergeAll(repo repository.ClockedRepo, remote string) <-chan entity.MergeRes
 		for _, remoteRef := range remoteRefs {
 			hashes, err := repo.CommitsBetween(identityRefPattern+path.Base(remoteRef), remoteRef)
 			if err == nil && hashes == nil {
+				// If the command succeeded and there are no commits between the remote and local ref then we're
+				// up to date. Don't bother with the merge, continue to the next identity. If the command failed then
+				// it could be because there is no local ref.
 				continue
 			}
 

@@ -141,7 +141,7 @@ func (c *RepoCache) MergeAll(remote string) <-chan entity.MergeResult {
 	return out
 }
 
-// RefreshResult holds the state of each if that was updated
+// RefreshResult holds the state of a bug that is new or has been updated
 type RefreshResult struct {
 	Id   entity.Id
 	From time.Time
@@ -168,7 +168,7 @@ func (c *RepoCache) RefreshCache() ([]RefreshResult, error) {
 			// local bug not in the cache!
 			updateCache = true
 		} else {
-			localBugEditTime, err := bug.PeakLocalBugEditTime(c.repo, bugId)
+			localBugEditTime, err := bug.PeekLocalBugEditTime(c.repo, bugId)
 			if err != nil {
 				return nil, err
 			}
@@ -198,7 +198,7 @@ func (c *RepoCache) RefreshCache() ([]RefreshResult, error) {
 
 	// Identities. Nothing clever, just load all the identities again into cache.
 	// Note, if at some point this takes too long then the Identity Excerpts need to be
-	// updated to include the last edit time, then we could so something clever like with
+	// updated to include the last edit time, then we could do something clever like with
 	// the bugs.
 	for i := range identity.ReadAllLocalIdentities(c.repo) {
 		if i.Err != nil {

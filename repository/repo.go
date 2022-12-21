@@ -104,8 +104,8 @@ type Repo interface {
 	// ListCommits will return the list of tree hashes of a ref, in chronological order
 	ListCommits(ref string) ([]Hash, error)
 
-	// CommitsBetween will return the commits reachable from 'after' which are not reachable from 'before'
-	CommitsBetween(beforeRef, afterRef string) ([]Hash, error)
+	// CommitsBetween will return the commits reachable from 'mainRef' which are not reachable from 'excludeRef'
+	CommitsBetween(excludeRef, mainRef string) ([]Hash, error)
 
 	// LastCommit will return the latest commit hash of a ref
 	LastCommit(ref string) (Hash, error)

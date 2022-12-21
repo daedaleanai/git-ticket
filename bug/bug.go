@@ -103,8 +103,8 @@ func FindLocalBug(repo repository.ClockedRepo, prefix string) (*Bug, error) {
 	return ReadLocalBug(repo, matching[0])
 }
 
-// PeakLocalBugEditTime will read the latest edit time of a bug without loading it
-func PeakLocalBugEditTime(repo repository.ClockedRepo, id entity.Id) (time.Time, error) {
+// PeekLocalBugEditTime will read the latest edit time of a bug without loading it
+func PeekLocalBugEditTime(repo repository.ClockedRepo, id entity.Id) (time.Time, error) {
 	if err := id.Validate(); err != nil {
 		return time.Time{}, errors.Wrap(err, "invalid ref ")
 	}
