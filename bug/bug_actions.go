@@ -2,7 +2,7 @@ package bug
 
 import (
 	"fmt"
-	"strings"
+	"path"
 
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/repository"
@@ -65,8 +65,15 @@ func MergeAll(repo repository.ClockedRepo, remote string) <-chan entity.MergeRes
 		}
 
 		for _, remoteRef := range remoteRefs {
-			refSplit := strings.Split(remoteRef, "/")
-			id := entity.Id(refSplit[len(refSplit)-1])
+			hashes, err := repo.CommitsBetween(bugsRefPattern+path.Base(remoteRef), remoteRef)
+			if err == nil && hashes == nil {
+				// If the command succeeded and there are no commits between the remote and local ref then we're
+				// up to date. Don't bother with the merge, continue to the next bug. If the command failed then
+				// it could be because there is no local ref.
+				continue
+			}
+
+			id := entity.Id(path.Base(remoteRef))
 
 			if err := id.Validate(); err != nil {
 				out <- entity.NewMergeInvalidStatus(id, errors.Wrap(err, "invalid ref").Error())

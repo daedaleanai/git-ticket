@@ -196,6 +196,14 @@ func (r *mockRepoForTest) ListCommits(ref string) ([]Hash, error) {
 	return hashes, nil
 }
 
+func (r *mockRepoForTest) CommitsBetween(excludeRef, mainRef string) ([]Hash, error) {
+	panic("implement me")
+}
+
+func (r *mockRepoForTest) LastCommit(ref string) (Hash, error) {
+	panic("implement me")
+}
+
 func (r *mockRepoForTest) ReadTree(hash Hash) ([]TreeEntry, error) {
 	var data string
 
