@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -17,7 +18,28 @@ func ResolveUser(repo *cache.RepoCache, args []string) (*cache.IdentityCache, []
 	var err error
 	var id *cache.IdentityCache
 	if len(args) > 0 {
-		id, err = repo.ResolveIdentityPrefix(args[0])
+		for _, userId := range repo.AllIdentityIds() {
+			i, err := repo.ResolveIdentityExcerpt(userId)
+			if err != nil {
+				return id, nil, err
+			}
+
+			if i.Id.HasPrefix(args[0]) || strings.Contains(i.Name, args[0]) {
+				if id != nil {
+					return id, nil, fmt.Errorf("multiple users matching %s:\n%s\n%s", args[0], id.Name(), i.Name)
+				}
+
+				id, err = repo.ResolveIdentity(i.Id)
+				if err != nil {
+					return id, nil, err
+				}
+			}
+		}
+
+		if id == nil {
+			return id, nil, fmt.Errorf("no users matching %s", args[0])
+		}
+
 		args = args[1:]
 	} else {
 		id, err = repo.GetUserIdentity()
@@ -30,9 +52,9 @@ func newUserCommand() *cobra.Command {
 	options := userOptions{}
 
 	cmd := &cobra.Command{
-		Use:      "user [USER-ID]",
+		Use:      "user [<username/id>]",
 		Short:    "Display or change the user identity.",
-		PreRunE:  loadBackendEnsureUser(env),
+		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runUser(env, options, args)
