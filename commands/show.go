@@ -162,8 +162,10 @@ func runShow(env *Env, opts showOptions, args []string) error {
 			env.out.Printf("%s\n", snap.Status)
 		case "nextStatuses":
 			validStatuses, err := snap.NextStatuses()
-			// If err!=nil then ticket has no valid workflow associated with it, so there are no "next statuses"
-			if err == nil && validStatuses != nil {
+			if err != nil {
+				return err
+			}
+			if validStatuses != nil {
 				for _, s := range validStatuses {
 					env.out.Println(s)
 				}
