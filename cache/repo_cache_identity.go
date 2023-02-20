@@ -8,6 +8,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/thought-machine/gonduit/requests"
 
 	"github.com/daedaleanai/git-ticket/entity"
@@ -242,32 +243,48 @@ func (c *RepoCache) NewIdentityFromGitUserRaw(metadata map[string]string) (*Iden
 
 // NewIdentity create a new identity
 // The new identity is written in the repository (commit)
-func (c *RepoCache) NewIdentity(name string, email string) (*IdentityCache, error) {
-	return c.NewIdentityRaw(name, email, "", "", nil)
+func (c *RepoCache) NewIdentity(name string, email string, skipPhabId bool) (*IdentityCache, error) {
+	return c.NewIdentityRaw(name, email, "", "", nil, skipPhabId)
 }
 
 // NewIdentityFull create a new identity
 // The new identity is written in the repository (commit)
-func (c *RepoCache) NewIdentityFull(name string, email string, login string, avatarUrl string) (*IdentityCache, error) {
-	return c.NewIdentityRaw(name, email, login, avatarUrl, nil)
+func (c *RepoCache) NewIdentityFull(name string, email string, login string, avatarUrl string, skipPhabId bool) (*IdentityCache, error) {
+	return c.NewIdentityRaw(name, email, login, avatarUrl, nil, skipPhabId)
 }
 
-func (c *RepoCache) NewIdentityRaw(name string, email string, login string, avatarUrl string, metadata map[string]string) (*IdentityCache, error) {
-	return c.NewIdentityWithKeyRaw(name, email, login, avatarUrl, metadata, nil)
+func (c *RepoCache) NewIdentityRaw(name string, email string, login string, avatarUrl string, metadata map[string]string, skipPhabId bool) (*IdentityCache, error) {
+	return c.NewIdentityWithKeyRaw(name, email, login, avatarUrl, metadata, nil, skipPhabId)
 }
 
-func (c *RepoCache) NewIdentityWithKeyRaw(name string, email string, login string, avatarUrl string, metadata map[string]string, key *identity.Key) (*IdentityCache, error) {
-	// attempt to populate the phabricator ID, for now it's not fatal if it fails
-	phabId, _ := c.getPhabId(email)
+func (c *RepoCache) NewIdentityWithKeyRaw(name string, email string, login string, avatarUrl string, metadata map[string]string, key *identity.Key, skipPhabId bool) (*IdentityCache, error) {
+
+	var phabId string
+	if skipPhabId == false {
+		var err error
+		// attempt to populate the phabricator ID
+		phabId, err = c.getPhabId(email)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to retrieve users Phabricator ID")
+		}
+	}
 
 	i := identity.NewIdentityFull(name, email, login, avatarUrl, phabId, key)
 	return c.finishIdentity(i, metadata)
 }
 
 // UpdatedIdentity updates an existing identity in the repository and cache
-func (c *RepoCache) UpdateIdentity(i *IdentityCache, name string, email string, login string, avatarUrl string) error {
-	// attempt to populate the phabricator ID, for now it's not fatal if it fails
-	phabId, _ := c.getPhabId(email)
+func (c *RepoCache) UpdateIdentity(i *IdentityCache, name string, email string, login string, avatarUrl string, skipPhabId bool) error {
+
+	var phabId string
+	if skipPhabId == false {
+		var err error
+		// attempt to populate the phabricator ID
+		phabId, err = c.getPhabId(email)
+		if err != nil {
+			return errors.Wrap(err, "failed to retrieve users Phabricator ID")
+		}
+	}
 
 	err := i.Mutate(func(mutator identity.Mutator) identity.Mutator {
 		mutator.Name = name

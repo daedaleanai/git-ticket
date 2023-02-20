@@ -15,7 +15,7 @@ func checkAddIdentity(t *testing.T, backend *cache.RepoCache, name, email, armor
 	key, err := identity.NewKeyFromArmored(armoredPubkey)
 	require.NoError(t, err)
 
-	id, err := backend.NewIdentityWithKeyRaw(name, email, "", "", nil, key)
+	id, err := backend.NewIdentityWithKeyRaw(name, email, "", "", nil, key, true)
 	require.NoError(t, err)
 
 	return id
