@@ -4,8 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/text/runes"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/daedaleanai/git-ticket/cache"
 )
@@ -23,8 +27,12 @@ func ResolveUser(repo *cache.RepoCache, args []string) (*cache.IdentityCache, []
 			if err != nil {
 				return id, nil, err
 			}
+			userMatch, err := compareUsername(i.Name, args[0])
+			if err != nil {
+				return id, nil, err
+			}
 
-			if i.Id.HasPrefix(args[0]) || strings.Contains(i.Name, args[0]) {
+			if i.Id.HasPrefix(args[0]) || userMatch {
 				if id != nil {
 					return id, nil, fmt.Errorf("multiple users matching %s:\n%s\n%s", args[0], id.Name(), i.Name)
 				}
@@ -141,4 +149,26 @@ func runUser(env *Env, opts userOptions, args []string) error {
 	// env.out.Printf("Protected: %v\n", id.IsProtected())
 
 	return nil
+}
+
+// compareUsername tries to match a search string with a username, ignoring case and removing diacritics
+func compareUsername(username, search string) (bool, error) {
+	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+	usernameOut, _, err := transform.String(t, username)
+	if err != nil {
+		return false, err
+	}
+	usernameOut = strings.ToUpper(usernameOut)
+	searchOut, _, err := transform.String(t, search)
+	if err != nil {
+		return false, err
+	}
+	searchOut = strings.ToUpper(searchOut)
+
+	for _, userPart := range strings.Fields(usernameOut) {
+		if strings.HasPrefix(userPart, searchOut) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
