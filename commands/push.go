@@ -4,10 +4,17 @@ import (
 	"errors"
 
 	"github.com/spf13/cobra"
+
+	_select "github.com/daedaleanai/git-ticket/commands/select"
 )
+
+type pushOptions struct {
+	selectedTicket bool
+}
 
 func newPushCommand() *cobra.Command {
 	env := newEnv()
+	options := pushOptions{}
 
 	cmd := &cobra.Command{
 		Use:      "push [REMOTE]",
@@ -15,14 +22,19 @@ func newPushCommand() *cobra.Command {
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runPush(env, args)
+			return runPush(env, options, args)
 		},
 	}
+
+	flags := cmd.Flags()
+	flags.SortFlags = false
+
+	flags.BoolVarP(&options.selectedTicket, "selected", "s", false, "Push only the currently selected ticket")
 
 	return cmd
 }
 
-func runPush(env *Env, args []string) error {
+func runPush(env *Env, opts pushOptions, args []string) error {
 	if len(args) > 1 {
 		return errors.New("Only pushing to one remote at a time is supported")
 	}
@@ -32,12 +44,26 @@ func runPush(env *Env, args []string) error {
 		remote = args[0]
 	}
 
-	stdout, err := env.backend.Push(remote)
-	if err != nil {
-		return err
-	}
+	if opts.selectedTicket {
+		bug, _, err := _select.ResolveBug(env.backend, nil)
+		if err != nil {
+			return err
+		}
 
-	env.out.Println(stdout)
+		stdout, err := env.backend.PushTicket(remote, bug.Id().String())
+		if err != nil {
+			return err
+		}
+
+		env.out.Println(stdout)
+	} else {
+		stdout, err := env.backend.Push(remote)
+		if err != nil {
+			return err
+		}
+
+		env.out.Println(stdout)
+	}
 
 	return nil
 }

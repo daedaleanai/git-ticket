@@ -19,8 +19,11 @@ func Fetch(repo repository.Repo, remote string) (string, error) {
 }
 
 // Push update a remote with the local changes
-func Push(repo repository.Repo, remote string) (string, error) {
-	return repo.PushRefs(remote, bugsRefPattern+"*")
+func Push(repo repository.Repo, remote string, ref string) (string, error) {
+	if ref == "" {
+		ref = "*"
+	}
+	return repo.PushRefs(remote, bugsRefPattern+ref)
 }
 
 // Pull will do a Fetch + MergeAll
