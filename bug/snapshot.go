@@ -255,7 +255,7 @@ func ValidateCcb(snap *Snapshot, next Status) error {
 	return nil
 }
 
-// ValidateChecklistsCompleted returns an error if at least on of the checklists attached to the snapshot
+// ValidateChecklistsCompleted returns an error if at least one of the checklists attached to the snapshot
 // has not been completed
 func ValidateChecklistsCompleted(snap *Snapshot, next Status) error {
 	for _, st := range snap.GetChecklistCompoundStates() {
