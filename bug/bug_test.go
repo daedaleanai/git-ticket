@@ -149,10 +149,10 @@ func TestBugRemove(t *testing.T) {
 	err = b.Commit(repo)
 	require.NoError(t, err)
 
-	_, err = Push(repo, "remoteA", "")
+	_, err = Push(repo, "remoteA")
 	require.NoError(t, err)
 
-	_, err = Push(repo, "remoteB", "")
+	_, err = Push(repo, "remoteB")
 	require.NoError(t, err)
 
 	_, err = Fetch(repo, "remoteA")

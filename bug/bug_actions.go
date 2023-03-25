@@ -18,11 +18,13 @@ func Fetch(repo repository.Repo, remote string) (string, error) {
 	return repo.FetchRefs(remote, fetchRefSpec)
 }
 
-// Push update a remote with the local changes
-func Push(repo repository.Repo, remote string, ref string) (string, error) {
-	if ref == "" {
-		ref = "*"
-	}
+// Push update a remote with all the local changes
+func Push(repo repository.Repo, remote string) (string, error) {
+	return repo.PushRefs(remote, bugsRefPattern+"*")
+}
+
+// PushRef update a remote with a local change
+func PushRef(repo repository.Repo, remote string, ref string) (string, error) {
 	return repo.PushRefs(remote, bugsRefPattern+ref)
 }
 
