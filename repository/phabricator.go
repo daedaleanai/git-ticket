@@ -21,19 +21,19 @@ func getPhabConfig() (string, string, error) {
 	}
 
 	var phabUrl string
-	if phabUrl, err = repo.LocalConfig().ReadString("daedalean.phabricator.url"); err != nil {
-		if phabUrl, err = repo.GlobalConfig().ReadString("daedalean.phabricator.url"); err != nil {
-			return "", "", fmt.Errorf("No Phabricator URL set. Set it with:\ngit config --global --replace-all daedalean.phabricator.url <URL of phabricator server>")
+	if phabUrl, err = repo.LocalConfig().ReadString("phabricator.url"); err != nil {
+		if phabUrl, err = repo.GlobalConfig().ReadString("phabricator.url"); err != nil {
+			return "", "", fmt.Errorf("No Phabricator URL set. Set it with:\ngit config --global --replace-all phabricator.url <URL of phabricator server>")
 		}
 	}
 
 	var apiToken string
-	if apiToken, err = repo.LocalConfig().ReadString("daedalean.taskmgr-api-token"); err != nil {
-		if apiToken, err = repo.GlobalConfig().ReadString("daedalean.taskmgr-api-token"); err != nil {
+	if apiToken, err = repo.LocalConfig().ReadString("phabricator.api-token"); err != nil {
+		if apiToken, err = repo.GlobalConfig().ReadString("phabricator.api-token"); err != nil {
 			msg := `No Phabricator API token set. Please go to
 	%s/settings/user/<YOUR_USERNAME_HERE>/page/apitokens/
 click on <Generate API Token>, and then paste the token into this command
-	git config --global --replace-all daedalean.taskmgr-api-token <PASTE_TOKEN_HERE>`
+	git config --global --replace-all phabricator.api-token <PASTE_TOKEN_HERE>`
 			return phabUrl, "", fmt.Errorf(msg, phabUrl)
 		}
 	}
