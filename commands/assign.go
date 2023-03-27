@@ -12,7 +12,7 @@ func newAssignCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "assign [username/id] [ticket id]",
+		Use:      "assign [<user name/id>] [<ticket id>]",
 		Short:    "Assign a user to a ticket.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),
@@ -25,7 +25,7 @@ func newAssignCommand() *cobra.Command {
 
 func runAssign(env *Env, args []string) error {
 	// TODO allow the user to clear the assignee field
-	userToAssignIdentity, args, err := ResolveUser(env.backend, args)
+	userToAssign, args, err := ResolveUser(env.backend, args)
 	if err != nil {
 		return err
 	}
@@ -41,17 +41,17 @@ func runAssign(env *Env, args []string) error {
 		if err != nil {
 			return err
 		}
-		if userToAssignIdentity.Id() == currentAssignee.Id {
+		if userToAssign.Id() == currentAssignee.Id {
 			return fmt.Errorf("ticket already assigned to %s", currentAssignee.Name)
 		}
 	}
 
-	_, err = b.SetAssignee(userToAssignIdentity)
+	_, err = b.SetAssignee(userToAssign)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Assigning ticket %s to %s\n", b.Id().Human(), userToAssignIdentity.DisplayName())
+	fmt.Printf("Assigning ticket %s to %s\n", b.Id().Human(), userToAssign.DisplayName())
 
 	return b.Commit()
 }

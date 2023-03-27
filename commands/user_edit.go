@@ -10,7 +10,7 @@ func newUserEditCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "edit [<username/id>]",
+		Use:      "edit [<user name/id>]",
 		Short:    "Edit a user identity.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),

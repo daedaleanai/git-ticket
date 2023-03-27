@@ -13,7 +13,7 @@ func newCcbRmCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "rm <user> <status> [<id>]",
+		Use:      "rm <user name/id> <status> [<ticket id>]",
 		Short:    "Remove a CCB member as an approver of a ticket status.",
 		PreRunE:  loadBackendEnsureUser(env),
 		PostRunE: closeBackend(env),
@@ -46,24 +46,24 @@ func runCcbRm(env *Env, args []string) error {
 
 	// Check if the user to remove is an approver of the ticket status
 
-	userToRemoveIdentity, _, err := ResolveUser(env.backend, []string{userToRemoveString})
+	userToRemove, _, err := ResolveUser(env.backend, []string{userToRemoveString})
 	if err != nil {
 		return err
 	}
 
-	if b.Snapshot().GetCcbState(userToRemoveIdentity.Id(), status) == bug.RemovedCcbState {
-		fmt.Printf("%s is not an approver of the ticket status %s\n", userToRemoveIdentity.DisplayName(), status)
+	if b.Snapshot().GetCcbState(userToRemove.Id(), status) == bug.RemovedCcbState {
+		fmt.Printf("%s is not an approver of the ticket status %s\n", userToRemove.DisplayName(), status)
 		return nil
 	}
 
 	// Everything looks ok, remove the user
 
-	_, err = b.CcbRm(userToRemoveIdentity, status)
+	_, err = b.CcbRm(userToRemove, status)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Removing %s as an approver of the ticket %s status %s\n", userToRemoveIdentity.DisplayName(), b.Id().Human(), status)
+	fmt.Printf("Removing %s as an approver of the ticket %s status %s\n", userToRemove.DisplayName(), b.Id().Human(), status)
 
 	return b.Commit()
 }

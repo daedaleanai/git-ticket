@@ -60,7 +60,7 @@ func newUserCommand() *cobra.Command {
 	options := userOptions{}
 
 	cmd := &cobra.Command{
-		Use:      "user [<username/id>]",
+		Use:      "user [<user name/id>]",
 		Short:    "Display or change the user identity.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),
@@ -164,6 +164,10 @@ func compareUsername(username, search string) (bool, error) {
 		return false, err
 	}
 	searchOut = strings.ToUpper(searchOut)
+
+	if strings.HasPrefix(usernameOut, searchOut) {
+		return true, nil
+	}
 
 	for _, userPart := range strings.Fields(usernameOut) {
 		if strings.HasPrefix(userPart, searchOut) {
