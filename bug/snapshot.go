@@ -241,14 +241,18 @@ func ValidateAssigneeSet(snap *Snapshot, next Status) error {
 // ValidateCcb returns an error if the snapshot does not have CCB set and approved for the next status
 func ValidateCcb(snap *Snapshot, next Status) error {
 	var ccbAssigned int
-	for _, c := range snap.Ccb {
-		if c.Status == next {
+	// Loop through the entire CCB list, each entry represents an approval: a ticket status plus
+	// a CCB member who should approve it
+	for _, approval := range snap.Ccb {
+		if approval.Status == next {
+			// This approval is needed for the requested 'next' status
 			ccbAssigned++
-			if c.State != ApprovedCcbState {
+			if approval.State != ApprovedCcbState {
 				return fmt.Errorf("not all CCB have approved ticket status %s", next)
 			}
 		}
 	}
+	// Check at least one approval is associated with the requested status
 	if ccbAssigned == 0 {
 		return fmt.Errorf("no CCB assigned to ticket status %s", next)
 	}
