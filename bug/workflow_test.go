@@ -1,6 +1,7 @@
 package bug
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,15 +10,18 @@ import (
 var testWorkflow = Workflow{label: "workflow:test",
 	initialState: ProposedStatus,
 	transitions: []Transition{
-		{start: ProposedStatus, end: VettedStatus, hook: "echo TEST transitioning from proposed to vetted"},
+		{start: ProposedStatus, end: VettedStatus,
+			hook: []ValidationFunc{func(snap *Snapshot, next Status) error { return nil }}},
 		{start: VettedStatus, end: ProposedStatus},
 		{start: VettedStatus, end: InProgressStatus},
 		{start: InProgressStatus, end: InReviewStatus},
-		{start: InReviewStatus, end: InProgressStatus, hook: "true"},
+		{start: InReviewStatus, end: InProgressStatus,
+			hook: []ValidationFunc{func(snap *Snapshot, next Status) error { return nil }}},
 		{start: InReviewStatus, end: ReviewedStatus},
 		{start: ReviewedStatus, end: AcceptedStatus},
 		{start: AcceptedStatus, end: MergedStatus},
-		{start: MergedStatus, end: AcceptedStatus, hook: "false"},
+		{start: MergedStatus, end: AcceptedStatus,
+			hook: []ValidationFunc{func(snap *Snapshot, next Status) error { return errors.New("epic fail") }}},
 		{start: MergedStatus, end: DoneStatus},
 	},
 }
@@ -75,16 +79,20 @@ func TestWorkflow_ValidateTransition(t *testing.T) {
 		nil,                                // from RejectedStatus
 	}
 
+	var snap Snapshot
+
 	// Test validation of state transition
 	for from := FirstStatus; from <= LastStatus; from++ {
+		snap.Status = from
 		for _, to := range validTransitions[from] {
-			if err := testWorkflow.ValidateTransition(from, to); err != nil {
+			if err := testWorkflow.ValidateTransition(&snap, to); err != nil {
 				t.Fatal("State transition " + from.String() + " > " + to.String() + " flagged invalid when it isn't")
 			}
 		}
 	}
 
-	if err := testWorkflow.ValidateTransition(ProposedStatus, MergedStatus); err == nil {
+	snap.Status = ProposedStatus
+	if err := testWorkflow.ValidateTransition(&snap, MergedStatus); err == nil {
 		t.Fatal("State transition proposed > merged flagged valid when it isn't")
 	}
 }

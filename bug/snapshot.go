@@ -6,6 +6,7 @@ import (
 
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
+	"github.com/pkg/errors"
 )
 
 // Snapshot is a compiled form of the Bug data structure used for storage and merge
@@ -143,19 +144,6 @@ func (snap *Snapshot) GetCcbState(id entity.Id, status Status) CcbState {
 	return RemovedCcbState
 }
 
-// CheckCcbApproved returns an error if not all the CCB group for the given status have approved the ticket
-func (snap *Snapshot) CheckCcbApproved(status Status) error {
-	for _, c := range snap.Ccb {
-		if c.Status == status {
-			if c.State != ApprovedCcbState {
-				return fmt.Errorf("not all CCB approvers have approved ticket status %s", status)
-			}
-		}
-	}
-
-	return nil
-}
-
 // Sign post method for gqlgen
 func (snap *Snapshot) IsAuthored() {}
 
@@ -236,8 +224,48 @@ func (snap *Snapshot) ValidateTransition(newStatus Status) error {
 			if w == nil {
 				return fmt.Errorf("invalid workflow %s", l)
 			}
-			return w.ValidateTransition(snap.Status, newStatus)
+			return w.ValidateTransition(snap, newStatus)
 		}
 	}
 	return fmt.Errorf("ticket has no associated workflow")
+}
+
+// ValidateAssigneeSet returns an error if the snapshot assignee is not set
+func ValidateAssigneeSet(snap *Snapshot, next Status) error {
+	if snap.Assignee == nil {
+		return errors.New("assignee not set")
+	}
+	return nil
+}
+
+// ValidateCcb returns an error if the snapshot does not have CCB set and approved for the next status
+func ValidateCcb(snap *Snapshot, next Status) error {
+	var ccbAssigned int
+	// Loop through the entire CCB list, each entry represents an approval: a ticket status plus
+	// a CCB member who should approve it
+	for _, approval := range snap.Ccb {
+		if approval.Status == next {
+			// This approval is needed for the requested 'next' status
+			ccbAssigned++
+			if approval.State != ApprovedCcbState {
+				return fmt.Errorf("not all CCB have approved ticket status %s", next)
+			}
+		}
+	}
+	// Check at least one approval is associated with the requested status
+	if ccbAssigned == 0 {
+		return fmt.Errorf("no CCB assigned to ticket status %s", next)
+	}
+	return nil
+}
+
+// ValidateChecklistsCompleted returns an error if at least one of the checklists attached to the snapshot
+// has not been completed
+func ValidateChecklistsCompleted(snap *Snapshot, next Status) error {
+	for _, st := range snap.GetChecklistCompoundStates() {
+		if st == TBD {
+			return errors.New("at least one checklist still TBD")
+		}
+	}
+	return nil
 }

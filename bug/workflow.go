@@ -2,15 +2,14 @@ package bug
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
-	"strings"
 )
+
+type ValidationFunc func(snap *Snapshot, next Status) error
 
 type Transition struct {
 	start Status
 	end   Status
-	hook  string
+	hook  []ValidationFunc
 }
 
 type Workflow struct {
@@ -53,23 +52,23 @@ func (w *Workflow) NextStatuses(s Status) ([]Status, error) {
 }
 
 // ValidateTransition checks if the transition is valid for a given start and end
-func (w *Workflow) ValidateTransition(from, to Status) error {
+func (w *Workflow) ValidateTransition(snap *Snapshot, to Status) error {
 	for _, t := range w.transitions {
-		if t.start == from && t.end == to {
-			if t.hook != "" {
-				hookArgs := strings.Split(t.hook, " ")
-				cmd := exec.Command(hookArgs[0], hookArgs[1:]...)
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				return cmd.Run()
+		if t.start == snap.Status && t.end == to {
+			if t.hook != nil {
+				for _, v := range t.hook {
+					if err := v(snap, to); err != nil {
+						return err
+					}
+				}
 			}
 			return nil
 		}
 	}
 
 	// invalid transition, return error with list of valid transitions
-	nextStatuses, _ := w.NextStatuses(from)
-	return fmt.Errorf("invalid transition %s->%s, possible next statuses: %s", from, to, nextStatuses)
+	nextStatuses, _ := w.NextStatuses(snap.Status)
+	return fmt.Errorf("invalid transition %s->%s, possible next statuses: %s", snap.Status, to, nextStatuses)
 }
 
 func init() {
@@ -78,9 +77,11 @@ func init() {
 		{label: "workflow:eng",
 			initialState: ProposedStatus,
 			transitions: []Transition{
-				{start: ProposedStatus, end: VettedStatus},
+				{start: ProposedStatus, end: VettedStatus,
+					hook: []ValidationFunc{ValidateCcb}},
 				{start: ProposedStatus, end: RejectedStatus},
-				{start: VettedStatus, end: InProgressStatus},
+				{start: VettedStatus, end: InProgressStatus,
+					hook: []ValidationFunc{ValidateAssigneeSet}},
 				{start: VettedStatus, end: RejectedStatus},
 				{start: InProgressStatus, end: VettedStatus},
 				{start: InProgressStatus, end: InReviewStatus},
@@ -89,7 +90,9 @@ func init() {
 				{start: InReviewStatus, end: ReviewedStatus},
 				{start: InReviewStatus, end: RejectedStatus},
 				{start: ReviewedStatus, end: InProgressStatus},
-				{start: ReviewedStatus, end: AcceptedStatus},
+				{start: ReviewedStatus, end: AcceptedStatus,
+					hook: []ValidationFunc{ValidateCcb,
+						ValidateChecklistsCompleted}},
 				{start: ReviewedStatus, end: RejectedStatus},
 				{start: AcceptedStatus, end: MergedStatus},
 				{start: AcceptedStatus, end: RejectedStatus},
