@@ -11,6 +11,7 @@ import (
 
 type userCreateOptions struct {
 	ArmoredKeyFile string
+	skipPhabId     bool
 }
 
 func newUserCreateCommand() *cobra.Command {
@@ -33,6 +34,8 @@ func newUserCreateCommand() *cobra.Command {
 	flags.StringVar(&options.ArmoredKeyFile, "key-file", "",
 		"Take the armored PGP public key from the given file. Use - to read the message from the standard input",
 	)
+	flags.BoolVarP(&options.skipPhabId, "skipPhabId", "s", false,
+		"Do not attempt to retrieve the users Phabricator ID (note: fetching reviews where they commented will fail if it is not set)")
 
 	return cmd
 }
@@ -78,7 +81,7 @@ func runUserCreate(env *Env, opts userCreateOptions) error {
 		fmt.Printf("Using key from file `%s`:\n%s\n", opts.ArmoredKeyFile, armoredPubkey)
 	}
 
-	id, err := env.backend.NewIdentityWithKeyRaw(name, email, "", avatarURL, nil, key)
+	id, err := env.backend.NewIdentityWithKeyRaw(name, email, "", avatarURL, nil, key, opts.skipPhabId)
 	if err != nil {
 		return err
 	}

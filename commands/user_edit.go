@@ -6,8 +6,13 @@ import (
 	"github.com/daedaleanai/git-ticket/input"
 )
 
+type userEditOptions struct {
+	skipPhabId bool
+}
+
 func newUserEditCommand() *cobra.Command {
 	env := newEnv()
+	options := userEditOptions{}
 
 	cmd := &cobra.Command{
 		Use:      "edit [<username/id>]",
@@ -16,14 +21,20 @@ func newUserEditCommand() *cobra.Command {
 		PostRunE: closeBackend(env),
 		Args:     cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUserEdit(env, args)
+			return runUserEdit(env, options, args)
 		},
 	}
+
+	flags := cmd.Flags()
+	flags.SortFlags = false
+
+	flags.BoolVarP(&options.skipPhabId, "skipPhabId", "s", false,
+		"Do not attempt to retrieve the users Phabricator ID (note: fetching reviews where they commented will fail if it is not set)")
 
 	return cmd
 }
 
-func runUserEdit(env *Env, args []string) error {
+func runUserEdit(env *Env, opts userEditOptions, args []string) error {
 	id, args, err := ResolveUser(env.backend, args)
 
 	if err != nil {
@@ -45,5 +56,5 @@ func runUserEdit(env *Env, args []string) error {
 		return err
 	}
 
-	return env.backend.UpdateIdentity(id, name, email, "", avatarURL)
+	return env.backend.UpdateIdentity(id, name, email, "", avatarURL, opts.skipPhabId)
 }
