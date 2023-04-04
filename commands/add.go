@@ -4,12 +4,15 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/daedaleanai/git-ticket/input"
+
+	_select "github.com/daedaleanai/git-ticket/commands/select"
 )
 
 type addOptions struct {
 	title       string
 	message     string
 	messageFile string
+	noSelect    bool
 }
 
 func newAddCommand() *cobra.Command {
@@ -35,6 +38,8 @@ func newAddCommand() *cobra.Command {
 		"Provide a message to describe the issue")
 	flags.StringVarP(&options.messageFile, "file", "F", "",
 		"Take the message from the given file. Use - to read the message from the standard input")
+	flags.BoolVarP(&options.noSelect, "noselect", "n", false,
+		"Do not automatically select the new ticket once it's created")
 
 	return cmd
 }
@@ -66,6 +71,15 @@ func runAdd(env *Env, opts addOptions) error {
 	}
 
 	env.out.Printf("%s created\n", b.Id().Human())
+
+	if opts.noSelect == false {
+		err = _select.Select(env.backend, b.Id())
+		if err != nil {
+			return err
+		}
+
+		env.out.Printf("selected ticket: %s\n", opts.title)
+	}
 
 	return nil
 }
