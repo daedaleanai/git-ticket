@@ -3,11 +3,9 @@ package commands
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/daedaleanai/git-ticket/bug"
 	_select "github.com/daedaleanai/git-ticket/commands/select"
-	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/spf13/cobra"
 )
 
@@ -15,7 +13,7 @@ func newCcbAddCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "add <user> <status> [<id>]",
+		Use:      "add <user name/id> <status> [<ticket id>]",
 		Short:    "Add a CCB member as an approver of a ticket status.",
 		PreRunE:  loadBackendEnsureUser(env),
 		PostRunE: closeBackend(env),
@@ -47,70 +45,35 @@ func runCcbAdd(env *Env, args []string) error {
 	}
 
 	// Perform some checks before adding the user as an approver of the ticket status:
-	//   is the current user a CCB member?
 	//   is the user to add a CCB member?
 	//   is the user to add already an approver of the ticket status?
 
-	currentUserIdentity, err := env.backend.GetUserIdentity()
+	userToAdd, _, err := ResolveUser(env.backend, []string{userToAddString})
+	if err != nil {
+		return err
+	}
 
-	ok, err := bug.IsCcbMember(currentUserIdentity.Identity)
+	ok, err := bug.IsCcbMember(userToAdd.Identity)
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return errors.New("you must be a CCB member to perform this operation")
+		return errors.New(userToAdd.DisplayName() + " is not a CCB member")
 	}
 
-	// Search through all known users looking for an Id that matches or Name that
-	// contains the supplied string
-
-	var userToAddId entity.Id
-
-	for _, id := range env.backend.AllIdentityIds() {
-		i, err := env.backend.ResolveIdentityExcerpt(id)
-		if err != nil {
-			return err
-		}
-
-		if i.Id.HasPrefix(userToAddString) || strings.Contains(i.Name, userToAddString) {
-			if userToAddId != "" {
-				// TODO instead of doing this we could allow the user to select from a list
-				return fmt.Errorf("multiple users matching %s", userToAddString)
-			}
-			userToAddId = i.Id
-		}
-	}
-
-	if userToAddId == "" {
-		return fmt.Errorf("no users matching %s", userToAddString)
-	}
-
-	userToAddIdentity, err := env.backend.ResolveIdentity(userToAddId)
-	if err != nil {
-		return err
-	}
-
-	ok, err = bug.IsCcbMember(userToAddIdentity.Identity)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return errors.New(userToAddIdentity.DisplayName() + " is not a CCB member")
-	}
-
-	if b.Snapshot().GetCcbState(userToAddId, status) != bug.RemovedCcbState {
-		fmt.Printf("%s is already an approver of the ticket status %s\n", userToAddIdentity.DisplayName(), status)
+	if b.Snapshot().GetCcbState(userToAdd.Id(), status) != bug.RemovedCcbState {
+		fmt.Printf("%s is already an approver of the ticket status %s\n", userToAdd.DisplayName(), status)
 		return nil
 	}
 
 	// Everything looks ok, add the user
 
-	_, err = b.CcbAdd(userToAddIdentity, status)
+	_, err = b.CcbAdd(userToAdd, status)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Adding %s as an approver of the ticket %s status %s\n", userToAddIdentity.DisplayName(), b.Id().Human(), status)
+	fmt.Printf("Adding %s as an approver of the ticket %s status %s\n", userToAdd.DisplayName(), b.Id().Human(), status)
 
 	return b.Commit()
 }

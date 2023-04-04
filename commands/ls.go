@@ -32,7 +32,7 @@ func newLsCommand() *cobra.Command {
 	options := lsOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "ls [QUERY]",
+		Use:   "ls [<query>]",
 		Short: "List tickets.",
 		Long: `Display a summary of each ticket. By default shows only "active" tickets, i.e. In Progress, In Review, Reviewed and Accepted.
 

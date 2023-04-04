@@ -10,7 +10,7 @@ func newLabelRmCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "rm [ID] LABEL...",
+		Use:      "rm [<ticket id>] <label>...",
 		Short:    "Remove a label from a ticket.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),

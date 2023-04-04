@@ -14,7 +14,7 @@ func newReviewFetchCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:   "fetch DIFF-ID [ID]",
+		Use:   "fetch <revision id> [<ticket id>]",
 		Short: "Get Differential Revision data from Phabricator and store in a ticket.",
 		Long: `fetch stores Phabricator Differential Revision data in a ticket.
 

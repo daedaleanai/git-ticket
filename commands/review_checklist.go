@@ -20,7 +20,7 @@ func newReviewChecklistCommand() *cobra.Command {
 	options := reviewChecklistOptions{}
 
 	cmd := &cobra.Command{
-		Use:      "checklist [ID]",
+		Use:      "checklist [<ticket id>]",
 		Short:    "Complete a checklist associated with a ticket.",
 		PreRunE:  loadBackendEnsureUser(env),
 		PostRunE: closeBackend(env),

@@ -12,7 +12,7 @@ func newReviewClearCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "clear <DiffID> [<id>]",
+		Use:      "clear <revision id> [<ticket id>]",
 		Short:    "Clear the Differential Revision data associated with a ticket.",
 		PreRunE:  loadBackendEnsureUser(env),
 		PostRunE: closeBackend(env),

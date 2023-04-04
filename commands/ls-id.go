@@ -8,7 +8,7 @@ func newLsIdCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "ls-id [PREFIX]",
+		Use:      "ls-id [<prefix>]",
 		Short:    "List ticket identifiers.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),
