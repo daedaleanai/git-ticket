@@ -240,6 +240,16 @@ func (c *RepoCache) Push(remote string) (string, error) {
 	return "IDENTITIES\n" + stdout1 + "\nTICKETS\n" + stdout2 + "\nCONFIGS\n" + stdout3, nil
 }
 
+// PushTicket update a remote with the local changes to a single ticket
+func (c *RepoCache) PushTicket(remote string, ref string) (string, error) {
+	stdout, err := bug.PushRef(c.repo, remote, ref)
+	if err != nil {
+		return stdout, err
+	}
+
+	return "TICKET " + ref + "\n" + stdout, nil
+}
+
 // Pull will do a Fetch + MergeAll
 // This function will return an error if a merge fail
 func (c *RepoCache) Pull(remote string) error {
