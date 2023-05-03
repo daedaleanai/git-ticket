@@ -1,8 +1,10 @@
 package query
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/daedaleanai/git-ticket/bug"
 )
@@ -38,10 +40,12 @@ func Parse(query string) (*Query, error) {
 			q.Status = append(q.Status, status)
 		case "author":
 			q.Author = append(q.Author, t.value)
-		case "actor":
-			q.Actor = append(q.Actor, t.value)
 		case "assignee":
 			q.Assignee = append(q.Assignee, t.value)
+		case "ccb":
+			q.Ccb = append(q.Ccb, t.value)
+		case "actor":
+			q.Actor = append(q.Actor, t.value)
 		case "participant":
 			q.Participant = append(q.Participant, t.value)
 		case "label":
@@ -55,6 +59,30 @@ func Parse(query string) (*Query, error) {
 			default:
 				return nil, fmt.Errorf("unknown \"no\" filter \"%s\"", t.value)
 			}
+		case "create-before":
+			parsedTime, err := parseTime(t.value)
+			if err != nil {
+				return nil, err
+			}
+			q.CreateBefore = parsedTime
+		case "create-after":
+			parsedTime, err := parseTime(t.value)
+			if err != nil {
+				return nil, err
+			}
+			q.CreateAfter = parsedTime
+		case "edit-before":
+			parsedTime, err := parseTime(t.value)
+			if err != nil {
+				return nil, err
+			}
+			q.EditBefore = parsedTime
+		case "edit-after":
+			parsedTime, err := parseTime(t.value)
+			if err != nil {
+				return nil, err
+			}
+			q.EditAfter = parsedTime
 		case "sort":
 			if sortingDone {
 				return nil, fmt.Errorf("multiple sorting")
@@ -103,4 +131,16 @@ func parseSorting(q *Query, value string) error {
 	}
 
 	return nil
+}
+
+func parseTime(input string) (time.Time, error) {
+	var formats = []string{"2006-01-02T15:04:05", "2006-01-02"}
+
+	for _, format := range formats {
+		t, err := time.ParseInLocation(format, input, time.Local)
+		if err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, errors.New("Unrecognized time format")
 }

@@ -1,6 +1,10 @@
 package query
 
-import "github.com/daedaleanai/git-ticket/bug"
+import (
+	"time"
+
+	"github.com/daedaleanai/git-ticket/bug"
+)
 
 // Query is the intermediary representation of a Bug's query. It is either
 // produced by parsing a query string (ex: "status:open author:rene") or created
@@ -22,14 +26,19 @@ func NewQuery() *Query {
 
 // Filters is a collection of Filter that implement a complex filter
 type Filters struct {
-	Status      []bug.Status
-	Author      []string
-	Actor       []string
-	Assignee    []string
-	Participant []string
-	Label       []string
-	Title       []string
-	NoLabel     bool
+	Status       []bug.Status
+	Author       []string
+	Assignee     []string
+	Ccb          []string
+	Actor        []string
+	Participant  []string
+	Label        []string
+	Title        []string
+	NoLabel      bool
+	CreateBefore time.Time
+	CreateAfter  time.Time
+	EditBefore   time.Time
+	EditAfter    time.Time
 }
 
 type OrderBy int

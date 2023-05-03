@@ -355,6 +355,8 @@ type JSONBugSnapshot struct {
 	Labels       []bug.Label    `json:"labels"`
 	Title        string         `json:"title"`
 	Author       JSONIdentity   `json:"author"`
+	Assignee     JSONIdentity   `json:"assignee"`
+	Ccb          []JSONCcbInfo  `json:"ccb"`
 	Actors       []JSONIdentity `json:"actors"`
 	Participants []JSONIdentity `json:"participants"`
 	Comments     []JSONComment  `json:"comments"`
@@ -386,6 +388,7 @@ func showJsonFormatter(env *Env, snapshot *bug.Snapshot) error {
 		Labels:     snapshot.Labels,
 		Title:      snapshot.Title,
 		Author:     NewJSONIdentity(snapshot.Author),
+		Assignee:   NewJSONIdentity(snapshot.Assignee),
 	}
 
 	jsonBug.Actors = make([]JSONIdentity, len(snapshot.Actors))
@@ -396,6 +399,15 @@ func showJsonFormatter(env *Env, snapshot *bug.Snapshot) error {
 	jsonBug.Participants = make([]JSONIdentity, len(snapshot.Participants))
 	for i, element := range snapshot.Participants {
 		jsonBug.Participants[i] = NewJSONIdentity(element)
+	}
+
+	jsonBug.Ccb = make([]JSONCcbInfo, len(snapshot.Ccb))
+	for i, element := range snapshot.Ccb {
+		jsonBug.Ccb[i] = JSONCcbInfo{
+			User:   NewJSONIdentity(element.User),
+			Status: element.Status.String(),
+			State:  element.State.String(),
+		}
 	}
 
 	jsonBug.Comments = make([]JSONComment, len(snapshot.Comments))

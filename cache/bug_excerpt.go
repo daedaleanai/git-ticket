@@ -33,6 +33,7 @@ type BugExcerpt struct {
 	AssigneeId   entity.Id
 	Actors       []entity.Id
 	Participants []entity.Id
+	Ccb          []CcbInfoExcerpt
 
 	// If author is identity.Bare, LegacyAuthor is set
 	// If author is identity.Identity, AuthorId is set and data is deported
@@ -47,6 +48,12 @@ type BugExcerpt struct {
 type LegacyAuthorExcerpt struct {
 	Name  string
 	Login string
+}
+
+type CcbInfoExcerpt struct {
+	User   entity.Id
+	Status bug.Status
+	State  bug.CcbState
 }
 
 func (l LegacyAuthorExcerpt) DisplayName() string {
@@ -82,6 +89,13 @@ func NewBugExcerpt(b bug.Interface, snap *bug.Snapshot) *BugExcerpt {
 		assigneeId = snap.Assignee.Id()
 	}
 
+	ccb := make([]CcbInfoExcerpt, 0, len(snap.Ccb))
+	for _, approval := range snap.Ccb {
+		ccb = append(ccb, CcbInfoExcerpt{User: approval.User.Id(),
+			Status: approval.Status,
+			State:  approval.State})
+	}
+
 	e := &BugExcerpt{
 		Id:                b.Id(),
 		CreateLamportTime: b.CreateLamportTime(),
@@ -93,6 +107,7 @@ func NewBugExcerpt(b bug.Interface, snap *bug.Snapshot) *BugExcerpt {
 		AssigneeId:        assigneeId,
 		Actors:            actorsIds,
 		Participants:      participantsIds,
+		Ccb:               ccb,
 		Title:             snap.Title,
 		LenComments:       len(snap.Comments),
 		CreateMetadata:    b.FirstOp().AllMetadata(),
