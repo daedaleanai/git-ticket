@@ -20,11 +20,15 @@ import (
 type lsOptions struct {
 	query query.Query
 
-	statusQuery   []string
-	noQuery       []string
-	sortBy        string
-	sortDirection string
-	outputFormat  string
+	statusQuery       []string
+	createBeforeQuery string
+	createAfterQuery  string
+	editBeforeQuery   string
+	editAfterQuery    string
+	noQuery           []string
+	sortBy            string
+	sortDirection     string
+	outputFormat      string
 }
 
 func newLsCommand() *cobra.Command {
@@ -57,16 +61,26 @@ git ticket ls --status merged --by creation
 		"Filter by status. Valid values are [proposed,vetted,inprogress,inreview,reviewed,accepted,merged,done,rejected,ALL]")
 	flags.StringSliceVarP(&options.query.Author, "author", "a", nil,
 		"Filter by author")
+	flags.StringSliceVarP(&options.query.Assignee, "assignee", "A", nil,
+		"Filter by assignee")
+	flags.StringSliceVarP(&options.query.Ccb, "ccb", "c", nil,
+		"Filter by ccb")
 	flags.StringSliceVarP(&options.query.Participant, "participant", "p", nil,
 		"Filter by participant")
 	flags.StringSliceVarP(&options.query.Actor, "actor", "", nil,
 		"Filter by actor")
-	flags.StringSliceVarP(&options.query.Assignee, "assignee", "A", nil,
-		"Filter by assignee")
 	flags.StringSliceVarP(&options.query.Label, "label", "l", nil,
 		"Filter by label")
 	flags.StringSliceVarP(&options.query.Title, "title", "t", nil,
 		"Filter by title")
+	flags.StringVarP(&options.createBeforeQuery, "create-before", "", "",
+		"Filter by created before. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd")
+	flags.StringVarP(&options.createAfterQuery, "create-after", "", "",
+		"Filter by created after. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd")
+	flags.StringVarP(&options.editBeforeQuery, "edit-before", "", "",
+		"Filter by last edited before. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd")
+	flags.StringVarP(&options.editAfterQuery, "edit-after", "", "",
+		"Filter by last edited after. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd")
 	flags.StringSliceVarP(&options.noQuery, "no", "n", nil,
 		"Filter by absence of something. Valid values are [label]")
 	flags.StringVarP(&options.sortBy, "by", "b", "creation",
@@ -139,6 +153,8 @@ type JSONBugExcerpt struct {
 	Actors       []JSONIdentity `json:"actors"`
 	Participants []JSONIdentity `json:"participants"`
 	Author       JSONIdentity   `json:"author"`
+	Assignee     JSONIdentity   `json:"assignee"`
+	Ccb          []JSONCcbInfo  `json:"ccb"`
 
 	Comments int               `json:"comments"`
 	Metadata map[string]string `json:"metadata"`
@@ -169,6 +185,14 @@ func lsJsonFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 			jsonBug.Author = NewJSONIdentityFromLegacyExcerpt(&b.LegacyAuthor)
 		}
 
+		if b.AssigneeId != "" {
+			assignee, err := env.backend.ResolveIdentityExcerpt(b.AssigneeId)
+			if err != nil {
+				return err
+			}
+			jsonBug.Assignee = NewJSONIdentityFromExcerpt(assignee)
+		}
+
 		jsonBug.Actors = make([]JSONIdentity, len(b.Actors))
 		for i, element := range b.Actors {
 			actor, err := env.backend.ResolveIdentityExcerpt(element)
@@ -185,6 +209,20 @@ func lsJsonFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 				return err
 			}
 			jsonBug.Participants[i] = NewJSONIdentityFromExcerpt(participant)
+		}
+
+		jsonBug.Ccb = make([]JSONCcbInfo, len(b.Ccb))
+		for i, element := range b.Ccb {
+			user, err := env.backend.ResolveIdentityExcerpt(element.User)
+			if err != nil {
+				return err
+			}
+			jsonBug.Ccb[i] = JSONCcbInfo{
+				User:   NewJSONIdentityFromExcerpt(user),
+				Status: element.Status.String(),
+				State:  element.State.String(),
+			}
+
 		}
 
 		jsonBugs[i] = jsonBug
@@ -361,6 +399,34 @@ func completeQuery(opts *lsOptions) error {
 		default:
 			return fmt.Errorf("unknown \"no\" filter %s", no)
 		}
+	}
+	if opts.createBeforeQuery != "" {
+		parsedTime, err := parseTime(opts.createBeforeQuery)
+		if err != nil {
+			return err
+		}
+		opts.query.CreateBefore = parsedTime
+	}
+	if opts.createAfterQuery != "" {
+		parsedTime, err := parseTime(opts.createAfterQuery)
+		if err != nil {
+			return err
+		}
+		opts.query.CreateAfter = parsedTime
+	}
+	if opts.editBeforeQuery != "" {
+		parsedTime, err := parseTime(opts.editBeforeQuery)
+		if err != nil {
+			return err
+		}
+		opts.query.EditBefore = parsedTime
+	}
+	if opts.editAfterQuery != "" {
+		parsedTime, err := parseTime(opts.editAfterQuery)
+		if err != nil {
+			return err
+		}
+		opts.query.EditAfter = parsedTime
 	}
 
 	switch opts.sortBy {
