@@ -2,6 +2,7 @@ package cache
 
 import (
 	"strings"
+	"time"
 
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/entity"
@@ -60,6 +61,25 @@ func AssigneeFilter(query string) Filter {
 			return assignee.Match(query)
 		}
 
+		return false
+	}
+}
+
+// CcbFilter return a Filter that match a bug ccb
+func CcbFilter(query string) Filter {
+	return func(excerpt *BugExcerpt, resolver resolver) bool {
+		query = strings.ToLower(query)
+
+		for _, id := range excerpt.Ccb {
+			identityExcerpt, err := resolver.ResolveIdentityExcerpt(id.User)
+			if err != nil {
+				panic(err)
+			}
+
+			if identityExcerpt.Match(query) {
+				return true
+			}
+		}
 		return false
 	}
 }
@@ -131,16 +151,58 @@ func NoLabelFilter() Filter {
 	}
 }
 
+// CreateBeforeFilter returns a Filter that match create time being before the provided time
+func CreateBeforeFilter(filterTime time.Time) Filter {
+	return func(excerpt *BugExcerpt, resolver resolver) bool {
+		if filterTime.IsZero() {
+			return true
+		}
+		return excerpt.CreateTime().Before(filterTime)
+	}
+}
+
+// CreateAfterFilter returns a Filter that match create time being after the provided time
+func CreateAfterFilter(filterTime time.Time) Filter {
+	return func(excerpt *BugExcerpt, resolver resolver) bool {
+		if filterTime.IsZero() {
+			return true
+		}
+		return excerpt.CreateTime().After(filterTime)
+	}
+}
+
+// EditBeforeFilter returns a Filter that match edit time being before the provided time
+func EditBeforeFilter(filterTime time.Time) Filter {
+	return func(excerpt *BugExcerpt, resolver resolver) bool {
+		if filterTime.IsZero() {
+			return true
+		}
+		return excerpt.EditTime().Before(filterTime)
+	}
+}
+
+// EditAfterFilter returns a Filter that match edit time being after the provided time
+func EditAfterFilter(filterTime time.Time) Filter {
+	return func(excerpt *BugExcerpt, resolver resolver) bool {
+		if filterTime.IsZero() {
+			return true
+		}
+		return excerpt.EditTime().After(filterTime)
+	}
+}
+
 // Matcher is a collection of Filter that implement a complex filter
 type Matcher struct {
 	Status      []Filter
 	Author      []Filter
 	Assignee    []Filter
+	Ccb         []Filter
 	Actor       []Filter
 	Participant []Filter
 	Label       []Filter
 	Title       []Filter
 	NoFilters   []Filter
+	TimeFilters []Filter
 }
 
 // compileMatcher transform a query.Filters into a specialized matcher
@@ -154,11 +216,14 @@ func compileMatcher(filters query.Filters) *Matcher {
 	for _, value := range filters.Author {
 		result.Author = append(result.Author, AuthorFilter(value))
 	}
-	for _, value := range filters.Actor {
-		result.Actor = append(result.Actor, ActorFilter(value))
-	}
 	for _, value := range filters.Assignee {
 		result.Assignee = append(result.Assignee, AssigneeFilter(value))
+	}
+	for _, value := range filters.Ccb {
+		result.Ccb = append(result.Ccb, CcbFilter(value))
+	}
+	for _, value := range filters.Actor {
+		result.Actor = append(result.Actor, ActorFilter(value))
 	}
 	for _, value := range filters.Participant {
 		result.Participant = append(result.Participant, ParticipantFilter(value))
@@ -169,6 +234,10 @@ func compileMatcher(filters query.Filters) *Matcher {
 	for _, value := range filters.Title {
 		result.Title = append(result.Title, TitleFilter(value))
 	}
+	result.TimeFilters = append(result.TimeFilters, CreateBeforeFilter(filters.CreateBefore))
+	result.TimeFilters = append(result.TimeFilters, CreateAfterFilter(filters.CreateAfter))
+	result.TimeFilters = append(result.TimeFilters, EditBeforeFilter(filters.EditBefore))
+	result.TimeFilters = append(result.TimeFilters, EditAfterFilter(filters.EditAfter))
 
 	return result
 }
@@ -184,6 +253,10 @@ func (f *Matcher) Match(excerpt *BugExcerpt, resolver resolver) bool {
 	}
 
 	if match := f.orMatch(f.Assignee, excerpt, resolver); !match {
+		return false
+	}
+
+	if match := f.orMatch(f.Ccb, excerpt, resolver); !match {
 		return false
 	}
 
@@ -204,6 +277,10 @@ func (f *Matcher) Match(excerpt *BugExcerpt, resolver resolver) bool {
 	}
 
 	if match := f.andMatch(f.Title, excerpt, resolver); !match {
+		return false
+	}
+
+	if match := f.andMatch(f.TimeFilters, excerpt, resolver); !match {
 		return false
 	}
 

@@ -40,6 +40,12 @@ func NewJSONIdentityFromLegacyExcerpt(excerpt *cache.LegacyAuthorExcerpt) JSONId
 	}
 }
 
+type JSONCcbInfo struct {
+	User   JSONIdentity
+	Status string
+	State  string
+}
+
 type JSONTime struct {
 	Timestamp int64        `json:"timestamp"`
 	Time      time.Time    `json:"time"`
