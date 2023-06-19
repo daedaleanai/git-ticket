@@ -19,13 +19,15 @@ git-ticket [flags]
 ### Options
 
 ```
-  -h, --help   help for git-ticket
+  -h, --help            help for git-ticket
+      --rebuild-cache   force the cache to be rebuilt
 ```
 
 ### SEE ALSO
 
 * [git-ticket add](git-ticket_add.md)	 - Create a new ticket.
 * [git-ticket assign](git-ticket_assign.md)	 - Assign a user to a ticket.
+* [git-ticket ccb](git-ticket_ccb.md)	 - Change Control Board (CCB) actions of a ticket.
 * [git-ticket commands](git-ticket_commands.md)	 - Display available commands.
 * [git-ticket comment](git-ticket_comment.md)	 - Display or add comments to a ticket.
 * [git-ticket config](git-ticket_config.md)	 - List configs or show the specified config
@@ -44,5 +46,6 @@ git-ticket [flags]
 * [git-ticket termui](git-ticket_termui.md)	 - Launch the terminal UI.
 * [git-ticket title](git-ticket_title.md)	 - Display or change a title of a ticket.
 * [git-ticket user](git-ticket_user.md)	 - Display or change the user identity.
+* [git-ticket validate](git-ticket_validate.md)	 - Validate identities and commits signatures.
 * [git-ticket version](git-ticket_version.md)	 - Show git-ticket version information.
 

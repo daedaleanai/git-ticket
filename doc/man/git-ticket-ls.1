@@ -1,6 +1,6 @@
 .nh
-.TH GIT\-BUG(1)Apr 2019
-Generated from git\-bug's source code
+.TH GIT\-TICKET(1)Apr 2019
+Generated from git\-ticket's source code
 
 .SH NAME
 .PP
@@ -14,7 +14,7 @@ git\-ticket\-ls \- List tickets.
 
 .SH DESCRIPTION
 .PP
-Display a summary of each ticket.
+Display a summary of each ticket. By default shows only "active" tickets, i.e. In Progress, In Review, Reviewed and Accepted.
 
 .PP
 You can pass an additional query to filter and order the list. This query can be expressed either with a simple query language or with flags.
@@ -23,7 +23,7 @@ You can pass an additional query to filter and order the list. This query can be
 .SH OPTIONS
 .PP
 \fB\-s\fP, \fB\-\-status\fP=[]
-	Filter by status. Valid values are [open,closed]
+	Filter by status. Valid values are [proposed,vetted,inprogress,inreview,reviewed,accepted,merged,done,rejected,ALL]
 
 .PP
 \fB\-a\fP, \fB\-\-author\fP=[]
@@ -68,6 +68,12 @@ You can pass an additional query to filter and order the list. This query can be
 .PP
 \fB\-h\fP, \fB\-\-help\fP[=false]
 	help for ls
+
+
+.SH OPTIONS INHERITED FROM PARENT COMMANDS
+.PP
+\fB\-\-rebuild\-cache\fP[=false]
+	force the cache to be rebuilt
 
 
 .SH EXAMPLE

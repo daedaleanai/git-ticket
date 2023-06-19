@@ -24,6 +24,12 @@ git-ticket review fetch DIFF-ID [ID] [flags]
   -h, --help   help for fetch
 ```
 
+### Options inherited from parent commands
+
+```
+      --rebuild-cache   force the cache to be rebuilt
+```
+
 ### SEE ALSO
 
 * [git-ticket review](git-ticket_review.md)	 - Review actions of a ticket.

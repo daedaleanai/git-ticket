@@ -18,6 +18,12 @@ git-ticket comment add [ID] [flags]
   -h, --help             help for add
 ```
 
+### Options inherited from parent commands
+
+```
+      --rebuild-cache   force the cache to be rebuilt
+```
+
 ### SEE ALSO
 
 * [git-ticket comment](git-ticket_comment.md)	 - Display or add comments to a ticket.

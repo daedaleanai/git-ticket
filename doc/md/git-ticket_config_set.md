@@ -17,6 +17,12 @@ git-ticket config set CONFIG [flags]
   -h, --help          help for set
 ```
 
+### Options inherited from parent commands
+
+```
+      --rebuild-cache   force the cache to be rebuilt
+```
+
 ### SEE ALSO
 
 * [git-ticket config](git-ticket_config.md)	 - List configs or show the specified config

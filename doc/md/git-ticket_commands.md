@@ -17,6 +17,12 @@ git-ticket commands [flags]
   -h, --help     help for commands
 ```
 
+### Options inherited from parent commands
+
+```
+      --rebuild-cache   force the cache to be rebuilt
+```
+
 ### SEE ALSO
 
 * [git-ticket](git-ticket.md)	 - A ticket tracker embedded in Git.

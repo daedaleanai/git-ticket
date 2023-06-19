@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"strconv"
+	"sort"
 
 	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/awesome-gocui/gocui"
@@ -31,6 +33,46 @@ var bugTableHelp = helpBar{
 	{"n", "New bug"},
 	{"i", "Pull"},
 	{"o", "Push"},
+	{"m", "Sorting"},
+}
+
+type sorting int
+
+const (
+	PrioHi sorting = iota
+	PrioLo         = 1
+	Id             = 2 
+	Status         = 3
+	Title          = 4
+	Author         = 5
+	LastEditOld    = 6
+	LastEditNew    = 7
+)
+
+func (s sorting) String() string {
+	switch s {
+	case PrioHi:
+		return "PRIO (highest)"
+	case PrioLo:
+		return "PRIO (lowest)"
+	case Id:
+		return "ID"
+	case Status:
+		return "STATUS"
+	case Title:
+		return "TITLE"
+	case Author:
+		return "AUTHOR"
+	case LastEditOld:
+		return "LAST EDIT (oldest)"
+	case LastEditNew:
+		return "LAST EDIT (newest)"
+	}
+	return "UNKNOWN"
+}
+
+func (s sorting) Inc() sorting {
+	return (s + 1) % (LastEditNew + 1)
 }
 
 type bugTable struct {
@@ -41,6 +83,7 @@ type bugTable struct {
 	excerpts     []*cache.BugExcerpt
 	pageCursor   int
 	selectCursor int
+	sortingField sorting
 }
 
 func newBugTable(c *cache.RepoCache) *bugTable {
@@ -55,6 +98,7 @@ func newBugTable(c *cache.RepoCache) *bugTable {
 		queryStr:     defaultQuery,
 		pageCursor:   0,
 		selectCursor: 0,
+		sortingField: 0,
 	}
 }
 
@@ -98,6 +142,11 @@ func (bt *bugTable) layout(g *gocui.Gui) error {
 	}
 
 	err = bt.cursorClamp(v)
+	if err != nil {
+		return err
+	}
+
+	err = bt.sort()
 	if err != nil {
 		return err
 	}
@@ -217,6 +266,12 @@ func (bt *bugTable) keybindings(g *gocui.Gui) error {
 		return err
 	}
 
+	// Sorting
+	if err := g.SetKeybinding(bugTableView, 'm', gocui.ModNone,
+		bt.changeSorting); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -271,16 +326,63 @@ func (bt *bugTable) doPaginate(max int) error {
 	return nil
 }
 
+func (bt *bugTable) sort() error {
+	switch bt.sortingField {
+	case Id:
+		sort.SliceStable(bt.excerpts, func(i, j int) bool {
+			return bt.excerpts[i].Id.Human() < bt.excerpts[j].Id.Human()
+		})
+	case PrioHi:
+		// Sort highest priority first
+		sort.SliceStable(bt.excerpts, func(i, j int) bool {
+			return bt.excerpts[i].Priority > bt.excerpts[j].Priority
+		})
+	case PrioLo:
+		// Sort highest priority first
+		sort.SliceStable(bt.excerpts, func(i, j int) bool {
+			return bt.excerpts[i].Priority < bt.excerpts[j].Priority
+		})
+	case Title:
+		// Sort highest priority first
+		sort.SliceStable(bt.excerpts, func(i, j int) bool {
+			return bt.excerpts[i].Title < bt.excerpts[j].Title
+		})
+	case Status:
+		// Sort highest priority first
+		sort.SliceStable(bt.excerpts, func(i, j int) bool {
+			return bt.excerpts[i].Status < bt.excerpts[j].Status
+		})
+	case Author:
+		// Sort highest priority first
+		sort.SliceStable(bt.excerpts, func(i, j int) bool {
+			return bt.excerpts[i].AuthorId.Human() < bt.excerpts[j].AuthorId.Human()
+		})
+	case LastEditNew:
+		// Sort highest priority first
+		sort.SliceStable(bt.excerpts, func(i, j int) bool {
+			return bt.excerpts[i].EditUnixTime > bt.excerpts[j].EditUnixTime
+		})
+	case LastEditOld:
+		// Sort highest priority first
+		sort.SliceStable(bt.excerpts, func(i, j int) bool {
+			return bt.excerpts[i].EditUnixTime < bt.excerpts[j].EditUnixTime
+		})
+	}
+
+	return nil
+}
+
 func (bt *bugTable) getTableLength() int {
 	return len(bt.excerpts)
 }
 
 func (bt *bugTable) getColumnWidths(maxX int) map[string]int {
 	m := make(map[string]int)
+	m["prio"] = 4
 	m["id"] = 7
 	m["status"] = 6
 
-	left := maxX - 5 - m["id"] - m["status"]
+	left := maxX - 5 - m["prio"] - m["id"] - m["status"]
 
 	m["comments"] = 3
 	left -= m["comments"]
@@ -327,6 +429,7 @@ func (bt *bugTable) render(v *gocui.View, maxX int) {
 
 		lastEditTime := excerpt.EditTime()
 
+		prio := termtext.LeftPadMaxLine(strconv.Itoa(excerpt.Priority), columnWidths["prio"], 0)
 		id := termtext.LeftPadMaxLine(excerpt.Id.Human(), columnWidths["id"], 0)
 		status := termtext.LeftPadMaxLine(excerpt.Status.String(), columnWidths["status"], 0)
 		labels := termtext.TruncateMax(labelsTxt.String(), minInt(columnWidths["title"]-2, 10))
@@ -335,7 +438,8 @@ func (bt *bugTable) render(v *gocui.View, maxX int) {
 		comments := termtext.LeftPadMaxLine(summaryTxt, columnWidths["comments"], 0)
 		lastEdit := termtext.LeftPadMaxLine(humanize.Time(lastEditTime), columnWidths["lastEdit"], 1)
 
-		_, _ = fmt.Fprintf(v, "%s %s %s%s %s %s %s\n",
+		_, _ = fmt.Fprintf(v, "%s %s %s %s%s %s %s %s\n",
+			prio,
 			colors.Cyan(id),
 			colors.Yellow(status),
 			title,
@@ -352,6 +456,7 @@ func (bt *bugTable) render(v *gocui.View, maxX int) {
 func (bt *bugTable) renderHeader(v *gocui.View, maxX int) {
 	columnWidths := bt.getColumnWidths(maxX)
 
+	prio := termtext.LeftPadMaxLine("PRIO", columnWidths["prio"], 0)
 	id := termtext.LeftPadMaxLine("ID", columnWidths["id"], 0)
 	status := termtext.LeftPadMaxLine("STATUS", columnWidths["status"], 0)
 	title := termtext.LeftPadMaxLine("TITLE", columnWidths["title"], 0)
@@ -359,11 +464,11 @@ func (bt *bugTable) renderHeader(v *gocui.View, maxX int) {
 	comments := termtext.LeftPadMaxLine("CMT", columnWidths["comments"], 0)
 	lastEdit := termtext.LeftPadMaxLine("LAST EDIT", columnWidths["lastEdit"], 1)
 
-	_, _ = fmt.Fprintf(v, "%s %s %s %s %s %s\n", id, status, title, author, comments, lastEdit)
+	_, _ = fmt.Fprintf(v, "%s %s %s %s %s %s %s\n", prio, id, status, title, author, comments, lastEdit)
 }
 
 func (bt *bugTable) renderFooter(v *gocui.View, maxX int) {
-	_, _ = fmt.Fprintf(v, " \nShowing %d of %d bugs", len(bt.excerpts), len(bt.allIds))
+	_, _ = fmt.Fprintf(v, " \nShowing %d of %d bugs sorted by %s", len(bt.excerpts), len(bt.allIds), bt.sortingField.String())
 }
 
 func (bt *bugTable) renderHelp(v *gocui.View, maxX int) {
@@ -546,3 +651,9 @@ func (bt *bugTable) push(g *gocui.Gui, v *gocui.View) error {
 func (bt *bugTable) changeQuery(g *gocui.Gui, v *gocui.View) error {
 	return editQueryWithEditor(bt)
 }
+
+func (bt *bugTable) changeSorting(g *gocui.Gui, v *gocui.View) error {
+	bt.sortingField = bt.sortingField.Inc()
+	return bt.sort()
+}
+

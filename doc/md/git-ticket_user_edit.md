@@ -7,13 +7,19 @@ Edit a user identity.
 Edit a user identity.
 
 ```
-git-ticket user edit USER-ID [flags]
+git-ticket user edit [<username/id>] [flags]
 ```
 
 ### Options
 
 ```
   -h, --help   help for edit
+```
+
+### Options inherited from parent commands
+
+```
+      --rebuild-cache   force the cache to be rebuilt
 ```
 
 ### SEE ALSO

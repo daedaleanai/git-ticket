@@ -7,13 +7,19 @@ Adopt an existing identity as your own.
 Adopt an existing identity as your own.
 
 ```
-git-ticket user adopt USER-ID [flags]
+git-ticket user adopt <username/id> [flags]
 ```
 
 ### Options
 
 ```
   -h, --help   help for adopt
+```
+
+### Options inherited from parent commands
+
+```
+      --rebuild-cache   force the cache to be rebuilt
 ```
 
 ### SEE ALSO

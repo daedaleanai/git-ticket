@@ -5,6 +5,7 @@ function _git-ticket {
   local -a commands
 
   _arguments -C \
+    '--rebuild-cache[force the cache to be rebuilt]' \
     "1: :->cmnds" \
     "*::arg:->args"
 
@@ -13,8 +14,10 @@ function _git-ticket {
     commands=(
       "add:Create a new ticket."
       "assign:Assign a user to a ticket."
+      "ccb:Change Control Board (CCB) actions of a ticket."
       "commands:Display available commands."
       "comment:Display or add comments to a ticket."
+      "config:List configs or show the specified config"
       "deselect:Clear the implicitly selected ticket."
       "label:Display, add or remove labels to/from a ticket."
       "ls:List tickets."
@@ -22,13 +25,15 @@ function _git-ticket {
       "ls-label:List valid labels."
       "pull:Pull tickets update from a git remote."
       "push:Push tickets update to a git remote."
-      "review:Review a ticket."
+      "review:Review actions of a ticket."
+      "rm:Remove an existing bug."
       "select:Select a ticket for implicit use in future commands."
       "show:Display the details of a ticket."
       "status:Display or change a ticket status."
       "termui:Launch the terminal UI."
       "title:Display or change a title of a ticket."
       "user:Display or change the user identity."
+      "validate:Validate identities and commits signatures."
       "version:Show git-ticket version information."
     )
     _describe "command" commands
@@ -42,11 +47,17 @@ function _git-ticket {
   assign)
     _git-ticket_assign
     ;;
+  ccb)
+    _git-ticket_ccb
+    ;;
   commands)
     _git-ticket_commands
     ;;
   comment)
     _git-ticket_comment
+    ;;
+  config)
+    _git-ticket_config
     ;;
   deselect)
     _git-ticket_deselect
@@ -72,6 +83,9 @@ function _git-ticket {
   review)
     _git-ticket_review
     ;;
+  rm)
+    _git-ticket_rm
+    ;;
   select)
     _git-ticket_select
     ;;
@@ -90,6 +104,9 @@ function _git-ticket {
   user)
     _git-ticket_user
     ;;
+  validate)
+    _git-ticket_validate
+    ;;
   version)
     _git-ticket_version
     ;;
@@ -100,16 +117,76 @@ function _git-ticket_add {
   _arguments \
     '(-t --title)'{-t,--title}'[Provide a title to describe the issue]:' \
     '(-m --message)'{-m,--message}'[Provide a message to describe the issue]:' \
-    '(-F --file)'{-F,--file}'[Take the message from the given file. Use - to read the message from the standard input]:'
+    '(-F --file)'{-F,--file}'[Take the message from the given file. Use - to read the message from the standard input]:' \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_assign {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
+}
+
+
+function _git-ticket_ccb {
+  local -a commands
+
+  _arguments -C \
+    '--rebuild-cache[force the cache to be rebuilt]' \
+    "1: :->cmnds" \
+    "*::arg:->args"
+
+  case $state in
+  cmnds)
+    commands=(
+      "add:Add a CCB member as an approver of a ticket status."
+      "approve:Approve a ticket status."
+      "block:Block a ticket status."
+      "rm:Remove a CCB member as an approver of a ticket status."
+    )
+    _describe "command" commands
+    ;;
+  esac
+
+  case "$words[1]" in
+  add)
+    _git-ticket_ccb_add
+    ;;
+  approve)
+    _git-ticket_ccb_approve
+    ;;
+  block)
+    _git-ticket_ccb_block
+    ;;
+  rm)
+    _git-ticket_ccb_rm
+    ;;
+  esac
+}
+
+function _git-ticket_ccb_add {
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
+}
+
+function _git-ticket_ccb_approve {
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
+}
+
+function _git-ticket_ccb_block {
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
+}
+
+function _git-ticket_ccb_rm {
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_commands {
   _arguments \
-    '(-p --pretty)'{-p,--pretty}'[Output the command description as well as Markdown compatible comment]'
+    '(-p --pretty)'{-p,--pretty}'[Output the command description as well as Markdown compatible comment]' \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 
@@ -117,6 +194,7 @@ function _git-ticket_comment {
   local -a commands
 
   _arguments -C \
+    '--rebuild-cache[force the cache to be rebuilt]' \
     "1: :->cmnds" \
     "*::arg:->args"
 
@@ -139,11 +217,44 @@ function _git-ticket_comment {
 function _git-ticket_comment_add {
   _arguments \
     '(-F --file)'{-F,--file}'[Take the message from the given file. Use - to read the message from the standard input]:' \
-    '(-m --message)'{-m,--message}'[Provide the new message from the command line]:'
+    '(-m --message)'{-m,--message}'[Provide the new message from the command line]:' \
+    '--rebuild-cache[force the cache to be rebuilt]'
+}
+
+
+function _git-ticket_config {
+  local -a commands
+
+  _arguments -C \
+    '--rebuild-cache[force the cache to be rebuilt]' \
+    "1: :->cmnds" \
+    "*::arg:->args"
+
+  case $state in
+  cmnds)
+    commands=(
+      "set:Set the named configuration data."
+    )
+    _describe "command" commands
+    ;;
+  esac
+
+  case "$words[1]" in
+  set)
+    _git-ticket_config_set
+    ;;
+  esac
+}
+
+function _git-ticket_config_set {
+  _arguments \
+    '(-F --file)'{-F,--file}'[Take the config from the given file. Use - to read the config from the standard input]:' \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_deselect {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 
@@ -151,6 +262,7 @@ function _git-ticket_label {
   local -a commands
 
   _arguments -C \
+    '--rebuild-cache[force the cache to be rebuilt]' \
     "1: :->cmnds" \
     "*::arg:->args"
 
@@ -175,40 +287,49 @@ function _git-ticket_label {
 }
 
 function _git-ticket_label_add {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_label_rm {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_ls {
   _arguments \
-    '(*-s *--status)'{\*-s,\*--status}'[Filter by status. Valid values are [open,closed]]:' \
+    '(*-s *--status)'{\*-s,\*--status}'[Filter by status. Valid values are [proposed,vetted,inprogress,inreview,reviewed,accepted,merged,done,rejected,ALL]]:' \
     '(*-a *--author)'{\*-a,\*--author}'[Filter by author]:' \
     '(*-p *--participant)'{\*-p,\*--participant}'[Filter by participant]:' \
-    '(*-A *--actor)'{\*-A,\*--actor}'[Filter by actor]:' \
+    '*--actor[Filter by actor]:' \
+    '(*-A *--assignee)'{\*-A,\*--assignee}'[Filter by assignee]:' \
     '(*-l *--label)'{\*-l,\*--label}'[Filter by label]:' \
     '(*-t *--title)'{\*-t,\*--title}'[Filter by title]:' \
     '(*-n *--no)'{\*-n,\*--no}'[Filter by absence of something. Valid values are [label]]:' \
     '(-b --by)'{-b,--by}'[Sort the results by a characteristic. Valid values are [id,creation,edit]]:' \
-    '(-d --direction)'{-d,--direction}'[Select the sorting direction. Valid values are [asc,desc]]:'
+    '(-d --direction)'{-d,--direction}'[Select the sorting direction. Valid values are [asc,desc]]:' \
+    '(-f --format)'{-f,--format}'[Select the output formatting style. Valid values are [default,plain,json,org-mode]]:' \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_ls-id {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_ls-label {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_pull {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_push {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 
@@ -216,36 +337,67 @@ function _git-ticket_review {
   local -a commands
 
   _arguments -C \
+    '--rebuild-cache[force the cache to be rebuilt]' \
     "1: :->cmnds" \
     "*::arg:->args"
 
   case $state in
   cmnds)
     commands=(
-      "fetch:Fetch review data for a ticket."
+      "checklist:Complete a checklist associated with a ticket."
+      "clear:Clear the Differential Revision data associated with a ticket."
+      "fetch:Get Differential Revision data from Phabricator and store in a ticket."
     )
     _describe "command" commands
     ;;
   esac
 
   case "$words[1]" in
+  checklist)
+    _git-ticket_review_checklist
+    ;;
+  clear)
+    _git-ticket_review_clear
+    ;;
   fetch)
     _git-ticket_review_fetch
     ;;
   esac
 }
 
+function _git-ticket_review_checklist {
+  _arguments \
+    '(-b --blank)'{-b,--blank}'[Discard any previously edited checklist and start again with a blank one]' \
+    '--rebuild-cache[force the cache to be rebuilt]'
+}
+
+function _git-ticket_review_clear {
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
+}
+
 function _git-ticket_review_fetch {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
+}
+
+function _git-ticket_rm {
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_select {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_show {
   _arguments \
-    '(-f --field)'{-f,--field}'[Select field to display. Valid values are [assignee,author,authorEmail,checklists,createTime,humanId,id,labels,reviews,shortId,status,title,workflow,actors,participants]]:'
+    '(-t --timeline)'{-t,--timeline}'[Output the timeline of the ticket]' \
+    '--field[Select field to display. Valid values are [assignee,author,authorEmail,ccb,checklists,createTime,lastEdit,humanId,id,labels,reviews,shortId,status,nextStatuses,title,workflow,actors,participants]]:' \
+    '(-f --format)'{-f,--format}'[Select the output formatting style. Valid values are [default,json,org-mode]]:' \
+    '(-s --since)'{-s,--since}'[Limit the timeline to changes since the given date/time. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd]:' \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 
@@ -253,6 +405,7 @@ function _git-ticket_status {
   local -a commands
 
   _arguments -C \
+    '--rebuild-cache[force the cache to be rebuilt]' \
     "1: :->cmnds" \
     "*::arg:->args"
 
@@ -265,6 +418,7 @@ function _git-ticket_status {
       "inreview:Ticket is set IN REVIEW."
       "merged:Ticket is set MERGED."
       "proposed:Ticket is set PROPOSED."
+      "rejected:Ticket is set REJECTED."
       "reviewed:Ticket is set REVIEWED."
       "vetted:Ticket is set VETTED."
     )
@@ -291,6 +445,9 @@ function _git-ticket_status {
   proposed)
     _git-ticket_status_proposed
     ;;
+  rejected)
+    _git-ticket_status_rejected
+    ;;
   reviewed)
     _git-ticket_status_reviewed
     ;;
@@ -301,39 +458,53 @@ function _git-ticket_status {
 }
 
 function _git-ticket_status_accepted {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_status_done {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_status_inprogress {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_status_inreview {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_status_merged {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_status_proposed {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
+}
+
+function _git-ticket_status_rejected {
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_status_reviewed {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_status_vetted {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_termui {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 
@@ -341,6 +512,7 @@ function _git-ticket_title {
   local -a commands
 
   _arguments -C \
+    '--rebuild-cache[force the cache to be rebuilt]' \
     "1: :->cmnds" \
     "*::arg:->args"
 
@@ -362,7 +534,8 @@ function _git-ticket_title {
 
 function _git-ticket_title_edit {
   _arguments \
-    '(-t --title)'{-t,--title}'[Provide a title to describe the issue]:'
+    '(-t --title)'{-t,--title}'[Provide a title to describe the issue]:' \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 
@@ -370,7 +543,8 @@ function _git-ticket_user {
   local -a commands
 
   _arguments -C \
-    '(-f --field)'{-f,--field}'[Select field to display. Valid values are [email,humanId,id,lastModification,lastModificationLamport,login,metadata,name]]:' \
+    '(-f --field)'{-f,--field}'[Select field to display. Valid values are [email,humanId,id,keys,lastModification,lastModificationLamport,login,metadata,name,phabId]]:' \
+    '--rebuild-cache[force the cache to be rebuilt]' \
     "1: :->cmnds" \
     "*::arg:->args"
 
@@ -379,6 +553,7 @@ function _git-ticket_user {
     commands=(
       "adopt:Adopt an existing identity as your own."
       "create:Create a new identity."
+      "edit:Edit a user identity."
       "key:Display, add or remove keys to/from a user."
       "ls:List identities."
     )
@@ -393,6 +568,9 @@ function _git-ticket_user {
   create)
     _git-ticket_user_create
     ;;
+  edit)
+    _git-ticket_user_edit
+    ;;
   key)
     _git-ticket_user_key
     ;;
@@ -403,11 +581,19 @@ function _git-ticket_user {
 }
 
 function _git-ticket_user_adopt {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_user_create {
-  _arguments
+  _arguments \
+    '--key-file[Take the armored PGP public key from the given file. Use - to read the message from the standard input]:' \
+    '--rebuild-cache[force the cache to be rebuilt]'
+}
+
+function _git-ticket_user_edit {
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 
@@ -415,6 +601,7 @@ function _git-ticket_user_key {
   local -a commands
 
   _arguments -C \
+    '--rebuild-cache[force the cache to be rebuilt]' \
     "1: :->cmnds" \
     "*::arg:->args"
 
@@ -441,21 +628,32 @@ function _git-ticket_user_key {
 function _git-ticket_user_key_add {
   _arguments \
     '(-F --file)'{-F,--file}'[Take the armored PGP public key from the given file. Use - to read the message from the standard input]:' \
-    '(-k --key)'{-k,--key}'[Provide the armored PGP public key from the command line]:'
+    '(-k --key)'{-k,--key}'[Provide the armored PGP public key from the command line]:' \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_user_key_rm {
-  _arguments
+  _arguments \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_user_ls {
-  _arguments
+  _arguments \
+    '(-f --format)'{-f,--format}'[Select the output formatting style. Valid values are [default,json]]:' \
+    '--rebuild-cache[force the cache to be rebuilt]'
+}
+
+function _git-ticket_validate {
+  _arguments \
+    '(-e --external)'{-e,--external}'[Validate commit in an external repository at this path]:' \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_version {
   _arguments \
     '(-n --number)'{-n,--number}'[Only show the version number]' \
     '(-c --commit)'{-c,--commit}'[Only show the commit hash]' \
-    '(-a --all)'{-a,--all}'[Show all version informations]'
+    '(-a --all)'{-a,--all}'[Show all version information]' \
+    '--rebuild-cache[force the cache to be rebuilt]'
 }
 

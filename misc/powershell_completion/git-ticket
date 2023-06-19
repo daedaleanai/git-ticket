@@ -19,31 +19,27 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
         'git-ticket' {
             [CompletionResult]::new('add', 'add', [CompletionResultType]::ParameterValue, 'Create a new ticket.')
             [CompletionResult]::new('assign', 'assign', [CompletionResultType]::ParameterValue, 'Assign a user to a ticket.')
+            [CompletionResult]::new('ccb', 'ccb', [CompletionResultType]::ParameterValue, 'Change Control Board (CCB) actions of a ticket.')
             [CompletionResult]::new('commands', 'commands', [CompletionResultType]::ParameterValue, 'Display available commands.')
             [CompletionResult]::new('comment', 'comment', [CompletionResultType]::ParameterValue, 'Display or add comments to a ticket.')
+            [CompletionResult]::new('config', 'config', [CompletionResultType]::ParameterValue, 'List configs or show the specified config')
             [CompletionResult]::new('deselect', 'deselect', [CompletionResultType]::ParameterValue, 'Clear the implicitly selected ticket.')
             [CompletionResult]::new('label', 'label', [CompletionResultType]::ParameterValue, 'Display, add or remove labels to/from a ticket.')
             [CompletionResult]::new('ls', 'ls', [CompletionResultType]::ParameterValue, 'List tickets.')
             [CompletionResult]::new('ls-id', 'ls-id', [CompletionResultType]::ParameterValue, 'List ticket identifiers.')
             [CompletionResult]::new('ls-label', 'ls-label', [CompletionResultType]::ParameterValue, 'List valid labels.')
-<<<<<<< HEAD:misc/powershell_completion/git-ticket
             [CompletionResult]::new('pull', 'pull', [CompletionResultType]::ParameterValue, 'Pull tickets update from a git remote.')
             [CompletionResult]::new('push', 'push', [CompletionResultType]::ParameterValue, 'Push tickets update to a git remote.')
-            [CompletionResult]::new('review', 'review', [CompletionResultType]::ParameterValue, 'Review a ticket.')
+            [CompletionResult]::new('refresh', 'refresh', [CompletionResultType]::ParameterValue, 'Refresh cache.')
+            [CompletionResult]::new('review', 'review', [CompletionResultType]::ParameterValue, 'Review actions of a ticket.')
+            [CompletionResult]::new('rm', 'rm', [CompletionResultType]::ParameterValue, 'Remove an existing bug.')
             [CompletionResult]::new('select', 'select', [CompletionResultType]::ParameterValue, 'Select a ticket for implicit use in future commands.')
             [CompletionResult]::new('show', 'show', [CompletionResultType]::ParameterValue, 'Display the details of a ticket.')
             [CompletionResult]::new('status', 'status', [CompletionResultType]::ParameterValue, 'Display or change a ticket status.')
-=======
-            [CompletionResult]::new('pull', 'pull', [CompletionResultType]::ParameterValue, 'Pull bugs update from a git remote.')
-            [CompletionResult]::new('push', 'push', [CompletionResultType]::ParameterValue, 'Push bugs update to a git remote.')
-            [CompletionResult]::new('rm', 'rm', [CompletionResultType]::ParameterValue, 'Remove an existing bug.')
-            [CompletionResult]::new('select', 'select', [CompletionResultType]::ParameterValue, 'Select a bug for implicit use in future commands.')
-            [CompletionResult]::new('show', 'show', [CompletionResultType]::ParameterValue, 'Display the details of a bug.')
-            [CompletionResult]::new('status', 'status', [CompletionResultType]::ParameterValue, 'Display or change a bug status.')
->>>>>>> remotes/upstream/master:misc/powershell_completion/git-bug
             [CompletionResult]::new('termui', 'termui', [CompletionResultType]::ParameterValue, 'Launch the terminal UI.')
             [CompletionResult]::new('title', 'title', [CompletionResultType]::ParameterValue, 'Display or change a title of a ticket.')
             [CompletionResult]::new('user', 'user', [CompletionResultType]::ParameterValue, 'Display or change the user identity.')
+            [CompletionResult]::new('validate', 'validate', [CompletionResultType]::ParameterValue, 'Validate identities and commits signatures.')
             [CompletionResult]::new('version', 'version', [CompletionResultType]::ParameterValue, 'Show git-ticket version information.')
             break
         }
@@ -57,6 +53,25 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
             break
         }
         'git-ticket;assign' {
+            break
+        }
+        'git-ticket;ccb' {
+            [CompletionResult]::new('add', 'add', [CompletionResultType]::ParameterValue, 'Add a CCB member as an approver of a ticket status.')
+            [CompletionResult]::new('approve', 'approve', [CompletionResultType]::ParameterValue, 'Approve a ticket status.')
+            [CompletionResult]::new('block', 'block', [CompletionResultType]::ParameterValue, 'Block a ticket status.')
+            [CompletionResult]::new('rm', 'rm', [CompletionResultType]::ParameterValue, 'Remove a CCB member as an approver of a ticket status.')
+            break
+        }
+        'git-ticket;ccb;add' {
+            break
+        }
+        'git-ticket;ccb;approve' {
+            break
+        }
+        'git-ticket;ccb;block' {
+            break
+        }
+        'git-ticket;ccb;rm' {
             break
         }
         'git-ticket;commands' {
@@ -75,6 +90,15 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
             [CompletionResult]::new('--message', 'message', [CompletionResultType]::ParameterName, 'Provide the new message from the command line')
             break
         }
+        'git-ticket;config' {
+            [CompletionResult]::new('set', 'set', [CompletionResultType]::ParameterValue, 'Set the named configuration data.')
+            break
+        }
+        'git-ticket;config;set' {
+            [CompletionResult]::new('-F', 'F', [CompletionResultType]::ParameterName, 'Take the config from the given file. Use - to read the config from the standard input')
+            [CompletionResult]::new('--file', 'file', [CompletionResultType]::ParameterName, 'Take the config from the given file. Use - to read the config from the standard input')
+            break
+        }
         'git-ticket;deselect' {
             break
         }
@@ -90,14 +114,15 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
             break
         }
         'git-ticket;ls' {
-            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Filter by status. Valid values are [open,closed]')
-            [CompletionResult]::new('--status', 'status', [CompletionResultType]::ParameterName, 'Filter by status. Valid values are [open,closed]')
+            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Filter by status. Valid values are [proposed,vetted,inprogress,inreview,reviewed,accepted,merged,done,rejected,ALL]')
+            [CompletionResult]::new('--status', 'status', [CompletionResultType]::ParameterName, 'Filter by status. Valid values are [proposed,vetted,inprogress,inreview,reviewed,accepted,merged,done,rejected,ALL]')
             [CompletionResult]::new('-a', 'a', [CompletionResultType]::ParameterName, 'Filter by author')
             [CompletionResult]::new('--author', 'author', [CompletionResultType]::ParameterName, 'Filter by author')
             [CompletionResult]::new('-p', 'p', [CompletionResultType]::ParameterName, 'Filter by participant')
             [CompletionResult]::new('--participant', 'participant', [CompletionResultType]::ParameterName, 'Filter by participant')
-            [CompletionResult]::new('-A', 'A', [CompletionResultType]::ParameterName, 'Filter by actor')
             [CompletionResult]::new('--actor', 'actor', [CompletionResultType]::ParameterName, 'Filter by actor')
+            [CompletionResult]::new('-A', 'A', [CompletionResultType]::ParameterName, 'Filter by assignee')
+            [CompletionResult]::new('--assignee', 'assignee', [CompletionResultType]::ParameterName, 'Filter by assignee')
             [CompletionResult]::new('-l', 'l', [CompletionResultType]::ParameterName, 'Filter by label')
             [CompletionResult]::new('--label', 'label', [CompletionResultType]::ParameterName, 'Filter by label')
             [CompletionResult]::new('-t', 't', [CompletionResultType]::ParameterName, 'Filter by title')
@@ -124,32 +149,40 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
         'git-ticket;push' {
             break
         }
+        'git-ticket;refresh' {
+            break
+        }
         'git-ticket;review' {
-            [CompletionResult]::new('fetch', 'fetch', [CompletionResultType]::ParameterValue, 'Fetch review data for a ticket.')
+            [CompletionResult]::new('checklist', 'checklist', [CompletionResultType]::ParameterValue, 'Complete a checklist associated with a ticket.')
+            [CompletionResult]::new('clear', 'clear', [CompletionResultType]::ParameterValue, 'Clear the Differential Revision data associated with a ticket.')
+            [CompletionResult]::new('fetch', 'fetch', [CompletionResultType]::ParameterValue, 'Get Differential Revision data from Phabricator and store in a ticket.')
+            break
+        }
+        'git-ticket;review;checklist' {
+            [CompletionResult]::new('-b', 'b', [CompletionResultType]::ParameterName, 'Discard any previously edited checklist and start again with a blank one')
+            [CompletionResult]::new('--blank', 'blank', [CompletionResultType]::ParameterName, 'Discard any previously edited checklist and start again with a blank one')
+            break
+        }
+        'git-ticket;review;clear' {
             break
         }
         'git-ticket;review;fetch' {
             break
         }
-<<<<<<< HEAD:misc/powershell_completion/git-ticket
+        'git-ticket;rm' {
+            break
+        }
         'git-ticket;select' {
             break
         }
         'git-ticket;show' {
-            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Select field to display. Valid values are [assignee,author,authorEmail,checklists,createTime,humanId,id,labels,reviews,shortId,status,title,workflow,actors,participants]')
-            [CompletionResult]::new('--field', 'field', [CompletionResultType]::ParameterName, 'Select field to display. Valid values are [assignee,author,authorEmail,checklists,createTime,humanId,id,labels,reviews,shortId,status,title,workflow,actors,participants]')
-=======
-        'git-bug;rm' {
-            break
-        }
-        'git-bug;select' {
-            break
-        }
-        'git-bug;show' {
-            [CompletionResult]::new('--field', 'field', [CompletionResultType]::ParameterName, 'Select field to display. Valid values are [author,authorEmail,createTime,lastEdit,humanId,id,labels,shortId,status,title,actors,participants]')
+            [CompletionResult]::new('-t', 't', [CompletionResultType]::ParameterName, 'Output the timeline of the ticket')
+            [CompletionResult]::new('--timeline', 'timeline', [CompletionResultType]::ParameterName, 'Output the timeline of the ticket')
+            [CompletionResult]::new('--field', 'field', [CompletionResultType]::ParameterName, 'Select field to display. Valid values are [assignee,author,authorEmail,ccb,checklists,createTime,lastEdit,humanId,id,labels,reviews,shortId,status,nextStatuses,title,workflow,actors,participants]')
             [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Select the output formatting style. Valid values are [default,json,org-mode]')
             [CompletionResult]::new('--format', 'format', [CompletionResultType]::ParameterName, 'Select the output formatting style. Valid values are [default,json,org-mode]')
->>>>>>> remotes/upstream/master:misc/powershell_completion/git-bug
+            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Limit the timeline to changes since the given date/time. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd')
+            [CompletionResult]::new('--since', 'since', [CompletionResultType]::ParameterName, 'Limit the timeline to changes since the given date/time. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd')
             break
         }
         'git-ticket;status' {
@@ -159,6 +192,7 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
             [CompletionResult]::new('inreview', 'inreview', [CompletionResultType]::ParameterValue, 'Ticket is set IN REVIEW.')
             [CompletionResult]::new('merged', 'merged', [CompletionResultType]::ParameterValue, 'Ticket is set MERGED.')
             [CompletionResult]::new('proposed', 'proposed', [CompletionResultType]::ParameterValue, 'Ticket is set PROPOSED.')
+            [CompletionResult]::new('rejected', 'rejected', [CompletionResultType]::ParameterValue, 'Ticket is set REJECTED.')
             [CompletionResult]::new('reviewed', 'reviewed', [CompletionResultType]::ParameterValue, 'Ticket is set REVIEWED.')
             [CompletionResult]::new('vetted', 'vetted', [CompletionResultType]::ParameterValue, 'Ticket is set VETTED.')
             break
@@ -181,6 +215,9 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
         'git-ticket;status;proposed' {
             break
         }
+        'git-ticket;status;rejected' {
+            break
+        }
         'git-ticket;status;reviewed' {
             break
         }
@@ -200,10 +237,11 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
             break
         }
         'git-ticket;user' {
-            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Select field to display. Valid values are [email,humanId,id,lastModification,lastModificationLamport,login,metadata,name]')
-            [CompletionResult]::new('--field', 'field', [CompletionResultType]::ParameterName, 'Select field to display. Valid values are [email,humanId,id,lastModification,lastModificationLamport,login,metadata,name]')
+            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Select field to display. Valid values are [email,humanId,id,keys,lastModification,lastModificationLamport,login,metadata,name,phabId]')
+            [CompletionResult]::new('--field', 'field', [CompletionResultType]::ParameterName, 'Select field to display. Valid values are [email,humanId,id,keys,lastModification,lastModificationLamport,login,metadata,name,phabId]')
             [CompletionResult]::new('adopt', 'adopt', [CompletionResultType]::ParameterValue, 'Adopt an existing identity as your own.')
             [CompletionResult]::new('create', 'create', [CompletionResultType]::ParameterValue, 'Create a new identity.')
+            [CompletionResult]::new('edit', 'edit', [CompletionResultType]::ParameterValue, 'Edit a user identity.')
             [CompletionResult]::new('key', 'key', [CompletionResultType]::ParameterValue, 'Display, add or remove keys to/from a user.')
             [CompletionResult]::new('ls', 'ls', [CompletionResultType]::ParameterValue, 'List identities.')
             break
@@ -212,6 +250,10 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
             break
         }
         'git-ticket;user;create' {
+            [CompletionResult]::new('--key-file', 'key-file', [CompletionResultType]::ParameterName, 'Take the armored PGP public key from the given file. Use - to read the message from the standard input')
+            break
+        }
+        'git-ticket;user;edit' {
             break
         }
         'git-ticket;user;key' {
@@ -229,13 +271,14 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
         'git-ticket;user;key;rm' {
             break
         }
-<<<<<<< HEAD:misc/powershell_completion/git-ticket
         'git-ticket;user;ls' {
-=======
-        'git-bug;user;ls' {
             [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Select the output formatting style. Valid values are [default,json]')
             [CompletionResult]::new('--format', 'format', [CompletionResultType]::ParameterName, 'Select the output formatting style. Valid values are [default,json]')
->>>>>>> remotes/upstream/master:misc/powershell_completion/git-bug
+            break
+        }
+        'git-ticket;validate' {
+            [CompletionResult]::new('-e', 'e', [CompletionResultType]::ParameterName, 'Validate commit in an external repository at this path')
+            [CompletionResult]::new('--external', 'external', [CompletionResultType]::ParameterName, 'Validate commit in an external repository at this path')
             break
         }
         'git-ticket;version' {
@@ -247,17 +290,6 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
             [CompletionResult]::new('--all', 'all', [CompletionResultType]::ParameterName, 'Show all version information')
             break
         }
-<<<<<<< HEAD:misc/powershell_completion/git-ticket
-=======
-        'git-bug;webui' {
-            [CompletionResult]::new('--open', 'open', [CompletionResultType]::ParameterName, 'Automatically open the web UI in the default browser')
-            [CompletionResult]::new('--no-open', 'no-open', [CompletionResultType]::ParameterName, 'Prevent the automatic opening of the web UI in the default browser')
-            [CompletionResult]::new('-p', 'p', [CompletionResultType]::ParameterName, 'Port to listen to (default is random)')
-            [CompletionResult]::new('--port', 'port', [CompletionResultType]::ParameterName, 'Port to listen to (default is random)')
-            [CompletionResult]::new('--read-only', 'read-only', [CompletionResultType]::ParameterName, 'Whether to run the web UI in read-only mode')
-            break
-        }
->>>>>>> remotes/upstream/master:misc/powershell_completion/git-bug
     })
     $completions.Where{ $_.CompletionText -like "$wordToComplete*" } |
         Sort-Object -Property ListItemText

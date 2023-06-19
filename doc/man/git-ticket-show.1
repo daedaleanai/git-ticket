@@ -1,6 +1,6 @@
 .nh
-.TH GIT\-BUG(1)Apr 2019
-Generated from git\-bug's source code
+.TH GIT\-TICKET(1)Apr 2019
+Generated from git\-ticket's source code
 
 .SH NAME
 .PP
@@ -24,15 +24,25 @@ Display the details of a ticket.
 
 .PP
 \fB\-\-field\fP=""
-	Select field to display. Valid values are [author,authorEmail,createTime,lastEdit,humanId,id,labels,shortId,status,title,actors,participants]
+	Select field to display. Valid values are [assignee,author,authorEmail,ccb,checklists,createTime,lastEdit,humanId,id,labels,reviews,shortId,status,nextStatuses,title,workflow,actors,participants]
 
 .PP
 \fB\-f\fP, \fB\-\-format\fP="default"
 	Select the output formatting style. Valid values are [default,json,org\-mode]
 
 .PP
+\fB\-s\fP, \fB\-\-since\fP=""
+	Limit the timeline to changes since the given date/time. Valid formats are: yyyy\-mm\-ddThh:mm:ss OR yyyy\-mm\-dd
+
+.PP
 \fB\-h\fP, \fB\-\-help\fP[=false]
 	help for show
+
+
+.SH OPTIONS INHERITED FROM PARENT COMMANDS
+.PP
+\fB\-\-rebuild\-cache\fP[=false]
+	force the cache to be rebuilt
 
 
 .SH SEE ALSO

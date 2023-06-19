@@ -36,32 +36,29 @@ __git-ticket_contains_word()
     return 1
 }
 
-<<<<<<< HEAD:misc/bash_completion/git-ticket
-__git-ticket_handle_reply()
-=======
-__git-bug_handle_go_custom_completion()
+__git-ticket_handle_go_custom_completion()
 {
-    __git-bug_debug "${FUNCNAME[0]}: cur is ${cur}, words[*] is ${words[*]}, #words[@] is ${#words[@]}"
+    __git-ticket_debug "${FUNCNAME[0]}: cur is ${cur}, words[*] is ${words[*]}, #words[@] is ${#words[@]}"
 
     local out requestComp lastParam lastChar comp directive args
 
     # Prepare the command to request completions for the program.
-    # Calling ${words[0]} instead of directly git-bug allows to handle aliases
+    # Calling ${words[0]} instead of directly git-ticket allows to handle aliases
     args=("${words[@]:1}")
     requestComp="${words[0]} __completeNoDesc ${args[*]}"
 
     lastParam=${words[$((${#words[@]}-1))]}
     lastChar=${lastParam:$((${#lastParam}-1)):1}
-    __git-bug_debug "${FUNCNAME[0]}: lastParam ${lastParam}, lastChar ${lastChar}"
+    __git-ticket_debug "${FUNCNAME[0]}: lastParam ${lastParam}, lastChar ${lastChar}"
 
     if [ -z "${cur}" ] && [ "${lastChar}" != "=" ]; then
         # If the last parameter is complete (there is a space following it)
         # We add an extra empty parameter so we can indicate this to the go method.
-        __git-bug_debug "${FUNCNAME[0]}: Adding extra empty parameter"
+        __git-ticket_debug "${FUNCNAME[0]}: Adding extra empty parameter"
         requestComp="${requestComp} \"\""
     fi
 
-    __git-bug_debug "${FUNCNAME[0]}: calling ${requestComp}"
+    __git-ticket_debug "${FUNCNAME[0]}: calling ${requestComp}"
     # Use eval to handle any environment variables and such
     out=$(eval "${requestComp}" 2>/dev/null)
 
@@ -73,23 +70,23 @@ __git-bug_handle_go_custom_completion()
         # There is not directive specified
         directive=0
     fi
-    __git-bug_debug "${FUNCNAME[0]}: the completion directive is: ${directive}"
-    __git-bug_debug "${FUNCNAME[0]}: the completions are: ${out[*]}"
+    __git-ticket_debug "${FUNCNAME[0]}: the completion directive is: ${directive}"
+    __git-ticket_debug "${FUNCNAME[0]}: the completions are: ${out[*]}"
 
     if [ $((directive & 1)) -ne 0 ]; then
         # Error code.  No completion.
-        __git-bug_debug "${FUNCNAME[0]}: received error from custom completion go code"
+        __git-ticket_debug "${FUNCNAME[0]}: received error from custom completion go code"
         return
     else
         if [ $((directive & 2)) -ne 0 ]; then
             if [[ $(type -t compopt) = "builtin" ]]; then
-                __git-bug_debug "${FUNCNAME[0]}: activating no space"
+                __git-ticket_debug "${FUNCNAME[0]}: activating no space"
                 compopt -o nospace
             fi
         fi
         if [ $((directive & 4)) -ne 0 ]; then
             if [[ $(type -t compopt) = "builtin" ]]; then
-                __git-bug_debug "${FUNCNAME[0]}: activating no file completion"
+                __git-ticket_debug "${FUNCNAME[0]}: activating no file completion"
                 compopt +o default
             fi
         fi
@@ -100,8 +97,7 @@ __git-bug_handle_go_custom_completion()
     fi
 }
 
-__git-bug_handle_reply()
->>>>>>> remotes/upstream/master:misc/bash_completion/git-bug
+__git-ticket_handle_reply()
 {
     __git-ticket_debug "${FUNCNAME[0]}"
     local comp
@@ -167,7 +163,7 @@ __git-bug_handle_reply()
     elif [[ -n "${has_completion_function}" ]]; then
         # if a go completion function is provided, defer to that function
         completions=()
-        __git-bug_handle_go_custom_completion
+        __git-ticket_handle_go_custom_completion
     fi
     if [[ ${#must_have_one_flag[@]} -ne 0 ]]; then
         completions+=("${must_have_one_flag[@]}")
@@ -327,8 +323,8 @@ __git-ticket_handle_word()
 }
 
 
-_git_ticket() {
-    __start_git-ticket "$@"
+_git_bug() {
+    __start_git-bug "$@"
 }
 
 _git-ticket_add()
@@ -357,6 +353,7 @@ _git-ticket_add()
     two_word_flags+=("--file")
     two_word_flags+=("-F")
     local_nonpersistent_flags+=("--file=")
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -377,6 +374,116 @@ _git-ticket_assign()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_git-ticket_ccb_add()
+{
+    last_command="git-ticket_ccb_add"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--rebuild-cache")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_git-ticket_ccb_approve()
+{
+    last_command="git-ticket_ccb_approve"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--rebuild-cache")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_git-ticket_ccb_block()
+{
+    last_command="git-ticket_ccb_block"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--rebuild-cache")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_git-ticket_ccb_rm()
+{
+    last_command="git-ticket_ccb_rm"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--rebuild-cache")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_git-ticket_ccb()
+{
+    last_command="git-ticket_ccb"
+
+    command_aliases=()
+
+    commands=()
+    commands+=("add")
+    commands+=("approve")
+    commands+=("block")
+    commands+=("rm")
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -400,6 +507,7 @@ _git-ticket_commands()
     flags+=("--pretty")
     flags+=("-p")
     local_nonpersistent_flags+=("--pretty")
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -428,6 +536,7 @@ _git-ticket_comment_add()
     two_word_flags+=("--message")
     two_word_flags+=("-m")
     local_nonpersistent_flags+=("--message=")
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -449,6 +558,54 @@ _git-ticket_comment()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_git-ticket_config_set()
+{
+    last_command="git-ticket_config_set"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--file=")
+    two_word_flags+=("--file")
+    two_word_flags+=("-F")
+    local_nonpersistent_flags+=("--file=")
+    flags+=("--rebuild-cache")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_git-ticket_config()
+{
+    last_command="git-ticket_config"
+
+    command_aliases=()
+
+    commands=()
+    commands+=("set")
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -469,6 +626,7 @@ _git-ticket_deselect()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -489,6 +647,7 @@ _git-ticket_label_add()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -509,6 +668,7 @@ _git-ticket_label_rm()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -531,6 +691,7 @@ _git-ticket_label()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -565,8 +726,11 @@ _git-ticket_ls()
     local_nonpersistent_flags+=("--participant=")
     flags+=("--actor=")
     two_word_flags+=("--actor")
-    two_word_flags+=("-A")
     local_nonpersistent_flags+=("--actor=")
+    flags+=("--assignee=")
+    two_word_flags+=("--assignee")
+    two_word_flags+=("-A")
+    local_nonpersistent_flags+=("--assignee=")
     flags+=("--label=")
     two_word_flags+=("--label")
     two_word_flags+=("-l")
@@ -587,6 +751,11 @@ _git-ticket_ls()
     two_word_flags+=("--direction")
     two_word_flags+=("-d")
     local_nonpersistent_flags+=("--direction=")
+    flags+=("--format=")
+    two_word_flags+=("--format")
+    two_word_flags+=("-f")
+    local_nonpersistent_flags+=("--format=")
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -607,6 +776,7 @@ _git-ticket_ls-id()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -627,6 +797,7 @@ _git-ticket_ls-label()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -647,6 +818,7 @@ _git-ticket_pull()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -667,6 +839,52 @@ _git-ticket_push()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_git-ticket_review_checklist()
+{
+    last_command="git-ticket_review_checklist"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--blank")
+    flags+=("-b")
+    local_nonpersistent_flags+=("--blank")
+    flags+=("--rebuild-cache")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_git-ticket_review_clear()
+{
+    last_command="git-ticket_review_clear"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -687,6 +905,7 @@ _git-ticket_review_fetch()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -700,6 +919,8 @@ _git-ticket_review()
     command_aliases=()
 
     commands=()
+    commands+=("checklist")
+    commands+=("clear")
     commands+=("fetch")
 
     flags=()
@@ -708,6 +929,28 @@ _git-ticket_review()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_git-ticket_rm()
+{
+    last_command="git-ticket_rm"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -728,6 +971,7 @@ _git-ticket_select()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -748,53 +992,21 @@ _git-ticket_show()
     flags_with_completion=()
     flags_completion=()
 
-<<<<<<< HEAD:misc/bash_completion/git-ticket
+    flags+=("--timeline")
+    flags+=("-t")
+    local_nonpersistent_flags+=("--timeline")
     flags+=("--field=")
     two_word_flags+=("--field")
-    two_word_flags+=("-f")
     local_nonpersistent_flags+=("--field=")
-=======
-    flags+=("--status=")
-    two_word_flags+=("--status")
-    two_word_flags+=("-s")
-    local_nonpersistent_flags+=("--status=")
-    flags+=("--author=")
-    two_word_flags+=("--author")
-    two_word_flags+=("-a")
-    local_nonpersistent_flags+=("--author=")
-    flags+=("--participant=")
-    two_word_flags+=("--participant")
-    two_word_flags+=("-p")
-    local_nonpersistent_flags+=("--participant=")
-    flags+=("--actor=")
-    two_word_flags+=("--actor")
-    two_word_flags+=("-A")
-    local_nonpersistent_flags+=("--actor=")
-    flags+=("--label=")
-    two_word_flags+=("--label")
-    two_word_flags+=("-l")
-    local_nonpersistent_flags+=("--label=")
-    flags+=("--title=")
-    two_word_flags+=("--title")
-    two_word_flags+=("-t")
-    local_nonpersistent_flags+=("--title=")
-    flags+=("--no=")
-    two_word_flags+=("--no")
-    two_word_flags+=("-n")
-    local_nonpersistent_flags+=("--no=")
-    flags+=("--by=")
-    two_word_flags+=("--by")
-    two_word_flags+=("-b")
-    local_nonpersistent_flags+=("--by=")
-    flags+=("--direction=")
-    two_word_flags+=("--direction")
-    two_word_flags+=("-d")
-    local_nonpersistent_flags+=("--direction=")
     flags+=("--format=")
     two_word_flags+=("--format")
     two_word_flags+=("-f")
     local_nonpersistent_flags+=("--format=")
->>>>>>> remotes/upstream/master:misc/bash_completion/git-bug
+    flags+=("--since=")
+    two_word_flags+=("--since")
+    two_word_flags+=("-s")
+    local_nonpersistent_flags+=("--since=")
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -815,6 +1027,7 @@ _git-ticket_status_accepted()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -835,6 +1048,7 @@ _git-ticket_status_done()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -855,6 +1069,7 @@ _git-ticket_status_inprogress()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -875,37 +1090,14 @@ _git-ticket_status_inreview()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
     noun_aliases=()
 }
 
-<<<<<<< HEAD:misc/bash_completion/git-ticket
 _git-ticket_status_merged()
-=======
-_git-bug_rm()
-{
-    last_command="git-bug_rm"
-
-    command_aliases=()
-
-    commands=()
-
-    flags=()
-    two_word_flags=()
-    local_nonpersistent_flags=()
-    flags_with_completion=()
-    flags_completion=()
-
-
-    must_have_one_flag=()
-    must_have_one_noun=()
-    noun_aliases=()
-}
-
-_git-bug_select()
->>>>>>> remotes/upstream/master:misc/bash_completion/git-bug
 {
     last_command="git-ticket_status_merged"
 
@@ -919,6 +1111,7 @@ _git-bug_select()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -939,16 +1132,28 @@ _git-ticket_status_proposed()
     flags_with_completion=()
     flags_completion=()
 
-<<<<<<< HEAD:misc/bash_completion/git-ticket
-=======
-    flags+=("--field=")
-    two_word_flags+=("--field")
-    local_nonpersistent_flags+=("--field=")
-    flags+=("--format=")
-    two_word_flags+=("--format")
-    two_word_flags+=("-f")
-    local_nonpersistent_flags+=("--format=")
->>>>>>> remotes/upstream/master:misc/bash_completion/git-bug
+    flags+=("--rebuild-cache")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_git-ticket_status_rejected()
+{
+    last_command="git-ticket_status_rejected"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -969,6 +1174,7 @@ _git-ticket_status_reviewed()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -989,6 +1195,7 @@ _git-ticket_status_vetted()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -1008,6 +1215,7 @@ _git-ticket_status()
     commands+=("inreview")
     commands+=("merged")
     commands+=("proposed")
+    commands+=("rejected")
     commands+=("reviewed")
     commands+=("vetted")
 
@@ -1017,6 +1225,7 @@ _git-ticket_status()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -1037,6 +1246,7 @@ _git-ticket_termui()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -1061,6 +1271,7 @@ _git-ticket_title_edit()
     two_word_flags+=("--title")
     two_word_flags+=("-t")
     local_nonpersistent_flags+=("--title=")
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -1082,6 +1293,7 @@ _git-ticket_title()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -1102,6 +1314,7 @@ _git-ticket_user_adopt()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -1122,6 +1335,31 @@ _git-ticket_user_create()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--key-file=")
+    two_word_flags+=("--key-file")
+    local_nonpersistent_flags+=("--key-file=")
+    flags+=("--rebuild-cache")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_git-ticket_user_edit()
+{
+    last_command="git-ticket_user_edit"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -1142,7 +1380,6 @@ _git-ticket_user_key_add()
     flags_with_completion=()
     flags_completion=()
 
-<<<<<<< HEAD:misc/bash_completion/git-ticket
     flags+=("--file=")
     two_word_flags+=("--file")
     two_word_flags+=("-F")
@@ -1151,12 +1388,7 @@ _git-ticket_user_key_add()
     two_word_flags+=("--key")
     two_word_flags+=("-k")
     local_nonpersistent_flags+=("--key=")
-=======
-    flags+=("--format=")
-    two_word_flags+=("--format")
-    two_word_flags+=("-f")
-    local_nonpersistent_flags+=("--format=")
->>>>>>> remotes/upstream/master:misc/bash_completion/git-bug
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -1177,6 +1409,7 @@ _git-ticket_user_key_rm()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -1199,6 +1432,7 @@ _git-ticket_user_key()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -1219,19 +1453,11 @@ _git-ticket_user_ls()
     flags_with_completion=()
     flags_completion=()
 
-<<<<<<< HEAD:misc/bash_completion/git-ticket
-=======
-    flags+=("--open")
-    local_nonpersistent_flags+=("--open")
-    flags+=("--no-open")
-    local_nonpersistent_flags+=("--no-open")
-    flags+=("--port=")
-    two_word_flags+=("--port")
-    two_word_flags+=("-p")
-    local_nonpersistent_flags+=("--port=")
-    flags+=("--read-only")
-    local_nonpersistent_flags+=("--read-only")
->>>>>>> remotes/upstream/master:misc/bash_completion/git-bug
+    flags+=("--format=")
+    two_word_flags+=("--format")
+    two_word_flags+=("-f")
+    local_nonpersistent_flags+=("--format=")
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -1247,6 +1473,7 @@ _git-ticket_user()
     commands=()
     commands+=("adopt")
     commands+=("create")
+    commands+=("edit")
     commands+=("key")
     commands+=("ls")
 
@@ -1260,6 +1487,32 @@ _git-ticket_user()
     two_word_flags+=("--field")
     two_word_flags+=("-f")
     local_nonpersistent_flags+=("--field=")
+    flags+=("--rebuild-cache")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_git-ticket_validate()
+{
+    last_command="git-ticket_validate"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--external=")
+    two_word_flags+=("--external")
+    two_word_flags+=("-e")
+    local_nonpersistent_flags+=("--external=")
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -1289,6 +1542,7 @@ _git-ticket_version()
     flags+=("--all")
     flags+=("-a")
     local_nonpersistent_flags+=("--all")
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()
@@ -1304,8 +1558,10 @@ _git-ticket_root_command()
     commands=()
     commands+=("add")
     commands+=("assign")
+    commands+=("ccb")
     commands+=("commands")
     commands+=("comment")
+    commands+=("config")
     commands+=("deselect")
     commands+=("label")
     commands+=("ls")
@@ -1313,11 +1569,8 @@ _git-ticket_root_command()
     commands+=("ls-label")
     commands+=("pull")
     commands+=("push")
-<<<<<<< HEAD:misc/bash_completion/git-ticket
     commands+=("review")
-=======
     commands+=("rm")
->>>>>>> remotes/upstream/master:misc/bash_completion/git-bug
     commands+=("select")
     commands+=("show")
     commands+=("status")
@@ -1328,6 +1581,7 @@ _git-ticket_root_command()
     fi
     commands+=("title")
     commands+=("user")
+    commands+=("validate")
     commands+=("version")
 
     flags=()
@@ -1336,6 +1590,7 @@ _git-ticket_root_command()
     flags_with_completion=()
     flags_completion=()
 
+    flags+=("--rebuild-cache")
 
     must_have_one_flag=()
     must_have_one_noun=()

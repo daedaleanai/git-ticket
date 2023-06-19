@@ -4,6 +4,9 @@ import (
 	"encoding/gob"
 	"fmt"
 	"time"
+	"regexp"
+	"strings"
+	"strconv"
 
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/entity"
@@ -34,6 +37,7 @@ type BugExcerpt struct {
 	Actors       []entity.Id
 	Participants []entity.Id
 	Ccb          []CcbInfoExcerpt
+	Priority     int
 
 	// If author is identity.Bare, LegacyAuthor is set
 	// If author is identity.Identity, AuthorId is set and data is deported
@@ -96,6 +100,20 @@ func NewBugExcerpt(b bug.Interface, snap *bug.Snapshot) *BugExcerpt {
 			State:  approval.State})
 	}
 
+	priority := 0
+	priorityRe := regexp.MustCompile(`(?i)prio(rity)?:?\s*(\d+)`)
+	for _, comment := range snap.Comments {
+		for _, line := range strings.Split(comment.Message, "\n") {
+			match := priorityRe.FindStringSubmatch(line)
+			if len(match) > 0 {
+				new_priority, err := strconv.Atoi(string(match[2]))
+				if err == nil {
+					priority = new_priority
+				}
+			}
+		}
+	}
+
 	e := &BugExcerpt{
 		Id:                b.Id(),
 		CreateLamportTime: b.CreateLamportTime(),
@@ -110,6 +128,7 @@ func NewBugExcerpt(b bug.Interface, snap *bug.Snapshot) *BugExcerpt {
 		Ccb:               ccb,
 		Title:             snap.Title,
 		LenComments:       len(snap.Comments),
+		Priority:          priority,
 		CreateMetadata:    b.FirstOp().AllMetadata(),
 	}
 

@@ -16,6 +16,12 @@ git-ticket label rm [ID] LABEL... [flags]
   -h, --help   help for rm
 ```
 
+### Options inherited from parent commands
+
+```
+      --rebuild-cache   force the cache to be rebuilt
+```
+
 ### SEE ALSO
 
 * [git-ticket label](git-ticket_label.md)	 - Display, add or remove labels to/from a ticket.

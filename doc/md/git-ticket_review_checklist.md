@@ -13,7 +13,14 @@ git-ticket review checklist [ID] [flags]
 ### Options
 
 ```
-  -h, --help   help for checklist
+  -b, --blank   Discard any previously edited checklist and start again with a blank one
+  -h, --help    help for checklist
+```
+
+### Options inherited from parent commands
+
+```
+      --rebuild-cache   force the cache to be rebuilt
 ```
 
 ### SEE ALSO

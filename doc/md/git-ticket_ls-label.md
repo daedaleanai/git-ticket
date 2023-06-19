@@ -18,6 +18,12 @@ git-ticket ls-label [flags]
   -h, --help   help for ls-label
 ```
 
+### Options inherited from parent commands
+
+```
+      --rebuild-cache   force the cache to be rebuilt
+```
+
 ### SEE ALSO
 
 * [git-ticket](git-ticket.md)	 - A ticket tracker embedded in Git.

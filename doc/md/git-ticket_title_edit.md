@@ -17,6 +17,12 @@ git-ticket title edit [ID] [flags]
   -h, --help           help for edit
 ```
 
+### Options inherited from parent commands
+
+```
+      --rebuild-cache   force the cache to be rebuilt
+```
+
 ### SEE ALSO
 
 * [git-ticket title](git-ticket_title.md)	 - Display or change a title of a ticket.
