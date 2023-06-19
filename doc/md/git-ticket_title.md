@@ -7,7 +7,7 @@ Display or change a title of a ticket.
 Display or change a title of a ticket.
 
 ```
-git-ticket title [ID] [flags]
+git-ticket title [<ticket id>] [flags]
 ```
 
 ### Options

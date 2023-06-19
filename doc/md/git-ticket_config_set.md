@@ -7,7 +7,7 @@ Set the named configuration data.
 Set the named configuration data.
 
 ```
-git-ticket config set CONFIG [flags]
+git-ticket config set <config name> [flags]
 ```
 
 ### Options

@@ -7,7 +7,7 @@ Remove a label from a ticket.
 Remove a label from a ticket.
 
 ```
-git-ticket label rm [ID] LABEL... [flags]
+git-ticket label rm [<ticket id>] <label>... [flags]
 ```
 
 ### Options

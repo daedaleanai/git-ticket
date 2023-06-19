@@ -7,7 +7,7 @@ Add a label to a ticket.
 Add a label to a ticket.
 
 ```
-git-ticket label add [ID] LABEL... [flags]
+git-ticket label add [<ticket id>] <label>... [flags]
 ```
 
 ### Options

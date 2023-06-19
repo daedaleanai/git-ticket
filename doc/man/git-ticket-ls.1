@@ -9,7 +9,7 @@ git\-ticket\-ls \- List tickets.
 
 .SH SYNOPSIS
 .PP
-\fBgit\-ticket ls [QUERY] [flags]\fP
+\fBgit\-ticket ls [] [flags]\fP
 
 
 .SH DESCRIPTION
@@ -30,6 +30,14 @@ You can pass an additional query to filter and order the list. This query can be
 	Filter by author
 
 .PP
+\fB\-A\fP, \fB\-\-assignee\fP=[]
+	Filter by assignee
+
+.PP
+\fB\-c\fP, \fB\-\-ccb\fP=[]
+	Filter by ccb
+
+.PP
 \fB\-p\fP, \fB\-\-participant\fP=[]
 	Filter by participant
 
@@ -38,16 +46,28 @@ You can pass an additional query to filter and order the list. This query can be
 	Filter by actor
 
 .PP
-\fB\-A\fP, \fB\-\-assignee\fP=[]
-	Filter by assignee
-
-.PP
 \fB\-l\fP, \fB\-\-label\fP=[]
 	Filter by label
 
 .PP
 \fB\-t\fP, \fB\-\-title\fP=[]
 	Filter by title
+
+.PP
+\fB\-\-create\-before\fP=""
+	Filter by created before. Valid formats are: yyyy\-mm\-ddThh:mm:ss OR yyyy\-mm\-dd
+
+.PP
+\fB\-\-create\-after\fP=""
+	Filter by created after. Valid formats are: yyyy\-mm\-ddThh:mm:ss OR yyyy\-mm\-dd
+
+.PP
+\fB\-\-edit\-before\fP=""
+	Filter by last edited before. Valid formats are: yyyy\-mm\-ddThh:mm:ss OR yyyy\-mm\-dd
+
+.PP
+\fB\-\-edit\-after\fP=""
+	Filter by last edited after. Valid formats are: yyyy\-mm\-ddThh:mm:ss OR yyyy\-mm\-dd
 
 .PP
 \fB\-n\fP, \fB\-\-no\fP=[]

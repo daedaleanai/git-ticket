@@ -7,7 +7,7 @@ Display, add or remove labels to/from a ticket.
 Display, add or remove labels to/from a ticket.
 
 ```
-git-ticket label [ID] [flags]
+git-ticket label [<ticket id>] [flags]
 ```
 
 ### Options

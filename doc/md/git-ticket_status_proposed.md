@@ -7,7 +7,7 @@ Ticket is set PROPOSED.
 Ticket is set PROPOSED.
 
 ```
-git-ticket status proposed ID [flags]
+git-ticket status proposed [<ticket id>] [flags]
 ```
 
 ### Options

@@ -32,6 +32,9 @@ func Parse(query string) (*Query, error) {
 			if strings.EqualFold(t.value, "ALL") {
 				q.Status = bug.AllStatuses()
 				continue
+			} else if strings.EqualFold(t.value, "ACTIVE") {
+				q.Status = bug.ActiveStatuses()
+				continue
 			}
 			status, err := bug.StatusFromString(t.value)
 			if err != nil {

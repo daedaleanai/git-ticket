@@ -7,7 +7,7 @@ Display or change the user identity.
 Display or change the user identity.
 
 ```
-git-ticket user [<username/id>] [flags]
+git-ticket user [<user name/id>] [flags]
 ```
 
 ### Options

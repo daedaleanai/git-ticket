@@ -16,6 +16,7 @@ git-ticket add [flags]
   -t, --title string     Provide a title to describe the issue
   -m, --message string   Provide a message to describe the issue
   -F, --file string      Take the message from the given file. Use - to read the message from the standard input
+  -n, --noselect         Do not automatically select the new ticket once it's created
   -h, --help             help for add
 ```
 

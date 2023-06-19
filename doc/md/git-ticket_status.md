@@ -7,7 +7,7 @@ Display or change a ticket status.
 Display or change a ticket status.
 
 ```
-git-ticket status [ID] [flags]
+git-ticket status [<ticket id>] [flags]
 ```
 
 ### Options

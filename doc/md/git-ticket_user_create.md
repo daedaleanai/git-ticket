@@ -14,6 +14,7 @@ git-ticket user create [flags]
 
 ```
       --key-file string   Take the armored PGP public key from the given file. Use - to read the message from the standard input
+  -s, --skipPhabId        Do not attempt to retrieve the users Phabricator ID (note: fetching reviews where they commented will fail if it is not set)
   -h, --help              help for create
 ```
 

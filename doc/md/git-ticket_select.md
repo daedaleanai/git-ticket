@@ -15,7 +15,7 @@ The complementary command is "git ticket deselect" performing the opposite opera
 
 
 ```
-git-ticket select ID [flags]
+git-ticket select <ticket id> [flags]
 ```
 
 ### Examples

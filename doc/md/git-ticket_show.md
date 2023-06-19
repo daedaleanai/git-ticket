@@ -7,7 +7,7 @@ Display the details of a ticket.
 Display the details of a ticket.
 
 ```
-git-ticket show [ID] [flags]
+git-ticket show [<ticket id>] [flags]
 ```
 
 ### Options

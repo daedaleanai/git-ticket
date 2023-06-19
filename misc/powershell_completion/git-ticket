@@ -32,7 +32,7 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
             [CompletionResult]::new('push', 'push', [CompletionResultType]::ParameterValue, 'Push tickets update to a git remote.')
             [CompletionResult]::new('refresh', 'refresh', [CompletionResultType]::ParameterValue, 'Refresh cache.')
             [CompletionResult]::new('review', 'review', [CompletionResultType]::ParameterValue, 'Review actions of a ticket.')
-            [CompletionResult]::new('rm', 'rm', [CompletionResultType]::ParameterValue, 'Remove an existing bug.')
+            [CompletionResult]::new('rm', 'rm', [CompletionResultType]::ParameterValue, 'Remove an existing ticket.')
             [CompletionResult]::new('select', 'select', [CompletionResultType]::ParameterValue, 'Select a ticket for implicit use in future commands.')
             [CompletionResult]::new('show', 'show', [CompletionResultType]::ParameterValue, 'Display the details of a ticket.')
             [CompletionResult]::new('status', 'status', [CompletionResultType]::ParameterValue, 'Display or change a ticket status.')
@@ -50,6 +50,8 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
             [CompletionResult]::new('--message', 'message', [CompletionResultType]::ParameterName, 'Provide a message to describe the issue')
             [CompletionResult]::new('-F', 'F', [CompletionResultType]::ParameterName, 'Take the message from the given file. Use - to read the message from the standard input')
             [CompletionResult]::new('--file', 'file', [CompletionResultType]::ParameterName, 'Take the message from the given file. Use - to read the message from the standard input')
+            [CompletionResult]::new('-n', 'n', [CompletionResultType]::ParameterName, 'Do not automatically select the new ticket once it''s created')
+            [CompletionResult]::new('--noselect', 'noselect', [CompletionResultType]::ParameterName, 'Do not automatically select the new ticket once it''s created')
             break
         }
         'git-ticket;assign' {
@@ -118,15 +120,21 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
             [CompletionResult]::new('--status', 'status', [CompletionResultType]::ParameterName, 'Filter by status. Valid values are [proposed,vetted,inprogress,inreview,reviewed,accepted,merged,done,rejected,ALL]')
             [CompletionResult]::new('-a', 'a', [CompletionResultType]::ParameterName, 'Filter by author')
             [CompletionResult]::new('--author', 'author', [CompletionResultType]::ParameterName, 'Filter by author')
+            [CompletionResult]::new('-A', 'A', [CompletionResultType]::ParameterName, 'Filter by assignee')
+            [CompletionResult]::new('--assignee', 'assignee', [CompletionResultType]::ParameterName, 'Filter by assignee')
+            [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'Filter by ccb')
+            [CompletionResult]::new('--ccb', 'ccb', [CompletionResultType]::ParameterName, 'Filter by ccb')
             [CompletionResult]::new('-p', 'p', [CompletionResultType]::ParameterName, 'Filter by participant')
             [CompletionResult]::new('--participant', 'participant', [CompletionResultType]::ParameterName, 'Filter by participant')
             [CompletionResult]::new('--actor', 'actor', [CompletionResultType]::ParameterName, 'Filter by actor')
-            [CompletionResult]::new('-A', 'A', [CompletionResultType]::ParameterName, 'Filter by assignee')
-            [CompletionResult]::new('--assignee', 'assignee', [CompletionResultType]::ParameterName, 'Filter by assignee')
             [CompletionResult]::new('-l', 'l', [CompletionResultType]::ParameterName, 'Filter by label')
             [CompletionResult]::new('--label', 'label', [CompletionResultType]::ParameterName, 'Filter by label')
             [CompletionResult]::new('-t', 't', [CompletionResultType]::ParameterName, 'Filter by title')
             [CompletionResult]::new('--title', 'title', [CompletionResultType]::ParameterName, 'Filter by title')
+            [CompletionResult]::new('--create-before', 'create-before', [CompletionResultType]::ParameterName, 'Filter by created before. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd')
+            [CompletionResult]::new('--create-after', 'create-after', [CompletionResultType]::ParameterName, 'Filter by created after. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd')
+            [CompletionResult]::new('--edit-before', 'edit-before', [CompletionResultType]::ParameterName, 'Filter by last edited before. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd')
+            [CompletionResult]::new('--edit-after', 'edit-after', [CompletionResultType]::ParameterName, 'Filter by last edited after. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd')
             [CompletionResult]::new('-n', 'n', [CompletionResultType]::ParameterName, 'Filter by absence of something. Valid values are [label]')
             [CompletionResult]::new('--no', 'no', [CompletionResultType]::ParameterName, 'Filter by absence of something. Valid values are [label]')
             [CompletionResult]::new('-b', 'b', [CompletionResultType]::ParameterName, 'Sort the results by a characteristic. Valid values are [id,creation,edit]')
@@ -147,6 +155,8 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
             break
         }
         'git-ticket;push' {
+            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Push only the currently selected ticket')
+            [CompletionResult]::new('--selected', 'selected', [CompletionResultType]::ParameterName, 'Push only the currently selected ticket')
             break
         }
         'git-ticket;refresh' {
@@ -251,9 +261,13 @@ Register-ArgumentCompleter -Native -CommandName 'git-ticket' -ScriptBlock {
         }
         'git-ticket;user;create' {
             [CompletionResult]::new('--key-file', 'key-file', [CompletionResultType]::ParameterName, 'Take the armored PGP public key from the given file. Use - to read the message from the standard input')
+            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Do not attempt to retrieve the users Phabricator ID (note: fetching reviews where they commented will fail if it is not set)')
+            [CompletionResult]::new('--skipPhabId', 'skipPhabId', [CompletionResultType]::ParameterName, 'Do not attempt to retrieve the users Phabricator ID (note: fetching reviews where they commented will fail if it is not set)')
             break
         }
         'git-ticket;user;edit' {
+            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Do not attempt to retrieve the users Phabricator ID (note: fetching reviews where they commented will fail if it is not set)')
+            [CompletionResult]::new('--skipPhabId', 'skipPhabId', [CompletionResultType]::ParameterName, 'Do not attempt to retrieve the users Phabricator ID (note: fetching reviews where they commented will fail if it is not set)')
             break
         }
         'git-ticket;user;key' {

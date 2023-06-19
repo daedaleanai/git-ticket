@@ -7,7 +7,7 @@ Ticket is set IN REVIEW.
 Ticket is set IN REVIEW.
 
 ```
-git-ticket status inreview ID [flags]
+git-ticket status inreview [<ticket id>] [flags]
 ```
 
 ### Options

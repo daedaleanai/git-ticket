@@ -7,7 +7,7 @@ Ticket is set VETTED.
 Ticket is set VETTED.
 
 ```
-git-ticket status vetted ID [flags]
+git-ticket status vetted [<ticket id>] [flags]
 ```
 
 ### Options

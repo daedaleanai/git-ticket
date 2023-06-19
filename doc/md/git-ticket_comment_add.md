@@ -7,7 +7,7 @@ Add a new comment to a ticket.
 Add a new comment to a ticket.
 
 ```
-git-ticket comment add [ID] [flags]
+git-ticket comment add [<ticket id>] [flags]
 ```
 
 ### Options

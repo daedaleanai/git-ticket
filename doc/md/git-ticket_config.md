@@ -7,7 +7,7 @@ List configs or show the specified config
 List configs or show the specified config
 
 ```
-git-ticket config [CONFIG] [flags]
+git-ticket config [<config name>] [flags]
 ```
 
 ### Options

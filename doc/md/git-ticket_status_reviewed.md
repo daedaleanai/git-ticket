@@ -7,7 +7,7 @@ Ticket is set REVIEWED.
 Ticket is set REVIEWED.
 
 ```
-git-ticket status reviewed ID [flags]
+git-ticket status reviewed [<ticket id>] [flags]
 ```
 
 ### Options

@@ -7,7 +7,7 @@ Ticket is set DONE.
 Ticket is set DONE.
 
 ```
-git-ticket status done ID [flags]
+git-ticket status done [<ticket id>] [flags]
 ```
 
 ### Options

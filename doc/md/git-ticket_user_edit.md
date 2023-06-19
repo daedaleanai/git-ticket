@@ -7,13 +7,14 @@ Edit a user identity.
 Edit a user identity.
 
 ```
-git-ticket user edit [<username/id>] [flags]
+git-ticket user edit [<user name/id>] [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for edit
+  -s, --skipPhabId   Do not attempt to retrieve the users Phabricator ID (note: fetching reviews where they commented will fail if it is not set)
+  -h, --help         help for edit
 ```
 
 ### Options inherited from parent commands

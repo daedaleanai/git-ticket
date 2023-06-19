@@ -7,13 +7,14 @@ Push tickets update to a git remote.
 Push tickets update to a git remote.
 
 ```
-git-ticket push [REMOTE] [flags]
+git-ticket push [<remote>] [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for push
+  -s, --selected   Push only the currently selected ticket
+  -h, --help       help for push
 ```
 
 ### Options inherited from parent commands

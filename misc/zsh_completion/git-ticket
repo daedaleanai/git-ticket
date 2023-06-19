@@ -26,7 +26,7 @@ function _git-ticket {
       "pull:Pull tickets update from a git remote."
       "push:Push tickets update to a git remote."
       "review:Review actions of a ticket."
-      "rm:Remove an existing bug."
+      "rm:Remove an existing ticket."
       "select:Select a ticket for implicit use in future commands."
       "show:Display the details of a ticket."
       "status:Display or change a ticket status."
@@ -118,6 +118,7 @@ function _git-ticket_add {
     '(-t --title)'{-t,--title}'[Provide a title to describe the issue]:' \
     '(-m --message)'{-m,--message}'[Provide a message to describe the issue]:' \
     '(-F --file)'{-F,--file}'[Take the message from the given file. Use - to read the message from the standard input]:' \
+    '(-n --noselect)'{-n,--noselect}'[Do not automatically select the new ticket once it'\''s created]' \
     '--rebuild-cache[force the cache to be rebuilt]'
 }
 
@@ -300,11 +301,16 @@ function _git-ticket_ls {
   _arguments \
     '(*-s *--status)'{\*-s,\*--status}'[Filter by status. Valid values are [proposed,vetted,inprogress,inreview,reviewed,accepted,merged,done,rejected,ALL]]:' \
     '(*-a *--author)'{\*-a,\*--author}'[Filter by author]:' \
+    '(*-A *--assignee)'{\*-A,\*--assignee}'[Filter by assignee]:' \
+    '(*-c *--ccb)'{\*-c,\*--ccb}'[Filter by ccb]:' \
     '(*-p *--participant)'{\*-p,\*--participant}'[Filter by participant]:' \
     '*--actor[Filter by actor]:' \
-    '(*-A *--assignee)'{\*-A,\*--assignee}'[Filter by assignee]:' \
     '(*-l *--label)'{\*-l,\*--label}'[Filter by label]:' \
     '(*-t *--title)'{\*-t,\*--title}'[Filter by title]:' \
+    '--create-before[Filter by created before. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd]:' \
+    '--create-after[Filter by created after. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd]:' \
+    '--edit-before[Filter by last edited before. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd]:' \
+    '--edit-after[Filter by last edited after. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd]:' \
     '(*-n *--no)'{\*-n,\*--no}'[Filter by absence of something. Valid values are [label]]:' \
     '(-b --by)'{-b,--by}'[Sort the results by a characteristic. Valid values are [id,creation,edit]]:' \
     '(-d --direction)'{-d,--direction}'[Select the sorting direction. Valid values are [asc,desc]]:' \
@@ -329,6 +335,7 @@ function _git-ticket_pull {
 
 function _git-ticket_push {
   _arguments \
+    '(-s --selected)'{-s,--selected}'[Push only the currently selected ticket]' \
     '--rebuild-cache[force the cache to be rebuilt]'
 }
 
@@ -588,11 +595,13 @@ function _git-ticket_user_adopt {
 function _git-ticket_user_create {
   _arguments \
     '--key-file[Take the armored PGP public key from the given file. Use - to read the message from the standard input]:' \
+    '(-s --skipPhabId)'{-s,--skipPhabId}'[Do not attempt to retrieve the users Phabricator ID (note: fetching reviews where they commented will fail if it is not set)]' \
     '--rebuild-cache[force the cache to be rebuilt]'
 }
 
 function _git-ticket_user_edit {
   _arguments \
+    '(-s --skipPhabId)'{-s,--skipPhabId}'[Do not attempt to retrieve the users Phabricator ID (note: fetching reviews where they commented will fail if it is not set)]' \
     '--rebuild-cache[force the cache to be rebuilt]'
 }
 

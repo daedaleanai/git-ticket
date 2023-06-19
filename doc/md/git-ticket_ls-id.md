@@ -7,7 +7,7 @@ List ticket identifiers.
 List ticket identifiers.
 
 ```
-git-ticket ls-id [PREFIX] [flags]
+git-ticket ls-id [<prefix>] [flags]
 ```
 
 ### Options

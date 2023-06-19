@@ -1,13 +1,13 @@
 ## git-ticket rm
 
-Remove an existing bug.
+Remove an existing ticket.
 
 ### Synopsis
 
-Remove an existing bug in the local repository. Note removing bugs that were imported from bridges will not remove the bug on the remote, and will only remove the local copy of the bug.
+Remove an existing ticket in the local repository.
 
 ```
-git-ticket rm ID [flags]
+git-ticket rm <ticket id> [flags]
 ```
 
 ### Options

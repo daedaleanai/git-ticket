@@ -23,6 +23,10 @@ Create a new identity.
 	Take the armored PGP public key from the given file. Use \- to read the message from the standard input
 
 .PP
+\fB\-s\fP, \fB\-\-skipPhabId\fP[=false]
+	Do not attempt to retrieve the users Phabricator ID (note: fetching reviews where they commented will fail if it is not set)
+
+.PP
 \fB\-h\fP, \fB\-\-help\fP[=false]
 	help for create
 

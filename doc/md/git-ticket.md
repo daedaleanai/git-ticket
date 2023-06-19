@@ -39,7 +39,7 @@ git-ticket [flags]
 * [git-ticket pull](git-ticket_pull.md)	 - Pull tickets update from a git remote.
 * [git-ticket push](git-ticket_push.md)	 - Push tickets update to a git remote.
 * [git-ticket review](git-ticket_review.md)	 - Review actions of a ticket.
-* [git-ticket rm](git-ticket_rm.md)	 - Remove an existing bug.
+* [git-ticket rm](git-ticket_rm.md)	 - Remove an existing ticket.
 * [git-ticket select](git-ticket_select.md)	 - Select a ticket for implicit use in future commands.
 * [git-ticket show](git-ticket_show.md)	 - Display the details of a ticket.
 * [git-ticket status](git-ticket_status.md)	 - Display or change a ticket status.

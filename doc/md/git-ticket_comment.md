@@ -7,7 +7,7 @@ Display or add comments to a ticket.
 Display or add comments to a ticket.
 
 ```
-git-ticket comment [ID] [flags]
+git-ticket comment [<ticket id>] [flags]
 ```
 
 ### Options

@@ -7,7 +7,7 @@ Complete a checklist associated with a ticket.
 Complete a checklist associated with a ticket.
 
 ```
-git-ticket review checklist [ID] [flags]
+git-ticket review checklist [<ticket id>] [flags]
 ```
 
 ### Options

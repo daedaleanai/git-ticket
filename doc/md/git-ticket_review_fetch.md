@@ -15,7 +15,7 @@ ticket by running the command with different IDs.
 
 
 ```
-git-ticket review fetch DIFF-ID [ID] [flags]
+git-ticket review fetch <revision id> [<ticket id>] [flags]
 ```
 
 ### Options

@@ -7,7 +7,7 @@ Pull tickets update from a git remote.
 Pull tickets update from a git remote.
 
 ```
-git-ticket pull [REMOTE] [flags]
+git-ticket pull [<remote>] [flags]
 ```
 
 ### Options

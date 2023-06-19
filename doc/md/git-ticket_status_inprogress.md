@@ -7,7 +7,7 @@ Ticket is set IN PROGRESS.
 Ticket is set IN PROGRESS.
 
 ```
-git-ticket status inprogress ID [flags]
+git-ticket status inprogress [<ticket id>] [flags]
 ```
 
 ### Options
