@@ -29,6 +29,7 @@ type termUI struct {
 	timeline    *timeline
 	msgPopup    *msgPopup
 	inputPopup  *inputPopup
+	querySelect *querySelect
 }
 
 func (tui *termUI) activateWindow(window window) error {
@@ -60,6 +61,7 @@ func Run(cache *cache.RepoCache) error {
 		timeline:    newTimeline(),
 		msgPopup:    newMsgPopup(),
 		inputPopup:  newInputPopup(),
+		querySelect: newQuerySelect(),
 	}
 
 	ui.activeWindow = ui.bugTable
@@ -170,6 +172,10 @@ func keybindings(g *gocui.Gui) error {
 	}
 
 	if err := ui.inputPopup.keybindings(g); err != nil {
+		return err
+	}
+
+	if err := ui.querySelect.keybindings(g); err != nil {
 		return err
 	}
 
@@ -394,6 +400,13 @@ func editQueryWithEditor(bt *bugTable) error {
 		return err
 	}
 
+	_ = updateQuery(bt, queryStr)
+	initGui(nil)
+
+	return errTerminateMainloop
+}
+
+func updateQuery(bt *bugTable, queryStr string) error {
 	bt.queryStr = queryStr
 
 	q, err := query.Parse(queryStr)
@@ -404,9 +417,7 @@ func editQueryWithEditor(bt *bugTable) error {
 		bt.query = q
 	}
 
-	initGui(nil)
-
-	return errTerminateMainloop
+	return nil
 }
 
 func maxInt(a, b int) int {
