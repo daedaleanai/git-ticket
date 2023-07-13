@@ -247,10 +247,10 @@ func (sb *showBug) renderMain(g *gocui.Gui, mainView *gocui.View) error {
 
 	sb.mainSelectableView = nil
 
-	createTimelineItem := snap.Timeline[0].(*bug.CreateTimelineItem)
+	createTimelineItem, ok := snap.Timeline[0].(*bug.CreateTimelineItem)
 
 	edited := ""
-	if createTimelineItem.Edited() {
+	if ok && createTimelineItem.Edited() {
 		edited = " (edited)"
 	}
 
