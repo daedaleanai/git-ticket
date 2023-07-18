@@ -247,11 +247,17 @@ func (sb *showBug) renderMain(g *gocui.Gui, mainView *gocui.View) error {
 
 	sb.mainSelectableView = nil
 
-	createTimelineItem, ok := snap.Timeline[0].(*bug.CreateTimelineItem)
-
 	edited := ""
-	if ok && createTimelineItem.Edited() {
-		edited = " (edited)"
+	for _, item := range snap.Timeline {
+		// The create ticket timeline item may not be the first if there
+		// are review items that exist before ticket creation.
+		// That is a process issue, but should not break git ticket.
+		if createTimelineItem, ok := item.(*bug.CreateTimelineItem); ok {
+			if createTimelineItem.Edited() {
+				edited = " (edited)"
+			}
+			break
+		}
 	}
 
 	bugHeader := fmt.Sprintf("[%s] %s\n\n[%s] %s opened this bug on %s%s",
