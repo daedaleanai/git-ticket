@@ -268,7 +268,7 @@ func (f *Matcher) Match(excerpt *BugExcerpt, resolver resolver) bool {
 		return false
 	}
 
-	if match := f.andMatch(f.Label, excerpt, resolver); !match {
+	if match := f.orMatch(f.Label, excerpt, resolver); !match {
 		return false
 	}
 
