@@ -21,7 +21,7 @@ func tokenize(query string) ([]token, error) {
 
 	var tokens []token
 	for _, field := range fields {
-		split := strings.Split(field, ":")
+		split := strings.SplitN(field, ":", 2)
 		if len(split) != 2 {
 			return nil, fmt.Errorf("can't tokenize \"%s\"", field)
 		}
