@@ -1,0 +1,17 @@
+{{ define "persona-link" }}
+<a href="/persona/{{ .Id }}">{{ .DisplayName }}</a>
+{{ end }}
+
+{{ define "timestamp-snippet" }}
+{{ .Format "02 Jan 2006 15:04 -0700" }}
+{{ end }}
+
+{{ define "comment-snippet" }}
+<ul class="gt-list">
+  <li>
+  {{ if .Author }} {{ template "persona-link" .Author }} {{ end }}
+  {{ template "timestamp-snippet" .UnixTime.Time }}
+  </li>
+  <li><pre class="gt-mono-input ddln-text">{{ .Message }}</pre><li>
+</ul>
+{{ end }}

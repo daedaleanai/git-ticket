@@ -1,0 +1,36 @@
+ul.gt-list {
+  display: block;
+  padding-left: 0px;
+  padding-inline-start: 0px;
+}
+
+ul.gt-list li {
+  list-style: none;
+  display: list-item;
+  padding-bottom: 3px;
+  border-collapse: separate;
+}
+
+ul.gt-list li:nth-child(2n+0) {
+  background-color: rgb(210, 210, 210);
+}
+
+ul.gt-list li:nth-child(2n+1) {
+  background-color: rgb(230, 230, 230);
+}
+
+.gt-id {
+  display: inline-flex;
+  width: 80px;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+  margin-left: 3px;
+  margin-right: 3px;
+}
+
+.gt-mono-input {
+  display: inline-block;
+  font-family: monospace;
+  white-space: pre-wrap;
+}

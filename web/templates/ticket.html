@@ -1,0 +1,25 @@
+{{ template "header.html" . }}
+
+{{ if .ticket }}
+<ul class="gt-list">
+  <li><span class="gt-id ddln-text">{{ .ticket.Id }}</span>
+      <span class="ddln-text">{{ .ticket.Snapshot.Title }}</span>
+  </li>
+  <li><span>Status: {{ .ticket.Snapshot.Status }}</span></li>
+  {{ if .ticket.Snapshot.Author }}
+  <li><span>Author: {{ template "persona-link" .ticket.Snapshot.Author }}</li>
+  {{end}}
+  {{ if .ticket.Snapshot.Assignee }}
+  <li><span>Assignee: {{ template "persona-link" .ticket.Snapshot.Assignee }}</span></li>
+  {{end}}
+  <li>
+    <ul class="gt-list">
+      {{range .ticket.Snapshot.Comments }}
+      <li>{{ template "comment-snippet" . }}</li>
+      {{end}}
+    </ul>
+  </ul>
+</ul>
+{{ end }}
+
+{{ template "footer.html" . }}

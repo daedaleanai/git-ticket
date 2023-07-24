@@ -48,7 +48,7 @@ func (i *IdentityExcerpt) DisplayName() string {
 		return fmt.Sprintf("%s (%s)", i.Name, i.Login)
 	}
 
-	panic("invalid person data")
+	return "<unknown identity>"
 }
 
 // Match matches a query with the identity name, login and ID prefixes

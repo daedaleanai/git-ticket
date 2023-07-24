@@ -1,0 +1,14 @@
+<head>
+<title>{{ .title }}</title>
+<script 
+    src="https://code.jquery.com/jquery-3.7.0.slim.min.js" 
+    integrity="sha256-tG5mcZUtJsZvyKAxYLVXrmjKBVLd6VpVccqz/r4ypFE=" 
+    crossorigin="anonymous"></script>
+<script src="/assets/ddln-xref.js"></script>
+<link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body onload="ddlnXref('ddln-text')">
+<h1>{{ .title }}</h1>
+{{ if .diag }}
+<span class="gt-diag-{{ .diag.Severity }} ddln-text">{{ .diag.Message }}</span>
+{{ end }}

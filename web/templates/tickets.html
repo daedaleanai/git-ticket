@@ -1,0 +1,8 @@
+{{ template "header.html" . }}
+<span>{{ .memo }}</span>
+<ul class="gt-list">
+{{range .excerpts}}
+<li><span class="gt-id ddln-text">{{.Id}}</span> <span class="ddln-text">{{.Title}}</span></li>
+{{end}}
+</ul>
+{{ template "footer.html" . }}

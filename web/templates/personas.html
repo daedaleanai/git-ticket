@@ -1,0 +1,7 @@
+{{ template "header.html" . }}
+<ul>
+{{range .excerpts}}
+<li><a href="/persona/{{ .Id }}">{{.DisplayName}}</a></li>
+{{end}}
+</ul>
+{{ template "footer.html" . }}
