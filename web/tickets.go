@@ -55,9 +55,9 @@ func handleTicket(c *gin.Context, backend *cache.RepoCache) {
 	} else if ambig, ok := err.(*entity.ErrMultipleMatch); ok {
 		_ticketsListPage(c, _ticketGetBugExcerpts(backend, ambig.Matching), "Ambiguous ticket id", diagWarning("Multiple tickets with the specified prefix found, choose one"))
 	} else {
-          c.HTML(http.StatusNotFound, "ticket.html", gin.H{
-                  "title":  "Ticket not found",
-                  "diag": diagNote("Check the ID format, and maybe try a shorter suffix"),
-          })
+		c.HTML(http.StatusNotFound, "ticket.html", gin.H{
+			"title": "Ticket not found",
+			"diag":  diagNote("Check the ID format, and maybe try a shorter suffix"),
+		})
 	}
 }
