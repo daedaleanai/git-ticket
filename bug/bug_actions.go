@@ -20,12 +20,49 @@ func Fetch(repo repository.Repo, remote string) (string, error) {
 
 // Push update a remote with all the local changes
 func Push(repo repository.Repo, remote string) (string, error) {
-	return repo.PushRefs(remote, bugsRefPattern+"*")
+	remoteRefSpec := fmt.Sprintf(bugsRemoteRefPattern, remote)
+	localRefs, err := repo.ListRefs(bugsRefPattern)
+
+	if err != nil {
+		return "", err
+	}
+	var output string
+
+	for _, localRef := range localRefs {
+		hashes, err := repo.CommitsBetween(remoteRefSpec+path.Base(localRef), localRef)
+		if err == nil && hashes == nil {
+			continue
+		}
+
+		stdout, err := repo.PushRefs(remote, localRef)
+		output = output + "Pushing ticket " + localRef + "\n" + stdout
+		if err != nil {
+			return output, err
+		}
+
+		// Need to update the remote ref manually because push doesn't do it automatically
+		// for bug references
+		err = repo.UpdateRef(remoteRefSpec+path.Base(localRef), repository.Hash(localRef))
+		if err != nil {
+			return output, err
+		}
+	}
+
+	if output == "" {
+		output = "Everything up-to-date"
+	}
+
+	return output, nil
 }
 
 // PushRef update a remote with a local change
 func PushRef(repo repository.Repo, remote string, ref string) (string, error) {
-	return repo.PushRefs(remote, bugsRefPattern+ref)
+	stdout, err := repo.PushRefs(remote, bugsRefPattern+ref)
+	if err != nil {
+		return stdout, err
+	}
+
+	return "Pushing ticket " + ref + "\n" + stdout, nil
 }
 
 // Pull will do a Fetch + MergeAll

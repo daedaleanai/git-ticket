@@ -242,12 +242,7 @@ func (c *RepoCache) Push(remote string) (string, error) {
 
 // PushTicket update a remote with the local changes to a single ticket
 func (c *RepoCache) PushTicket(remote string, ref string) (string, error) {
-	stdout, err := bug.PushRef(c.repo, remote, ref)
-	if err != nil {
-		return stdout, err
-	}
-
-	return "TICKET " + ref + "\n" + stdout, nil
+	return bug.PushRef(c.repo, remote, ref)
 }
 
 // Pull will do a Fetch + MergeAll
