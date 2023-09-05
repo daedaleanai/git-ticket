@@ -151,10 +151,26 @@ func (c *RepoCache) ResolveIdentityExcerptPrefix(prefix string) (*IdentityExcerp
 
 // ResolveIdentityPhabID retrieve an Identity matching a Phabricator ID.
 // It fails if multiple identities match.
-func (c *RepoCache) ResolveIdentityPhabID(phabID string) (*IdentityCache, error) {
-	return c.ResolveIdentityMatcher(func(excerpt *IdentityExcerpt) bool {
+func (c *RepoCache) IdentityFromPhabId(phabID string) (identity.Interface, error) {
+	user, err := c.ResolveIdentityMatcher(func(excerpt *IdentityExcerpt) bool {
 		return excerpt.PhabID == phabID
 	})
+	if err != nil {
+		return nil, err
+	}
+	return user.Identity, nil
+}
+
+// ResolveIdentityPhabID retrieve an Identity matching a full name.
+// It fails if multiple identities match.
+func (c *RepoCache) IdentityFromName(name string) (identity.Interface, error) {
+	user, err := c.ResolveIdentityMatcher(func(excerpt *IdentityExcerpt) bool {
+		return excerpt.Name == name
+	})
+	if err != nil {
+		return nil, err
+	}
+	return user.Identity, nil
 }
 
 // ResolveIdentityPrefix retrieve an Identity matching an id prefix.

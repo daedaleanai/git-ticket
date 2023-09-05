@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"fmt"
+	"github.com/daedaleanai/git-ticket/commands/review"
 
 	"github.com/spf13/cobra"
 
@@ -52,7 +53,9 @@ func runReviewFetch(env *Env, args []string) error {
 	// since then
 	var lastUpdate string
 	if existingReview, ok := b.Snapshot().Reviews[diffId]; ok {
-		lastUpdate = existingReview.LastTransaction
+		if phabReview, ok := existingReview.(*review.PhabReviewInfo); ok {
+			lastUpdate = phabReview.LastTransaction
+		}
 	}
 
 	review, err := bug.FetchReviewInfo(diffId, lastUpdate)
@@ -60,7 +63,7 @@ func runReviewFetch(env *Env, args []string) error {
 		return fmt.Errorf("failed to fetch review info: %s", err)
 	}
 
-	if len(review.Updates) == 0 {
+	if review.IsEmpty() {
 		fmt.Printf("No updates to save for %s, aborting\n", diffId)
 		return nil
 	}
