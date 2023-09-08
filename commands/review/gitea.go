@@ -53,7 +53,7 @@ func (r *GiteaReview) Status() string {
 func (r *GiteaReview) Changes() []Change {
 	result := []Change{}
 	for _, c := range r.Comments {
-		cc := c
+		cc := c // Without it golang store pointer to changing loop variable
 		result = append(result, &cc)
 	}
 	return result
@@ -116,7 +116,16 @@ func (g *GiteaInfo) FetchIdentities(resolver IdentityResolver) error {
 }
 
 func (g *GiteaInfo) Merge(update Pull) {
+	if update == nil {
+		return
+	}
 
+	u := update.(*GiteaInfo)
+	g.Owner = u.Owner
+	g.Repository = u.Repository
+	g.PullId = u.PullId
+	g.RawPull = u.RawPull
+	g.Reviews = u.Reviews
 }
 
 func (g *GiteaInfo) LatestOverallStatus() string {
@@ -154,7 +163,7 @@ func (g *GiteaInfo) LatestUserStatuses() map[string]UserStatus {
 
 	for _, r := range g.Reviews {
 		if s, ok := result[r.RawReview.Reviewer.Email]; !ok || s.Timestamp() < r.Timestamp() {
-			us := r
+			us := r // Without it golang store pointer to changing loop variable
 			result[r.RawReview.Reviewer.Email] = &us
 		}
 	}

@@ -21,7 +21,7 @@ func (r *RemoveReview) History() []TimelineEvent {
 }
 
 func (r *RemoveReview) IsEmpty() bool {
-	return false
+	return true
 }
 
 func (r *RemoveReview) EnsureIdentities(identity.Resolver) error {
