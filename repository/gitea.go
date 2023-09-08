@@ -8,7 +8,7 @@ import (
 )
 
 // getGiteaConfig returns the Phabricator URL and API token from the repository config
-func getGiteaConfig() (string, string, error) {
+func GetGiteaConfig() (string, string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", "", fmt.Errorf("unable to get the current working directory: %q", err)
@@ -44,7 +44,7 @@ click on <Generate Token>, and then paste the token into this command
 // within a git repo which has the Phabricator URL and conduit API token set
 // in the git config.
 func GetGiteaClient() (*gitea.Client, error) {
-	giteaUrl, apiToken, err := getGiteaConfig()
+	giteaUrl, apiToken, err := GetGiteaConfig()
 	if err != nil {
 		return nil, err
 	}
