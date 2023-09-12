@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -152,9 +153,9 @@ func TestPushPull(t *testing.T) {
 	require.NoError(t, err)
 
 	// distribute the identity
-	_, err = cacheA.Push("origin")
+	err = cacheA.Push("origin", io.Discard)
 	require.NoError(t, err)
-	err = cacheB.Pull("origin")
+	err = cacheB.Pull("origin", io.Discard)
 	require.NoError(t, err)
 
 	// Create a bug in A
@@ -162,10 +163,10 @@ func TestPushPull(t *testing.T) {
 	require.NoError(t, err)
 
 	// A --> remote --> B
-	_, err = cacheA.Push("origin")
+	err = cacheA.Push("origin", io.Discard)
 	require.NoError(t, err)
 
-	err = cacheB.Pull("origin")
+	err = cacheB.Pull("origin", io.Discard)
 	require.NoError(t, err)
 
 	require.Len(t, cacheB.AllBugsIds(), 1)
@@ -181,10 +182,10 @@ func TestPushPull(t *testing.T) {
 	_, _, err = cacheB.NewBug("bug2", "message")
 	require.NoError(t, err)
 
-	_, err = cacheB.Push("origin")
+	err = cacheB.Push("origin", io.Discard)
 	require.NoError(t, err)
 
-	err = cacheA.Pull("origin")
+	err = cacheA.Pull("origin", io.Discard)
 	require.NoError(t, err)
 
 	require.Len(t, cacheA.AllBugsIds(), 2)
@@ -193,10 +194,10 @@ func TestPushPull(t *testing.T) {
 	configData1 := `{"foo": ["bar1", 2 3], "test", 1.2}`
 	err = cacheA.SetConfig("test1", []byte(configData1))
 	require.NoError(t, err)
-	_, err = cacheA.Push("origin")
+	err = cacheA.Push("origin", io.Discard)
 	require.NoError(t, err)
 
-	err = cacheB.Pull("origin")
+	err = cacheB.Pull("origin", io.Discard)
 	require.NoError(t, err)
 
 	configs, err := cacheB.ListConfigs()
@@ -215,14 +216,14 @@ func TestPushPull(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, configData2, string(data))
 
-	_, err = cacheB.Push("origin")
+	err = cacheB.Push("origin", io.Discard)
 	require.NoError(t, err)
 
 	// Conflict
 	configData3 := `{"foo": "bar2"}`
 	err = cacheA.SetConfig("test1", []byte(configData3))
 	require.NoError(t, err)
-	err = cacheA.Pull("origin")
+	err = cacheA.Pull("origin", io.Discard)
 	require.NoError(t, err)
 	data, err = cacheA.GetConfig("test1")
 	require.NoError(t, err)
@@ -259,10 +260,10 @@ func TestRemove(t *testing.T) {
 	b1, _, err := repoCache.NewBug("title", "message")
 	require.NoError(t, err)
 
-	_, err = repoCache.Push("remoteA")
+	err = repoCache.Push("remoteA", io.Discard)
 	require.NoError(t, err)
 
-	_, err = repoCache.Push("remoteB")
+	err = repoCache.Push("remoteB", io.Discard)
 	require.NoError(t, err)
 
 	_, err = repoCache.Fetch("remoteA")

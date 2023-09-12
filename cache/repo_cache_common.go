@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/daedaleanai/git-ticket/config"
@@ -75,11 +76,7 @@ func (c *RepoCache) Fetch(remote string) (string, error) {
 		return stdout2, err
 	}
 
-	// Config
-	remoteRefSpec := fmt.Sprintf(configRemoteRefPattern, remote)
-	fetchRefSpec := fmt.Sprintf("%s*:%s*", configRefPrefix, remoteRefSpec)
-
-	stdout3, err := c.repo.FetchRefs(remote, fetchRefSpec)
+	stdout3, err := config.Fetch(c.repo, remote)
 	if err != nil {
 		return stdout3, err
 	}
@@ -221,38 +218,44 @@ func (c *RepoCache) UpdateConfigs(remote string) (string, error) {
 }
 
 // Push update a remote with the local changes
-func (c *RepoCache) Push(remote string) (string, error) {
-	stdout1, err := identity.Push(c.repo, remote)
-	if err != nil {
-		return stdout1, err
-	}
-
-	stdout2, err := bug.Push(c.repo, remote)
-	if err != nil {
-		return stdout2, err
-	}
-
-	stdout3, err := c.repo.PushRefs(remote, configRefPrefix+"*")
-	if err != nil {
-		return stdout3, err
-	}
-
-	return "IDENTITIES\n" + stdout1 + "\nTICKETS\n" + stdout2 + "\nCONFIGS\n" + stdout3, nil
-}
-
-// PushTicket update a remote with the local changes to a single ticket
-func (c *RepoCache) PushTicket(remote string, ref string) (string, error) {
-	return bug.PushRef(c.repo, remote, ref)
-}
-
-// Pull will do a Fetch + MergeAll
-// This function will return an error if a merge fail
-func (c *RepoCache) Pull(remote string) error {
-	_, err := c.Fetch(remote)
+func (c *RepoCache) Push(remote string, out io.Writer) error {
+	fmt.Fprintln(out, "IDENTITIES...")
+	err := identity.Push(c.repo, remote, out)
 	if err != nil {
 		return err
 	}
 
+	fmt.Fprintln(out, "TICKETS...")
+	err = bug.Push(c.repo, remote, out)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(out, "CONFIGS...")
+	err = config.Push(c.repo, remote, out)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PushTicket update a remote with the local changes to a single ticket
+func (c *RepoCache) PushTicket(remote string, ref string, out io.Writer) error {
+	return bug.PushRef(c.repo, remote, ref, out)
+}
+
+// Pull will do a Fetch + MergeAll
+// This function will return an error if a merge fail
+func (c *RepoCache) Pull(remote string, out io.Writer) error {
+	fmt.Fprintln(out, "Fetching remote...")
+	stdout, err := c.Fetch(remote)
+	fmt.Fprintln(out, stdout)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(out, "Merging data...")
 	for merge := range c.MergeAll(remote) {
 		if merge.Err != nil {
 			return merge.Err
@@ -260,9 +263,15 @@ func (c *RepoCache) Pull(remote string) error {
 		if merge.Status == entity.MergeStatusInvalid {
 			return errors.Errorf("merge failure: %s", merge.Reason)
 		}
+
+		if merge.Status != entity.MergeStatusNothing {
+			fmt.Fprintf(out, "%s: %s\n", merge.Id.Human(), merge)
+		}
 	}
 
-	_, err = c.UpdateConfigs(remote)
+	fmt.Fprintln(out, "Updating configs...")
+	stdout, err = c.UpdateConfigs(remote)
+	fmt.Fprintln(out, stdout)
 	if err != nil {
 		return err
 	}

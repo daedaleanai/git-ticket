@@ -50,19 +50,15 @@ func runPush(env *Env, opts pushOptions, args []string) error {
 			return err
 		}
 
-		stdout, err := env.backend.PushTicket(remote, bug.Id().String())
+		err = env.backend.PushTicket(remote, bug.Id().String(), env.out)
 		if err != nil {
 			return err
 		}
-
-		env.out.Println(stdout)
 	} else {
-		stdout, err := env.backend.Push(remote)
+		err := env.backend.Push(remote, env.out)
 		if err != nil {
 			return err
 		}
-
-		env.out.Println(stdout)
 	}
 
 	return nil

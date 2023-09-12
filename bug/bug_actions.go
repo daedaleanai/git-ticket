@@ -2,6 +2,7 @@ package bug
 
 import (
 	"fmt"
+	"io"
 	"path"
 
 	"github.com/daedaleanai/git-ticket/entity"
@@ -19,14 +20,15 @@ func Fetch(repo repository.Repo, remote string) (string, error) {
 }
 
 // Push update a remote with all the local changes
-func Push(repo repository.Repo, remote string) (string, error) {
+func Push(repo repository.Repo, remote string, out io.Writer) error {
 	remoteRefSpec := fmt.Sprintf(bugsRemoteRefPattern, remote)
 	localRefs, err := repo.ListRefs(bugsRefPattern)
 
 	if err != nil {
-		return "", err
+		return err
 	}
-	var output string
+
+	pushed := 0
 
 	for _, localRef := range localRefs {
 		hashes, err := repo.CommitsBetween(remoteRefSpec+path.Base(localRef), localRef)
@@ -34,35 +36,48 @@ func Push(repo repository.Repo, remote string) (string, error) {
 			continue
 		}
 
+		fmt.Fprintf(out, "Pushing ticket: %s\n", path.Base(localRef))
 		stdout, err := repo.PushRefs(remote, localRef)
-		output = output + "Pushing ticket " + localRef + "\n" + stdout
+		fmt.Fprintln(out, stdout)
 		if err != nil {
-			return output, err
+			return err
 		}
 
 		// Need to update the remote ref manually because push doesn't do it automatically
 		// for bug references
 		err = repo.UpdateRef(remoteRefSpec+path.Base(localRef), repository.Hash(localRef))
 		if err != nil {
-			return output, err
+			return err
 		}
+
+		pushed++
 	}
 
-	if output == "" {
-		output = "Everything up-to-date"
+	if pushed == 0 {
+		fmt.Fprintln(out, "Everything up-to-date")
 	}
 
-	return output, nil
+	return nil
 }
 
 // PushRef update a remote with a local change
-func PushRef(repo repository.Repo, remote string, ref string) (string, error) {
+func PushRef(repo repository.Repo, remote string, ref string, out io.Writer) error {
+	fmt.Fprintf(out, "Pushing selected ticket: %s\n", ref)
 	stdout, err := repo.PushRefs(remote, bugsRefPattern+ref)
+	fmt.Fprintln(out, stdout)
 	if err != nil {
-		return stdout, err
+		return err
 	}
 
-	return "Pushing ticket " + ref + "\n" + stdout, nil
+	remoteRefSpec := fmt.Sprintf(bugsRemoteRefPattern, remote)
+	// Need to update the remote ref manually because push doesn't do it automatically
+	// for bug references
+	err = repo.UpdateRef(remoteRefSpec+ref, repository.Hash(bugsRefPattern+ref))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Pull will do a Fetch + MergeAll

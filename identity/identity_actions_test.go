@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -20,7 +21,7 @@ func TestPushPull(t *testing.T) {
 	require.NoError(t, err)
 
 	// A --> remote --> B
-	_, err = Push(repoA, "origin")
+	err = Push(repoA, "origin", io.Discard)
 	require.NoError(t, err)
 
 	err = Pull(repoB, "origin")
@@ -37,7 +38,7 @@ func TestPushPull(t *testing.T) {
 	err = identity2.Commit(repoB)
 	require.NoError(t, err)
 
-	_, err = Push(repoB, "origin")
+	err = Push(repoB, "origin", io.Discard)
 	require.NoError(t, err)
 
 	err = Pull(repoA, "origin")
@@ -67,7 +68,7 @@ func TestPushPull(t *testing.T) {
 
 	//  A --> remote --> B
 
-	_, err = Push(repoA, "origin")
+	err = Push(repoA, "origin", io.Discard)
 	require.NoError(t, err)
 
 	err = Pull(repoB, "origin")
@@ -81,7 +82,7 @@ func TestPushPull(t *testing.T) {
 
 	// B --> remote --> A
 
-	_, err = Push(repoB, "origin")
+	err = Push(repoB, "origin", io.Discard)
 	require.NoError(t, err)
 
 	err = Pull(repoA, "origin")
@@ -114,7 +115,7 @@ func TestPushPull(t *testing.T) {
 
 	//  A --> remote --> B
 
-	_, err = Push(repoA, "origin")
+	err = Push(repoA, "origin", io.Discard)
 	require.NoError(t, err)
 
 	// Pulling a non-fast-forward update should fail
@@ -130,7 +131,7 @@ func TestPushPull(t *testing.T) {
 	// B --> remote --> A
 
 	// Pushing a non-fast-forward update should fail
-	_, err = Push(repoB, "origin")
+	err = Push(repoB, "origin", io.Discard)
 	require.Error(t, err)
 
 	err = Pull(repoA, "origin")
