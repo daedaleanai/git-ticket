@@ -26,7 +26,7 @@ const (
 	DiffTransaction
 )
 
-// PhapTransaction holds data received from Phabricator
+// PhabTransaction holds data received from Phabricator
 type PhabTransaction struct {
 	TransId   string
 	PhabUser  string
@@ -50,32 +50,40 @@ type ReviewUpdate struct {
 	AuthorId identity.Interface `json:"Author,omitempty"`
 }
 
+// Author returns author of the change
 func (u *ReviewUpdate) Author() identity.Interface {
 	return u.AuthorId
 }
 
+// Timestamp returns timestamp of the event
 func (u *ReviewUpdate) Timestamp() timestamp.Timestamp {
 	return timestamp.Timestamp(u.PhabTransaction.Timestamp)
 }
 
+// Status returns status change by this event or empty string
 func (u *ReviewUpdate) Status() string {
 	return u.PhabTransaction.Status
 }
 
+// PhabUpdateGroup is Phabricator-specific implementation of TimelineEvent
 type PhabUpdateGroup struct {
-	timestamp timestamp.Timestamp
-	author    identity.Interface
-	updates   []ReviewUpdate
+	timestamp  timestamp.Timestamp
+	author     identity.Interface
+	updates    []ReviewUpdate
+	revisionId string
 }
 
+// Author returns author of the event
 func (g *PhabUpdateGroup) Author() identity.Interface {
 	return g.author
 }
 
+// Timestamp returns timestamp of the event
 func (g *PhabUpdateGroup) Timestamp() timestamp.Timestamp {
 	return g.timestamp
 }
 
+// Changes returns list of all changes in event (e.g. all comments)
 func (g *PhabUpdateGroup) Changes() []Change {
 	result := []Change{}
 
@@ -86,7 +94,36 @@ func (g *PhabUpdateGroup) Changes() []Change {
 	return result
 }
 
-// OneLineComment returns a string containing the comment text, and it's an inline
+// Summary returns a short description of the event
+func (g *PhabUpdateGroup) Summary() string {
+	var output strings.Builder
+	var comments int
+
+	for _, u := range g.updates {
+		switch u.Type {
+		case UserStatusTransaction:
+			output.WriteString("[" + u.Status() + "] ")
+		case DiffTransaction:
+			output.WriteString("[diff>" + strconv.Itoa(u.DiffId) + "] ")
+		case CommentTransaction:
+			comments = comments + 1
+		}
+	}
+
+	if comments > 1 {
+		output.WriteString("[" + strconv.Itoa(comments) + " comments] ")
+	} else if comments > 0 {
+		output.WriteString("[1 comment] ")
+	}
+
+	return fmt.Sprintf("(%s) %s: updated revision %s %s",
+		g.Timestamp().Time().Format("2006-01-02 15:04:05"),
+		termtext.LeftPadMaxLine(g.Author().DisplayName(), 15, 0),
+		g.revisionId,
+		output.String())
+}
+
+// Summary returns a string containing the comment text, and it's an inline
 // comment the file & line details, on a single line. Comments over 50 characters
 // are truncated.
 func (c *ReviewUpdate) Summary() string {
@@ -105,6 +142,7 @@ func (c *ReviewUpdate) Summary() string {
 	return output
 }
 
+// PhabReviewInfo is Phabricator-specific implementation of PullRequest
 type PhabReviewInfo struct {
 	RevisionId      string // e.g. D1234
 	RevisionTitle   string `json:"Title"`
@@ -112,14 +150,17 @@ type PhabReviewInfo struct {
 	Updates         []ReviewUpdate
 }
 
+// Id returns Phabricator revision id
 func (r *PhabReviewInfo) Id() string {
 	return r.RevisionId
 }
 
+// Title returns Phabricator revision title
 func (r *PhabReviewInfo) Title() string {
 	return r.RevisionTitle
 }
 
+// History returns all events from revision sorted by time
 func (r *PhabReviewInfo) History() []TimelineEvent {
 	// Create a map of timeline items to changes, we'll assume that all changes that
 	// happened at the same time were done by the same person
@@ -133,9 +174,10 @@ func (r *PhabReviewInfo) History() []TimelineEvent {
 		} else {
 			// First one, create a new timeline item using the update author and timestamp
 			item := &PhabUpdateGroup{
-				author:    u.Author(),
-				timestamp: u.Timestamp(),
-				updates:   []ReviewUpdate{u},
+				author:     u.Author(),
+				timestamp:  u.Timestamp(),
+				updates:    []ReviewUpdate{u},
+				revisionId: r.RevisionId,
 			}
 			timelineMap[u.PhabTransaction.Timestamp] = item
 		}
@@ -153,14 +195,13 @@ func (r *PhabReviewInfo) History() []TimelineEvent {
 	return result
 }
 
+// IsEmpty checks is revision has any events
 func (r *PhabReviewInfo) IsEmpty() bool {
 	return len(r.Updates) == 0
 }
 
-func (r *PhabReviewInfo) EnsureIdentities(resolver identity.Resolver) error {
-	// only resolve each identity once
-	found := make(map[entity.Id]identity.Interface)
-
+// EnsureIdentities validated if all users are resolved
+func (r *PhabReviewInfo) EnsureIdentities(resolver identity.Resolver, found map[entity.Id]identity.Interface) error {
 	for i, u := range r.Updates {
 		entity := u.Author().Id()
 
@@ -178,9 +219,10 @@ func (r *PhabReviewInfo) EnsureIdentities(resolver identity.Resolver) error {
 	return nil
 }
 
+// FetchIdentities resolves users from revision to git-ticket identities
 func (r *PhabReviewInfo) FetchIdentities(resolver IdentityResolver) error {
 	for i, t := range r.Updates {
-		user, err := resolver.IdentityFromPhabId(t.PhabUser)
+		user, err := resolver.ResolveIdentityPhabID(t.PhabUser)
 		if err != nil {
 			return fmt.Errorf("%s: %s", err, t.PhabUser)
 		}
@@ -189,7 +231,8 @@ func (r *PhabReviewInfo) FetchIdentities(resolver IdentityResolver) error {
 	return nil
 }
 
-func (r *PhabReviewInfo) Merge(update Pull) {
+// Merge combines old state with incremental update
+func (r *PhabReviewInfo) Merge(update PullRequest) {
 	if update == nil {
 		return
 	}
@@ -247,10 +290,10 @@ var statusActionToState = map[string]string{
 	"request-review":  "review requested",
 }
 
-// FetchReviewInfo exports review comments and status info from Phabricator for
-// the given differential ID and returns in a ReviewInfo struct. If a since
+// FetchPhabricatorReviewInfo exports review comments and status info from Phabricator for
+// the given differential ID and returns in a PullRequest object. If a since
 // transaction ID is specified then only updates since then are returned.
-func FetchPhabricatorReviewInfo(id string, since string) (Pull, error) {
+func FetchPhabricatorReviewInfo(id string, since string) (PullRequest, error) {
 	result := PhabReviewInfo{RevisionId: id}
 
 	phabClient, err := repository.GetPhabClient()

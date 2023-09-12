@@ -1,9 +1,10 @@
 package review
 
 import (
+	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 )
-
+// Dummy marker for removing review info
 type RemoveReview struct {
 	ReviewId string
 }
@@ -24,7 +25,7 @@ func (r *RemoveReview) IsEmpty() bool {
 	return true
 }
 
-func (r *RemoveReview) EnsureIdentities(identity.Resolver) error {
+func (r *RemoveReview) EnsureIdentities(identity.Resolver,map[entity.Id]identity.Interface) error {
 	return nil
 }
 
@@ -32,7 +33,7 @@ func (r *RemoveReview) FetchIdentities(IdentityResolver) error {
 	return nil
 }
 
-func (r *RemoveReview) Merge(Pull) {
+func (r *RemoveReview) Merge(PullRequest) {
 
 }
 

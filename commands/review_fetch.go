@@ -3,8 +3,7 @@ package commands
 import (
 	"errors"
 	"fmt"
-	"github.com/daedaleanai/git-ticket/commands/review"
-
+	"github.com/daedaleanai/git-ticket/bug/review"
 	"github.com/spf13/cobra"
 
 	"github.com/daedaleanai/git-ticket/bug"
@@ -19,8 +18,8 @@ func newReviewFetchCommand() *cobra.Command {
 		Short: "Get Differential Revision data from Phabricator and store in a ticket.",
 		Long: `fetch stores Phabricator Differential Revision data in a ticket.
 
-The command takes a Phabricator Differential Revision ID (e.g. D1234) and queries the
-Phabricator server for any associated comments or status changes, any resulting data
+The command takes a Phabricator Differential Revision ID (e.g. D1234) or Gitea Pull Request URL and queries the 
+server for any associated comments or status changes, any resulting data
 is stored with the selected ticket. Subsequent calls with the same ID will fetch and
 store any updates since the previous call. Multiple Revisions can be stored with a
 ticket by running the command with different IDs.

@@ -4,7 +4,7 @@ package bug
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/daedaleanai/git-ticket/commands/review"
+	"github.com/daedaleanai/git-ticket/bug/review"
 	"strings"
 	"time"
 
@@ -785,7 +785,7 @@ func (bug *Bug) Compile() Snapshot {
 		Status: ProposedStatus,
 	}
 	snap.Checklists = make(map[Label]map[entity.Id]ChecklistSnapshot)
-	snap.Reviews = make(map[string]review.Pull)
+	snap.Reviews = make(map[string]review.PullRequest)
 
 	it := NewOperationIterator(bug)
 

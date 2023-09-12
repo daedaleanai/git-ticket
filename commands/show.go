@@ -133,7 +133,8 @@ func runShow(env *Env, opts showOptions, args []string) error {
 				// Output all the comments
 				env.out.Printf("---- comments ----\n")
 
-				for _, c := range r.History() {
+				h := r.History()
+				for _, c := range h {
 					for _, evt := range c.Changes() {
 						summary := evt.Summary()
 						if summary != "" {

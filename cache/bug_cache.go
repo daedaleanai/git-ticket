@@ -2,7 +2,7 @@ package cache
 
 import (
 	"fmt"
-	"github.com/daedaleanai/git-ticket/commands/review"
+	review2 "github.com/daedaleanai/git-ticket/bug/review"
 	"sync"
 	"time"
 
@@ -263,18 +263,18 @@ func (c *BugCache) RmReview(id string) (*bug.SetReviewOperation, error) {
 		return nil, err
 	}
 
-	review := &review.RemoveReview{ReviewId: id}
+	review := &review2.RemoveReview{ReviewId: id}
 
 	return c.SetReviewRaw(author, time.Now().Unix(), nil, review)
 }
 
-func (c *BugCache) SetReview(review review.Pull) (*bug.SetReviewOperation, error) {
+func (c *BugCache) SetReview(review review2.PullRequest) (*bug.SetReviewOperation, error) {
 	author, err := c.repoCache.GetUserIdentity()
 	if err != nil {
 		return nil, err
 	}
 
-	// Before committing resolve all the usersto identities
+	// Before committing resolve all the users to identities
 
 	err = review.FetchIdentities(c.repoCache)
 	if err != nil {
@@ -284,7 +284,7 @@ func (c *BugCache) SetReview(review review.Pull) (*bug.SetReviewOperation, error
 	return c.SetReviewRaw(author, time.Now().Unix(), nil, review)
 }
 
-func (c *BugCache) SetReviewRaw(author *IdentityCache, unixTime int64, metadata map[string]string, review review.Pull) (*bug.SetReviewOperation, error) {
+func (c *BugCache) SetReviewRaw(author *IdentityCache, unixTime int64, metadata map[string]string, review review2.PullRequest) (*bug.SetReviewOperation, error) {
 	op, err := bug.SetReview(c.bug, author.Identity, unixTime, review)
 	if err != nil {
 		return nil, err

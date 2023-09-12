@@ -2,7 +2,7 @@ package bug
 
 import (
 	"fmt"
-	"github.com/daedaleanai/git-ticket/commands/review"
+	"github.com/daedaleanai/git-ticket/bug/review"
 	"time"
 
 	"github.com/daedaleanai/git-ticket/entity"
@@ -19,7 +19,7 @@ type Snapshot struct {
 	Comments     []Comment
 	Labels       []Label
 	Checklists   map[Label]map[entity.Id]ChecklistSnapshot // label and reviewer id
-	Reviews      map[string]review.Pull                    // Phabricator Differential ID
+	Reviews      map[string]review.PullRequest             // Pull request ID
 	Author       identity.Interface
 	Assignee     identity.Interface
 	Actors       []identity.Interface

@@ -50,7 +50,7 @@ func (bug *Bug) EnsureIdentities(resolver identity.Resolver) error {
 
 		// and for review operations, each of the update authors
 		if setRev, ok := op.(*SetReviewOperation); ok {
-			err := setRev.Review.EnsureIdentities(resolver)
+			err := setRev.Review.EnsureIdentities(resolver, found)
 			if err != nil {
 				return err
 			}

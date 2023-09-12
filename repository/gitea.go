@@ -7,7 +7,7 @@ import (
 	"code.gitea.io/sdk/gitea"
 )
 
-// getGiteaConfig returns the Phabricator URL and API token from the repository config
+// getGiteaConfig returns the Gitea URL and API token from the repository config
 func GetGiteaConfig() (string, string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -30,8 +30,8 @@ func GetGiteaConfig() (string, string, error) {
 	if apiToken, err = repo.LocalConfig().ReadString("gitea.api-token"); err != nil {
 		if apiToken, err = repo.GlobalConfig().ReadString("gitea.api-token"); err != nil {
 			msg := `No Gitea API token set. Please go to
-	%s/user/settings/applications
-click on <Generate Token>, and then paste the token into this command
+	%s/user/settings/applications enter a token name,
+click on <Generate Token> and then paste the token into this command
 	git config --global --replace-all gitea.api-token <PASTE_TOKEN_HERE>`
 			return giteaUrl, "", fmt.Errorf(msg, giteaUrl)
 		}
@@ -40,8 +40,8 @@ click on <Generate Token>, and then paste the token into this command
 	return giteaUrl, apiToken, nil
 }
 
-// GetPhabClient returns the connection ready to be queried. Must be called
-// within a git repo which has the Phabricator URL and conduit API token set
+// GetGiteaClient returns the connection ready to be queried. Must be called
+// within a git repo which has the Gitea URL and API token set
 // in the git config.
 func GetGiteaClient() (*gitea.Client, error) {
 	giteaUrl, apiToken, err := GetGiteaConfig()

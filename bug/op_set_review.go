@@ -3,7 +3,7 @@ package bug
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/daedaleanai/git-ticket/commands/review"
+	review2 "github.com/daedaleanai/git-ticket/bug/review"
 	"sort"
 
 	termtext "github.com/MichaelMure/go-term-text"
@@ -18,7 +18,7 @@ var _ Operation = &SetReviewOperation{}
 // SetReviewOperation will update the review associated with a ticket
 type SetReviewOperation struct {
 	OpBase
-	Review review.Pull `json:"review"`
+	Review review2.PullRequest `json:"review"`
 }
 
 //Sign-post method for gqlgen
@@ -32,28 +32,18 @@ func (op *SetReviewOperation) Id() entity.Id {
 	return idOperation(op)
 }
 
-func asTimeline(r review.Pull, evt review.TimelineEvent, op *SetReviewOperation) []*SetReviewTimelineItem {
-	result := []*SetReviewTimelineItem{}
-	for _, c := range evt.Changes() {
-		result = append(result, &SetReviewTimelineItem{
-			id:       op.Id(),
-			Author:   evt.Author(),
-			UnixTime: evt.Timestamp(),
-			Review:   r,
-			Event:    c,
-		})
-	}
-	return result
-}
-
 // addToTimeline takes the current operation and splits it into timeline entries
 // which represent actual changes made in the review process
 func (op *SetReviewOperation) addToTimeline(snapshot *Snapshot) {
 	// Add all the timeline items to the snapshot, finally sort them
 	for _, tl := range op.Review.History() {
-		for _, e := range asTimeline(op.Review, tl, op) {
-			snapshot.Timeline = append(snapshot.Timeline, e)
-		}
+		snapshot.Timeline = append(snapshot.Timeline, &SetReviewTimelineItem{
+			id:       op.Id(),
+			Author:   tl.Author(),
+			UnixTime: tl.Timestamp(),
+			Review:   op.Review,
+			Event:    tl,
+		})
 	}
 
 	sort.Slice(snapshot.Timeline, func(i, j int) bool {
@@ -76,7 +66,7 @@ func (op *SetReviewOperation) removeFromTimeline(snapshot *Snapshot) {
 
 func (op *SetReviewOperation) Apply(snapshot *Snapshot) {
 
-	if _, ok := op.Review.(*review.RemoveReview); ok {
+	if _, ok := op.Review.(*review2.RemoveReview); ok {
 		// This review has been removed from the ticket
 		delete(snapshot.Reviews, op.Review.Id())
 
@@ -106,16 +96,17 @@ func (op *SetReviewOperation) Validate() error {
 	return nil
 }
 
+// MarshalJSON serializes to json preserving type information
 func (op *SetReviewOperation) MarshalJSON() ([]byte, error) {
 	wrapper := struct {
 		OpBase
-		Phabricator *review.PhabReviewInfo `json:"review"`
-		Gitea       *review.GiteaInfo      `json:"reviewGitea"`
+		Phabricator *review2.PhabReviewInfo `json:"review"`
+		Gitea       *review2.GiteaInfo      `json:"reviewGitea"`
 	}{}
 	wrapper.OpBase = op.OpBase
-	if phab, ok := op.Review.(*review.PhabReviewInfo); ok {
+	if phab, ok := op.Review.(*review2.PhabReviewInfo); ok {
 		wrapper.Phabricator = phab
-	} else if gitea, ok := op.Review.(*review.GiteaInfo); ok {
+	} else if gitea, ok := op.Review.(*review2.GiteaInfo); ok {
 		wrapper.Gitea = gitea
 	} else {
 		panic("Unknown review info")
@@ -136,8 +127,8 @@ func (op *SetReviewOperation) UnmarshalJSON(data []byte) error {
 	}
 
 	wrapper := struct {
-		Phabricator *review.PhabReviewInfo `json:"review"`
-		Gitea       *review.GiteaInfo      `json:"reviewGitea"`
+		Phabricator *review2.PhabReviewInfo `json:"review"`
+		Gitea       *review2.GiteaInfo      `json:"reviewGitea"`
 	}{}
 
 	err = json.Unmarshal(data, &wrapper)
@@ -158,7 +149,7 @@ func (op *SetReviewOperation) UnmarshalJSON(data []byte) error {
 // Sign post method for gqlgen
 func (op *SetReviewOperation) IsAuthored() {}
 
-func NewSetReviewOp(author identity.Interface, unixTime int64, review review.Pull) *SetReviewOperation {
+func NewSetReviewOp(author identity.Interface, unixTime int64, review review2.PullRequest) *SetReviewOperation {
 	return &SetReviewOperation{
 		OpBase: newOpBase(SetReviewOp, author, unixTime),
 		Review: review,
@@ -169,8 +160,8 @@ type SetReviewTimelineItem struct {
 	id       entity.Id
 	Author   identity.Interface
 	UnixTime timestamp.Timestamp
-	Review   review.Pull
-	Event    review.Change
+	Review   review2.PullRequest
+	Event    review2.TimelineEvent
 }
 
 func (s SetReviewTimelineItem) Id() entity.Id {
@@ -193,7 +184,7 @@ func (s SetReviewTimelineItem) String() string {
 func (s *SetReviewTimelineItem) IsAuthored() {}
 
 // Convenience function to apply the operation
-func SetReview(b Interface, author identity.Interface, unixTime int64, review review.Pull) (*SetReviewOperation, error) {
+func SetReview(b Interface, author identity.Interface, unixTime int64, review review2.PullRequest) (*SetReviewOperation, error) {
 	setReviewOp := NewSetReviewOp(author, unixTime, review)
 
 	if err := setReviewOp.Validate(); err != nil {
