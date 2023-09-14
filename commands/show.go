@@ -123,21 +123,24 @@ func runShow(env *Env, opts showOptions, args []string) error {
 		case "reviews":
 			for _, r := range snap.Reviews {
 				// The Differential ID
-				env.out.Printf("==== %s:%s (%s) ====\n", r.RevisionId, r.Title, r.LatestOverallStatus())
+				env.out.Printf("==== %s:%s (%s) ====\n", r.Id(), r.Title(), r.LatestOverallStatus())
 
 				// The statuses
 				for _, s := range r.LatestUserStatuses() {
-					env.out.Printf("(%s) %s: %s\n", time.Unix(s.Timestamp, 0).Format("2006-01-02 15:04:05"), termtext.LeftPadMaxLine(s.Author.DisplayName(), 15, 0), s.Status)
+					env.out.Printf("(%s) %s: %s\n", time.Unix(s.Timestamp().Time().Unix(), 0).Format("2006-01-02 15:04:05"), termtext.LeftPadMaxLine(s.Author().DisplayName(), 15, 0), s.Status())
 				}
 
 				// Output all the comments
 				env.out.Printf("---- comments ----\n")
 
-				for _, c := range r.Updates {
-					if c.Type != bug.CommentTransaction {
-						continue
+				h := r.History()
+				for _, c := range h {
+					for _, evt := range c.Changes() {
+						summary := evt.Summary()
+						if summary != "" {
+							env.out.Printf("(%s) %s: %s\n", time.Unix(c.Timestamp().Time().Unix(), 0).Format("2006-01-02 15:04:05"), termtext.LeftPadMaxLine(c.Author().DisplayName(), 15, 0), summary)
+						}
 					}
-					env.out.Printf("(%s) %s: %s\n", time.Unix(c.Timestamp, 0).Format("2006-01-02 15:04:05"), termtext.LeftPadMaxLine(c.Author.DisplayName(), 15, 0), c.OneLineComment())
 				}
 			}
 		case "labels":
@@ -277,7 +280,7 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 	// Reviews
 	var reviewStates []string
 	for _, review := range snapshot.Reviews {
-		reviewStates = append(reviewStates, fmt.Sprintf("%s (%s)", review.RevisionId, review.LatestOverallStatus()))
+		reviewStates = append(reviewStates, fmt.Sprintf("%s (%s)", review.Id(), review.LatestOverallStatus()))
 	}
 	sort.Strings(reviewStates)
 	env.out.Printf("reviews: %s\n", strings.Join(reviewStates, ", "))
