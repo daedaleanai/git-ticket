@@ -16,7 +16,8 @@ import (
 
 // Comment holds data about single review comment
 type Comment struct {
-	gitea.PullReviewComment
+	RawComment gitea.PullReviewComment
+	Update bool
 }
 
 // Summary returns a string containing the comment text, and it's an inline
@@ -24,11 +25,11 @@ type Comment struct {
 // are truncated.
 func (c *Comment) Summary() string {
 	// Put the comment on one line and output the first 50 characters
-	output := termtext.LeftPadMaxLine(strings.ReplaceAll(strings.ReplaceAll(c.Body, "\n", " "), "\r", ""), 50, 0)
+	output := termtext.LeftPadMaxLine(strings.ReplaceAll(strings.ReplaceAll(c.RawComment.Body, "\n", " "), "\r", ""), 50, 0)
 
 	// If it's an inline comment append the file and line number
-	if c.Path != "" {
-		output = output + fmt.Sprintf(" [%s:%d@%s]", c.Path, c.LineNum, c.CommitID)
+	if c.RawComment.Path != "" {
+		output = output + fmt.Sprintf(" [%s:%d@%s]", c.RawComment.Path, c.RawComment.LineNum, c.RawComment.CommitID)
 	}
 
 	return output
@@ -138,8 +139,6 @@ func (g *GiteaReview) Summary() string {
 		comments = comments + 1
 	}
 
-	//TODO: there is no diff in pr but it is possible to fetch commits
-
 	if comments > 1 {
 		output.WriteString("[" + strconv.Itoa(comments) + " comments] ")
 	} else if comments > 0 {
@@ -189,9 +188,9 @@ func (g *GiteaInfo) History() []TimelineEvent {
 	return result
 }
 
-// IsEmpty return false because gitea pull request could not be empty
+// IsEmpty check if there is any changes
 func (g *GiteaInfo) IsEmpty() bool {
-	return false
+	return len(g.Reviews) + len(g.Commits) == 0
 }
 
 // EnsureIdentities validated if all users are resolved
@@ -262,8 +261,8 @@ func (g *GiteaInfo) Merge(update PullRequest) {
 	g.Repository = u.Repository
 	g.PullId = u.PullId
 	g.RawPull = u.RawPull
-	g.Reviews = u.Reviews
-	g.Commits = u.Commits
+	g.Reviews = append(g.Reviews, u.Reviews...)
+	g.Commits = append(g.Commits, u.Commits...)
 }
 
 // LatestOverallStatus returns the latest overall status set for this review.
@@ -313,14 +312,28 @@ func (g *GiteaInfo) LatestUserStatuses() map[string]UserStatus {
 }
 
 // FetchGiteaReviewInfo exports review comments and status info from Gitea for
-// the given pull request and returns in a PullRequest object.
-func FetchGiteaReviewInfo(owner string, repo string, id int64) (PullRequest, error) {
+// the given pull request and returns in a PullRequest object. If since review is specified
+// only updates will be returned
+func FetchGiteaReviewInfo(owner string, repo string, id int64, since *GiteaInfo) (PullRequest, error) {
 	const PAGE_SIZE = 10
 
 	giteaClient, err := repository.GetGiteaClient()
 
 	if err != nil {
 		return nil, err
+	}
+
+	knownCommits := map[string]struct{}{}
+	knownReviews := map[int64]GiteaReview{}
+
+	if since != nil {
+		for _,r := range since.Reviews {
+			knownReviews[r.RawReview.ID] = r
+		}
+
+		for _, c := range since.Commits {
+			knownCommits[c.RawCommit.SHA] = struct{}{}
+		}
 	}
 
 	pull, _, err := giteaClient.GetPullRequest(owner, repo, id)
@@ -345,6 +358,15 @@ func FetchGiteaReviewInfo(owner string, repo string, id int64) (PullRequest, err
 		}
 
 		for _, review := range reviews {
+			knownComments := map[int64]gitea.PullReviewComment{}
+			isKnown := false
+			if r,ok := knownReviews[review.ID]; ok {
+				isKnown = true
+				for _, c := range r.Comments {
+					knownComments[c.RawComment.ID] = c.RawComment
+				}
+			}
+
 			elem := GiteaReview{
 				RawReview: *review,
 				reviewId:  result.Id(),
@@ -357,10 +379,20 @@ func FetchGiteaReviewInfo(owner string, repo string, id int64) (PullRequest, err
 				}
 
 				for _, c := range comments {
-					elem.Comments = append(elem.Comments, Comment{*c})
+
+					if o,ok := knownComments[c.ID]; ok {
+						if o.Updated.Before(c.Updated) {
+							elem.Comments = append(elem.Comments, Comment{RawComment: *c, Update: true})
+						}
+						continue
+					}
+
+					elem.Comments = append(elem.Comments, Comment{RawComment: *c, Update: false})
 				}
 			}
-
+			if isKnown && len(elem.Comments) == 0 {
+				continue
+			}
 			result.Reviews = append(result.Reviews, elem)
 		}
 
@@ -379,6 +411,12 @@ func FetchGiteaReviewInfo(owner string, repo string, id int64) (PullRequest, err
 		}
 
 		for _, c := range commits {
+
+			if _, ok := knownCommits[c.SHA]; ok {
+				continue
+			}
+
+
 			result.Commits = append(result.Commits, GiteaCommit{
 				RawCommit: *c,
 				reviewId:  result.Id(),

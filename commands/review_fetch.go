@@ -14,11 +14,11 @@ func newReviewFetchCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:   "fetch <revision id> [<ticket id>]",
-		Short: "Get Differential Revision data from Phabricator and store in a ticket.",
+		Use:   "fetch <revision id or pull request ref> [<ticket id>]",
+		Short: "Get Differential Revision data from Phabricator or Gitea and store in a ticket.",
 		Long: `fetch stores Phabricator Differential Revision data in a ticket.
 
-The command takes a Phabricator Differential Revision ID (e.g. D1234) or Gitea Pull Request URL and queries the 
+The command takes a Phabricator Differential Revision ID (e.g. D1234) or Gitea Pull Request (e.g. daedalean-github/git-ticket#9) and queries the 
 server for any associated comments or status changes, any resulting data
 is stored with the selected ticket. Subsequent calls with the same ID will fetch and
 store any updates since the previous call. Multiple Revisions can be stored with a
@@ -50,11 +50,9 @@ func runReviewFetch(env *Env, args []string) error {
 
 	// If we already have review data for this Differential then just get any updates
 	// since then
-	var lastUpdate string
+	var lastUpdate review.PullRequest
 	if existingReview, ok := b.Snapshot().Reviews[diffId]; ok {
-		if phabReview, ok := existingReview.(*review.PhabReviewInfo); ok {
-			lastUpdate = phabReview.LastTransaction
-		}
+		lastUpdate = existingReview
 	}
 
 	review, err := bug.FetchReviewInfo(diffId, lastUpdate)
