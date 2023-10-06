@@ -3,6 +3,11 @@ package review
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
 	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
@@ -10,10 +15,6 @@ import (
 	"github.com/daedaleanai/git-ticket/util/colors"
 	"github.com/daedaleanai/git-ticket/util/timestamp"
 	"github.com/thought-machine/gonduit/requests"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type TransactionType int
@@ -341,6 +342,11 @@ func FetchPhabricatorReviewInfo(id string, since string) (PullRequest, error) {
 					TransId:   strconv.Itoa(t.ID),
 					PhabUser:  t.AuthorPHID,
 					Timestamp: time.Time(t.DateCreated).Unix()}}
+
+			if !strings.HasPrefix(transData.PhabUser, "PHID-USER-") {
+				// Silently drop transaction data which wasn't created by an actual user
+				continue
+			}
 
 			switch t.Type {
 			// The types: inline & comment hold comments made to a Differential
