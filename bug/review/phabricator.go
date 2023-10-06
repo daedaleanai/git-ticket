@@ -117,11 +117,7 @@ func (g *PhabUpdateGroup) Summary() string {
 		output.WriteString("[1 comment] ")
 	}
 
-	return fmt.Sprintf("(%s) %s: updated revision %s %s",
-		g.Timestamp().Time().Format("2006-01-02 15:04:05"),
-		termtext.LeftPadMaxLine(g.Author().DisplayName(), 15, 0),
-		g.revisionId,
-		output.String())
+	return output.String()
 }
 
 // Summary returns a string containing the comment text, and it's an inline

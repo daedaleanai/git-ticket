@@ -3,8 +3,9 @@ package bug
 import (
 	"encoding/json"
 	"fmt"
-	review2 "github.com/daedaleanai/git-ticket/bug/review"
 	"sort"
+
+	review2 "github.com/daedaleanai/git-ticket/bug/review"
 
 	termtext "github.com/MichaelMure/go-term-text"
 
@@ -173,7 +174,7 @@ func (s SetReviewTimelineItem) When() timestamp.Timestamp {
 }
 
 func (s SetReviewTimelineItem) String() string {
-	return fmt.Sprintf("(%s) %s: updated revision %s %s",
+	return fmt.Sprintf("(%s) %s: updated %s %s",
 		s.UnixTime.Time().Format("2006-01-02 15:04:05"),
 		termtext.LeftPadMaxLine(s.Author.DisplayName(), 15, 0),
 		s.Review.Id(),
