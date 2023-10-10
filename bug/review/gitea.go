@@ -1,23 +1,24 @@
 package review
 
 import (
-	"code.gitea.io/sdk/gitea"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+
+	"code.gitea.io/sdk/gitea"
 	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/repository"
 	"github.com/daedaleanai/git-ticket/util/colors"
 	"github.com/daedaleanai/git-ticket/util/timestamp"
-	"strconv"
-	"strings"
 )
 
 // Comment holds data about single review comment
 type Comment struct {
 	RawComment gitea.PullReviewComment
-	Update bool
+	Update     bool
 }
 
 // Summary returns a string containing the comment text, and it's an inline
@@ -82,11 +83,7 @@ func (g *GiteaCommit) Summary() string {
 	// Put the comment on one line and output the first 50 characters
 	message := termtext.LeftPadMaxLine(strings.ReplaceAll(g.RawCommit.RepoCommit.Message, "\n", " "), 50, 0)
 
-	return fmt.Sprintf("(%s) %s: updated revision %s [commit %s] %s",
-		g.Timestamp().Time().Format("2006-01-02 15:04:05"),
-		termtext.LeftPadMaxLine(g.Author().DisplayName(), 15, 0),
-		g.reviewId,
-		g.RawCommit.SHA, message)
+	return fmt.Sprintf("[commit %s] %s", g.RawCommit.SHA, message)
 }
 
 // GiteaReview holds single review event from Gitea
@@ -145,11 +142,7 @@ func (g *GiteaReview) Summary() string {
 		output.WriteString("[1 comment] ")
 	}
 
-	return fmt.Sprintf("(%s) %s: updated revision %s %s",
-		g.Timestamp().Time().Format("2006-01-02 15:04:05"),
-		termtext.LeftPadMaxLine(g.Author().DisplayName(), 15, 0),
-		g.reviewId,
-		output.String())
+	return output.String()
 }
 
 // GiteaInfo is Gitea-specific implementation of PullRequest
@@ -190,7 +183,7 @@ func (g *GiteaInfo) History() []TimelineEvent {
 
 // IsEmpty check if there is any changes
 func (g *GiteaInfo) IsEmpty() bool {
-	return len(g.Reviews) + len(g.Commits) == 0
+	return len(g.Reviews)+len(g.Commits) == 0
 }
 
 // EnsureIdentities validated if all users are resolved
@@ -327,7 +320,7 @@ func FetchGiteaReviewInfo(owner string, repo string, id int64, since *GiteaInfo)
 	knownReviews := map[int64]GiteaReview{}
 
 	if since != nil {
-		for _,r := range since.Reviews {
+		for _, r := range since.Reviews {
 			knownReviews[r.RawReview.ID] = r
 		}
 
@@ -360,7 +353,7 @@ func FetchGiteaReviewInfo(owner string, repo string, id int64, since *GiteaInfo)
 		for _, review := range reviews {
 			knownComments := map[int64]gitea.PullReviewComment{}
 			isKnown := false
-			if r,ok := knownReviews[review.ID]; ok {
+			if r, ok := knownReviews[review.ID]; ok {
 				isKnown = true
 				for _, c := range r.Comments {
 					knownComments[c.RawComment.ID] = c.RawComment
@@ -380,7 +373,7 @@ func FetchGiteaReviewInfo(owner string, repo string, id int64, since *GiteaInfo)
 
 				for _, c := range comments {
 
-					if o,ok := knownComments[c.ID]; ok {
+					if o, ok := knownComments[c.ID]; ok {
 						if o.Updated.Before(c.Updated) {
 							elem.Comments = append(elem.Comments, Comment{RawComment: *c, Update: true})
 						}
@@ -415,7 +408,6 @@ func FetchGiteaReviewInfo(owner string, repo string, id int64, since *GiteaInfo)
 			if _, ok := knownCommits[c.SHA]; ok {
 				continue
 			}
-
 
 			result.Commits = append(result.Commits, GiteaCommit{
 				RawCommit: *c,
