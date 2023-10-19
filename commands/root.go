@@ -78,6 +78,7 @@ _git_bug() {
 	cmd.AddCommand(newLsLabelCommand())
 	cmd.AddCommand(newPullCommand())
 	cmd.AddCommand(newPushCommand())
+	cmd.AddCommand(newResetCommand())
 	cmd.AddCommand(newReviewCommand())
 	cmd.AddCommand(newRmCommand())
 	cmd.AddCommand(newSelectCommand())

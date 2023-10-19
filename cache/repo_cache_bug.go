@@ -415,23 +415,47 @@ func (c *RepoCache) NewBugRaw(author *IdentityCache, unixTime int64, title strin
 
 // RemoveBug removes a bug from the cache and repo given a bug id prefix
 func (c *RepoCache) RemoveBug(prefix string) error {
-	c.muBug.RLock()
-
 	b, err := c.ResolveBugPrefix(prefix)
 	if err != nil {
-		c.muBug.RUnlock()
 		return err
 	}
-	c.muBug.RUnlock()
 
-	c.muBug.Lock()
 	err = bug.RemoveBug(c.repo, b.Id())
 
+	c.muBug.Lock()
 	delete(c.bugs, b.Id())
 	delete(c.bugExcerpts, b.Id())
 	c.loadedBugs.Remove(b.Id())
-
 	c.muBug.Unlock()
 
 	return c.writeBugCache()
+}
+
+// ResetBug resets a bug to the remote state in the cache and repo given a bug id prefix
+func (c *RepoCache) ResetBug(prefix string) error {
+	b, err := c.ResolveBugPrefix(prefix)
+	if err != nil {
+		return err
+	}
+
+	// reset the local reference to the remote
+	err = bug.ResetBug(c.repo, b.Id())
+	if err != nil {
+		return err
+	}
+
+	// re-read from the repo and update the cache
+	bug, err := bug.ReadLocalBug(c.repo, b.Id())
+	if err != nil {
+		return err
+	}
+
+	cached := NewBugCache(c, bug)
+
+	c.muBug.Lock()
+	c.bugs[b.Id()] = cached
+	c.muBug.Unlock()
+
+	// force the write of the excerpt
+	return c.bugUpdated(b.Id())
 }
