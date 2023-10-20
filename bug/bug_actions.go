@@ -55,6 +55,8 @@ func Push(repo repository.Repo, remote string, out io.Writer) error {
 
 	if pushed == 0 {
 		fmt.Fprintln(out, "Everything up-to-date")
+	} else {
+		fmt.Fprintln(out, "Everything sync'd with remote")
 	}
 
 	return nil
