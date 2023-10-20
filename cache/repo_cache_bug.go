@@ -421,6 +421,9 @@ func (c *RepoCache) RemoveBug(prefix string) error {
 	}
 
 	err = bug.RemoveBug(c.repo, b.Id())
+	if err != nil {
+		return err
+	}
 
 	c.muBug.Lock()
 	delete(c.bugs, b.Id())

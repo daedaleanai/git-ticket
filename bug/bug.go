@@ -392,7 +392,8 @@ func ResetBug(repo repository.ClockedRepo, id entity.Id) error {
 
 	hashes, err := repo.CommitsBetween(remoteRef, localRef)
 	if err == nil && hashes == nil {
-		return errors.New("ticket has not been updated")
+		// no-op
+		return nil
 	}
 
 	return repo.UpdateRef(localRef, repository.Hash(remoteRef))
