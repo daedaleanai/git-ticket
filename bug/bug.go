@@ -4,9 +4,10 @@ package bug
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/daedaleanai/git-ticket/bug/review"
 	"strings"
 	"time"
+
+	"github.com/daedaleanai/git-ticket/bug/review"
 
 	"github.com/pkg/errors"
 
@@ -336,6 +337,66 @@ func RemoveBug(repo repository.ClockedRepo, id entity.Id) error {
 	}
 
 	return nil
+}
+
+// ResetBug will reset a local bug from its entity.Id
+func ResetBug(repo repository.ClockedRepo, id entity.Id) error {
+	var localRef string
+	var remoteRef string
+
+	// resolve the ticket reference
+	refs, err := repo.ListRefs(bugsRefPattern + id.String())
+	if err != nil {
+		return err
+	}
+	if len(refs) > 1 {
+		return NewErrMultipleMatchBug(refsToIds(refs))
+	}
+	if len(refs) == 0 {
+		return ErrBugNotExist
+	}
+
+	// we have the bug locally
+	localRef = refs[0]
+
+	// search for the ticket on a remote
+	remotes, err := repo.GetRemotes()
+	if err != nil {
+		return err
+	}
+	if len(remotes) == 0 {
+		return errors.New("no remote")
+	}
+
+	for remote := range remotes {
+		remotePrefix := fmt.Sprintf(bugsRemoteRefPattern+id.String(), remote)
+		remoteRefs, err := repo.ListRefs(remotePrefix)
+		if err != nil {
+			return err
+		}
+		if len(remoteRefs) > 1 {
+			return NewErrMultipleMatchBug(refsToIds(refs))
+		}
+		if len(remoteRefs) == 1 {
+			// found the bug in a remote
+			remoteRef = remoteRefs[0]
+
+			// don't bother checking other remotes
+			break
+		}
+	}
+
+	if remoteRef == "" {
+		return errors.New("ticket is not on the remote (no state to reset to), use 'rm' if you want to delete it")
+	}
+
+	hashes, err := repo.CommitsBetween(remoteRef, localRef)
+	if err == nil && hashes == nil {
+		// no-op
+		return nil
+	}
+
+	return repo.UpdateRef(localRef, repository.Hash(remoteRef))
 }
 
 type StreamedBug struct {
