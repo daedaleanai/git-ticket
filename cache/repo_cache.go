@@ -20,10 +20,6 @@ import (
 	"github.com/daedaleanai/git-ticket/util/process"
 )
 
-const configRefPrefix = "refs/configs/"
-const configConflictRefPattern = "refs/conflicts/config-%s-%s"
-const configRemoteRefPattern = "refs/remotes/%s/configs/"
-
 // 1: original format
 // 2: added cache for identities with a reference in the bug cache
 const formatVersion = 2

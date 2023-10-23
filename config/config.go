@@ -2,24 +2,78 @@ package config
 
 import (
 	"fmt"
+	"io"
+	"path"
 
 	"github.com/daedaleanai/git-ticket/repository"
 )
 
-const configRefPrefix = "refs/configs/"
+const configRefPattern = "refs/configs/"
 const configConflictRefPattern = "refs/conflicts/config-%s-%s"
 const configRemoteRefPattern = "refs/remotes/%s/configs/"
 
+// Fetch retrieve updates from a remote
+// This does not change the local bugs state
+func Fetch(repo repository.Repo, remote string) (string, error) {
+	remoteRefSpec := fmt.Sprintf(configRemoteRefPattern, remote)
+	fetchRefSpec := fmt.Sprintf("%s*:%s*", configRefPattern, remoteRefSpec)
+
+	return repo.FetchRefs(remote, fetchRefSpec)
+}
+
+// Push update a remote with all the local changes
+func Push(repo repository.Repo, remote string, out io.Writer) error {
+	remoteRefSpec := fmt.Sprintf(configRemoteRefPattern, remote)
+	localRefs, err := repo.ListRefs(configRefPattern)
+
+	if err != nil {
+		return err
+	}
+
+	pushed := 0
+
+	for _, localRef := range localRefs {
+		hashes, err := repo.CommitsBetween(remoteRefSpec+path.Base(localRef), localRef)
+		if err == nil && hashes == nil {
+			continue
+		}
+
+		fmt.Fprintf(out, "Pushing config: %s\n", path.Base(localRef))
+		stdout, err := repo.PushRefs(remote, localRef)
+		fmt.Fprintln(out, stdout)
+		if err != nil {
+			return err
+		}
+
+		// Need to update the remote ref manually because push doesn't do it automatically
+		// for config references
+		err = repo.UpdateRef(remoteRefSpec+path.Base(localRef), repository.Hash(localRef))
+		if err != nil {
+			return err
+		}
+
+		pushed++
+	}
+
+	if pushed == 0 {
+		fmt.Fprintln(out, "Everything up-to-date")
+	} else {
+		fmt.Fprintln(out, "Everything sync'd with remote")
+	}
+
+	return nil
+}
+
 // List configurations stored in git
 func ListConfigs(repo repository.ClockedRepo) ([]string, error) {
-	refs, err := repo.ListRefs(configRefPrefix)
+	refs, err := repo.ListRefs(configRefPattern)
 	if err != nil {
 		return nil, fmt.Errorf("cache: failed to get a list of config refs: %s", err)
 	}
 
 	configs := make([]string, 0)
 	for _, ref := range refs {
-		configs = append(configs, ref[len(configRefPrefix):])
+		configs = append(configs, ref[len(configRefPattern):])
 	}
 
 	return configs, nil
@@ -48,7 +102,7 @@ func SetConfig(repo repository.ClockedRepo, name string, config []byte) error {
 		return fmt.Errorf("cache: failed to store the config tree in git: %s", err)
 	}
 
-	refName := configRefPrefix + name
+	refName := configRefPattern + name
 	exists, err := repo.RefExist(refName)
 	if err != nil {
 		return fmt.Errorf("cache: failed to determine if ref %s exists: %s", refName, err)
@@ -94,7 +148,7 @@ func SetConfig(repo repository.ClockedRepo, name string, config []byte) error {
 
 // Get the named configuration data
 func GetConfig(repo repository.ClockedRepo, name string) ([]byte, error) {
-	refName := configRefPrefix + name
+	refName := configRefPattern + name
 	commitHash, err := repo.ResolveRef(refName)
 	if err != nil {
 		return nil, fmt.Errorf("cache: failed to resolve ref %s: %s", refName, err)
@@ -143,7 +197,7 @@ func UpdateConfigs(repo repository.ClockedRepo, remote string) (string, error) {
 
 	for _, remoteRef := range remoteRefs {
 		refName := remoteRef[len(remoteRefSpec):]
-		localRef := configRefPrefix + refName
+		localRef := configRefPattern + refName
 
 		exist, err := repo.RefExist(localRef)
 		if err != nil {

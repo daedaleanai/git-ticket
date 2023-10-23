@@ -2,6 +2,7 @@ package identity
 
 import (
 	"fmt"
+	"io"
 	"path"
 
 	"github.com/daedaleanai/git-ticket/entity"
@@ -19,8 +20,46 @@ func Fetch(repo repository.Repo, remote string) (string, error) {
 }
 
 // Push update a remote with the local changes
-func Push(repo repository.Repo, remote string) (string, error) {
-	return repo.PushRefs(remote, identityRefPattern+"*")
+func Push(repo repository.Repo, remote string, out io.Writer) error {
+	remoteRefSpec := fmt.Sprintf(identityRemoteRefPattern, remote)
+	localRefs, err := repo.ListRefs(identityRefPattern)
+
+	if err != nil {
+		return err
+	}
+
+	pushed := 0
+
+	for _, localRef := range localRefs {
+		hashes, err := repo.CommitsBetween(remoteRefSpec+path.Base(localRef), localRef)
+		if err == nil && hashes == nil {
+			continue
+		}
+
+		fmt.Fprintf(out, "Pushing identity: %s\n", path.Base(localRef))
+		stdout, err := repo.PushRefs(remote, localRef)
+		fmt.Fprintln(out, stdout)
+		if err != nil {
+			return err
+		}
+
+		// Need to update the remote ref manually because push doesn't do it automatically
+		// for identity references
+		err = repo.UpdateRef(remoteRefSpec+path.Base(localRef), repository.Hash(localRef))
+		if err != nil {
+			return err
+		}
+
+		pushed++
+	}
+
+	if pushed == 0 {
+		fmt.Fprintln(out, "Everything up-to-date")
+	} else {
+		fmt.Fprintln(out, "Everything sync'd with remote")
+	}
+
+	return nil
 }
 
 // Pull will do a Fetch + MergeAll

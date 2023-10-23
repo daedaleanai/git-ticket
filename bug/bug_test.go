@@ -2,6 +2,7 @@ package bug
 
 import (
 	"fmt"
+	"io"
 	"testing"
 	"time"
 
@@ -149,10 +150,10 @@ func TestBugRemove(t *testing.T) {
 	err = b.Commit(repo)
 	require.NoError(t, err)
 
-	_, err = Push(repo, "remoteA")
+	err = Push(repo, "remoteA", io.Discard)
 	require.NoError(t, err)
 
-	_, err = Push(repo, "remoteB")
+	err = Push(repo, "remoteB", io.Discard)
 	require.NoError(t, err)
 
 	_, err = Fetch(repo, "remoteA")
