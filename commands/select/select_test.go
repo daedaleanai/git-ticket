@@ -63,10 +63,9 @@ func TestSelect(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, b1.Id(), b5.Id())
 
-	// args that shouldn't override
-	b6, _, err := ResolveBug(repoCache, []string{"arg"})
-	require.NoError(t, err)
-	require.Equal(t, b1.Id(), b6.Id())
+	// Resolve with an unknown id should raise an error
+	_, _, err = ResolveBug(repoCache, []string{"arg"})
+	require.Error(t, err)
 
 	// override with a different id
 	b7, _, err := ResolveBug(repoCache, []string{b2.Id().String()})
