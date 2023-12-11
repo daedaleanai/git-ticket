@@ -8,13 +8,13 @@ import (
 	"time"
 
 	termtext "github.com/MichaelMure/go-term-text"
-	text "github.com/MichaelMure/go-term-text"
 	"github.com/spf13/cobra"
 
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
 	"github.com/daedaleanai/git-ticket/query"
 	"github.com/daedaleanai/git-ticket/util/colors"
+	"github.com/daedaleanai/git-ticket/util/text"
 )
 
 type lsOptions struct {
@@ -233,6 +233,25 @@ func lsJsonFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 }
 
 func lsDefaultFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
+	termWidth, _, err := text.GetTermDim()
+	if err != nil {
+		return err
+	}
+
+	var titleWidth int
+	var fullTerm bool = true
+	if termWidth >= 80 {
+		// termWidth = ticket id (7 chars) + status (10 chars) + titleWidth + author (15 chars) + assignee (15 chars)
+		//             + comment count (4 chars) + speech bubble (2 chars) + padding spaces (6 chars)
+		// termWidth = titleWidth + 59
+		titleWidth = termWidth - 59
+	} else {
+		fullTerm = false
+		// termWidth = ticket id (7 chars) + status (10 chars) + titleWidth + padding spaces (3 chars)
+		// termWidth = titleWidth + 20
+		titleWidth = termWidth - 20
+	}
+
 	for _, b := range bugExcerpts {
 		var authorName string
 		if b.AuthorId != "" {
@@ -265,7 +284,7 @@ func lsDefaultFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 
 		// truncate + pad if needed
 		labelsFmt := termtext.TruncateMax(labelsTxt.String(), 10)
-		titleFmt := termtext.LeftPadMaxLine(strings.TrimSpace(b.Title), 50-termtext.Len(labelsFmt), 0)
+		titleFmt := termtext.LeftPadMaxLine(strings.TrimSpace(b.Title), titleWidth-termtext.Len(labelsFmt), 0)
 		authorFmt := termtext.LeftPadMaxLine(authorName, 15, 0)
 		assigneeFmt := termtext.LeftPadMaxLine(assigneeName, 15, 0)
 
@@ -274,14 +293,24 @@ func lsDefaultFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 			comments = "    ∞ 💬"
 		}
 
-		env.out.Printf("%s %s\t%s\t%s\t%s\t%s\n",
-			colors.Cyan(b.Id.Human()),
-			text.LeftPadMaxLine(colors.Yellow(b.Status), 10, 0),
-			titleFmt+labelsFmt,
-			colors.Magenta(authorFmt),
-			colors.Blue(assigneeFmt),
-			comments,
-		)
+		if fullTerm {
+			env.out.Printf("%s %s %-*s %s %s %s\n",
+				colors.Cyan(b.Id.Human()),
+				termtext.LeftPadMaxLine(colors.Yellow(b.Status), 10, 0),
+				titleWidth,
+				titleFmt+labelsFmt,
+				colors.Magenta(authorFmt),
+				colors.Blue(assigneeFmt),
+				comments,
+			)
+		} else {
+			env.out.Printf("%s %s %-*s\n",
+				colors.Cyan(b.Id.Human()),
+				termtext.LeftPadMaxLine(colors.Yellow(b.Status), 10, 0),
+				titleWidth,
+				titleFmt+labelsFmt,
+			)
+		}
 	}
 	return nil
 }
