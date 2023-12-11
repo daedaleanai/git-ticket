@@ -134,6 +134,16 @@ func (opp *OperationPack) IsEmpty() bool {
 	return len(opp.Operations) == 0
 }
 
+// IncludesStatusChange returns true of one of the operations in the pack has the type SetStatusOp
+func (opp *OperationPack) IncludesStatusChange() bool {
+	for _, op := range opp.Operations {
+		if op.base().OperationType == SetStatusOp {
+			return true
+		}
+	}
+	return false
+}
+
 // IsValid tell if the OperationPack is considered valid
 func (opp *OperationPack) Validate() error {
 	if opp.IsEmpty() {
