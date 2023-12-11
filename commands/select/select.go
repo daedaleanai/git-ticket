@@ -20,7 +20,7 @@ const selectFile = "select"
 var ErrNoValidId = errors.New("you must provide a ticket id or use the \"select\" command first")
 
 // ResolveBug first try to resolve a bug using the first argument of the command
-// line. If it fails, it fallback to the select mechanism.
+// line. If no argument is provided it fallback to the select mechanism.
 //
 // Returns:
 // - the bug if any
@@ -28,7 +28,7 @@ var ErrNoValidId = errors.New("you must provide a ticket id or use the \"select\
 //   has been used
 // - an error if the process failed
 func ResolveBug(repo *cache.RepoCache, args []string) (*cache.BugCache, []string, error) {
-	// At first, try to use the first argument as a bug prefix
+	// If there's an argument, try to use it as a bug prefix
 	if len(args) > 0 {
 		b, err := repo.ResolveBugPrefix(args[0])
 
@@ -36,12 +36,10 @@ func ResolveBug(repo *cache.RepoCache, args []string) (*cache.BugCache, []string
 			return b, args[1:], nil
 		}
 
-		if err != bug.ErrBugNotExist {
-			return nil, nil, err
-		}
+		return nil, args, err
 	}
 
-	// first arg is not a valid bug prefix, we can safely use the preselected bug if any
+	// No argument provided, use the preselected bug if any
 
 	b, err := selected(repo)
 

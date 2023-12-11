@@ -3,6 +3,7 @@ package commands
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/daedaleanai/git-ticket/bug"
 	_select "github.com/daedaleanai/git-ticket/commands/select"
 )
 
@@ -25,7 +26,14 @@ func newLabelAddCommand() *cobra.Command {
 func runLabelAdd(env *Env, args []string) error {
 	b, args, err := _select.ResolveBug(env.backend, args)
 	if err != nil {
-		return err
+		// If ResolveBug failed it may just be because no ticket id was
+		// provided because labels are to be added to selected ticket
+		if err == bug.ErrBugNotExist {
+			b, _, err = _select.ResolveBug(env.backend, nil)
+		}
+		if err != nil {
+			return err
+		}
 	}
 
 	added := args
