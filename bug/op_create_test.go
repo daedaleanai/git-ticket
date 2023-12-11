@@ -41,7 +41,7 @@ func TestCreate(t *testing.T) {
 		CreateTime:   create.Time(),
 		Timeline: []TimelineItem{
 			&CreateTimelineItem{
-				CommentTimelineItem: NewCommentTimelineItem(id, comment),
+				CommentTimelineItem: NewCommentTimelineItem(id, 0, comment),
 			},
 		},
 	}

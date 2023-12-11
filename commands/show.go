@@ -314,12 +314,17 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 	indent := "  "
 
 	for i, comment := range snapshot.Comments {
+		var edited string
+		if comment.Edited {
+			edited = " (edited)"
+		}
 		var message string
-		env.out.Printf("%s#%d %s <%s>\n\n",
+		env.out.Printf("%s#%d %s <%s>%s\n\n",
 			indent,
 			i,
 			comment.Author.DisplayName(),
 			comment.Author.Email(),
+			edited,
 		)
 
 		if comment.Message == "" {
@@ -328,10 +333,7 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 			message = comment.Message
 		}
 
-		env.out.Printf("%s%s\n\n\n",
-			indent,
-			message,
-		)
+		env.out.Printf("%s\n\n\n", colors.Italic(message))
 	}
 
 	return nil

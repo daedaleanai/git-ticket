@@ -14,6 +14,7 @@ type Comment struct {
 	Author  identity.Interface
 	Message string
 	Files   []repository.Hash
+	Edited  bool
 
 	// Creation time of the comment.
 	// Should be used only for human display, never for ordering as we can't rely on it in a distributed system.

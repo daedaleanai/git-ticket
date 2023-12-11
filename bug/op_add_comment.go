@@ -9,6 +9,7 @@ import (
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/repository"
+	"github.com/daedaleanai/git-ticket/util/colors"
 	"github.com/daedaleanai/git-ticket/util/text"
 	"github.com/daedaleanai/git-ticket/util/timestamp"
 )
@@ -43,13 +44,14 @@ func (op *AddCommentOperation) Apply(snapshot *Snapshot) {
 		Message:  op.Message,
 		Author:   op.Author,
 		Files:    op.Files,
+		Edited:   false,
 		UnixTime: timestamp.Timestamp(op.UnixTime),
 	}
 
 	snapshot.Comments = append(snapshot.Comments, comment)
 
 	item := &AddCommentTimelineItem{
-		CommentTimelineItem: NewCommentTimelineItem(op.Id(), comment),
+		CommentTimelineItem: NewCommentTimelineItem(op.Id(), len(snapshot.Comments)-1, comment),
 	}
 
 	snapshot.Timeline = append(snapshot.Timeline, item)
@@ -117,10 +119,16 @@ type AddCommentTimelineItem struct {
 }
 
 func (a AddCommentTimelineItem) String() string {
-	return fmt.Sprintf("(%s) %s: commented \"%s\"",
+	termWidth, _, err := text.GetTermDim()
+	if err != nil {
+		termWidth = 200
+	}
+	comment, _ := termtext.WrapLeftPadded(colors.Italic(a.Message), termWidth, 39)
+	return fmt.Sprintf("(%s) %s: added comment #%d\n%s",
 		a.CreatedAt.Time().Format("2006-01-02 15:04:05"),
 		termtext.LeftPadMaxLine(a.Author.DisplayName(), 15, 0),
-		a.Message)
+		a.Index,
+		comment)
 }
 
 // Sign post method for gqlgen
