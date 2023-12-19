@@ -488,7 +488,7 @@ func (i *Identity) Merge(repo repository.Repo, other *Identity) (bool, error) {
 		}
 	}
 
-	return false, nil
+	return modified, nil
 }
 
 // Validate check if the Identity data is valid
