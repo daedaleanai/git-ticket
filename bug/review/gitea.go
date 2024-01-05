@@ -231,10 +231,10 @@ func (g *GiteaInfo) FetchIdentities(resolver IdentityResolver) error {
 	}
 
 	for i, t := range g.Commits {
-		user, err := resolver.ResolveIdentityFromName(t.RawCommit.Committer.FullName)
+		user, err := resolver.ResolveIdentityFromName(t.RawCommit.Author.FullName)
 
 		if err != nil {
-			return fmt.Errorf("%s: %s", err, t.RawCommit.Committer.FullName)
+			return fmt.Errorf("%s: %s", err, t.RawCommit.Author.FullName)
 		}
 
 		g.Commits[i].AuthorId = user
