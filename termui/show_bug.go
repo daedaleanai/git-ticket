@@ -27,6 +27,7 @@ var showBugHelp = helpBar{
 	{"e", "Edit"},
 	{"c", "Comment"},
 	{"t", "Change title"},
+	{"s", "Show timeline"},
 	{"r", "Review"},
 }
 
@@ -221,6 +222,12 @@ func (sb *showBug) keybindings(g *gocui.Gui) error {
 	// Edit
 	if err := g.SetKeybinding(showBugView, 'e', gocui.ModNone,
 		sb.edit); err != nil {
+		return err
+	}
+
+	// Timeline
+	if err := g.SetKeybinding(showBugView, 's', gocui.ModNone,
+		sb.showTimeline); err != nil {
 		return err
 	}
 
@@ -611,4 +618,9 @@ func (sb *showBug) edit(g *gocui.Gui, v *gocui.View) error {
 func (sb *showBug) editLabels(g *gocui.Gui, snap *bug.Snapshot) error {
 	ui.labelSelect.SetBug(sb.cache, sb.bug)
 	return ui.activateWindow(ui.labelSelect)
+}
+
+func (sb *showBug) showTimeline(g *gocui.Gui, v *gocui.View) error {
+	ui.timeline.SetBug(sb.bug)
+	return ui.activateWindow(ui.timeline)
 }
