@@ -736,7 +736,7 @@ func (bug *Bug) Merge(repo repository.Repo, other Interface) (bool, error) {
 		return false, nil
 	}
 
-	var includesStatusChange bool
+	var remoteIncludesStatusChange bool
 
 	// get other bug's extra packs
 	for i := ancestorIndex + 1; i < len(otherBug.packs); i++ {
@@ -744,7 +744,7 @@ func (bug *Bug) Merge(repo repository.Repo, other Interface) (bool, error) {
 		newPack := otherBug.packs[i].Clone()
 
 		if newPack.IncludesStatusChange() {
-			includesStatusChange = true
+			remoteIncludesStatusChange = true
 		}
 
 		newPacks = append(newPacks, newPack)
@@ -755,8 +755,8 @@ func (bug *Bug) Merge(repo repository.Repo, other Interface) (bool, error) {
 	for i := ancestorIndex + 1; i < len(bug.packs); i++ {
 		pack := bug.packs[i]
 
-		if includesStatusChange && pack.IncludesStatusChange() {
-			return false, errors.New("merging a ticket with status changes is not supported")
+		if remoteIncludesStatusChange && pack.IncludesStatusChange() {
+			return false, errors.New("merging a ticket with conflicting status changes is not supported")
 		}
 
 		// get the referenced git tree
