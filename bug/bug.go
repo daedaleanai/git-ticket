@@ -736,10 +736,16 @@ func (bug *Bug) Merge(repo repository.Repo, other Interface) (bool, error) {
 		return false, nil
 	}
 
+	var remoteIncludesStatusChange bool
+
 	// get other bug's extra packs
 	for i := ancestorIndex + 1; i < len(otherBug.packs); i++ {
 		// clone is probably not necessary
 		newPack := otherBug.packs[i].Clone()
+
+		if newPack.IncludesStatusChange() {
+			remoteIncludesStatusChange = true
+		}
 
 		newPacks = append(newPacks, newPack)
 		bug.lastCommit = newPack.commitHash
@@ -748,6 +754,10 @@ func (bug *Bug) Merge(repo repository.Repo, other Interface) (bool, error) {
 	// rebase our extra packs
 	for i := ancestorIndex + 1; i < len(bug.packs); i++ {
 		pack := bug.packs[i]
+
+		if remoteIncludesStatusChange && pack.IncludesStatusChange() {
+			return false, errors.New("merging a ticket with conflicting status changes is not supported")
+		}
 
 		// get the referenced git tree
 		treeHash, err := repo.GetTreeHash(pack.commitHash)
