@@ -3,18 +3,20 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 	"strings"
 	"time"
 
 	termtext "github.com/MichaelMure/go-term-text"
-	text "github.com/MichaelMure/go-term-text"
 	"github.com/spf13/cobra"
 
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
+	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/query"
 	"github.com/daedaleanai/git-ticket/util/colors"
+	"github.com/daedaleanai/git-ticket/util/text"
 )
 
 type lsOptions struct {
@@ -233,6 +235,28 @@ func lsJsonFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 }
 
 func lsDefaultFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
+	termWidth, _, err := text.GetTermDim()
+	if err != nil {
+		return err
+	}
+
+	var titleWidth int
+	var fullTerm bool = true
+
+	const statusWidth = 10
+	const authorWidth = 15
+	const assigneeWidth = 15
+	const commentCountWidth = 4
+
+	if termWidth >= 80 {
+		const paddingWidth = 8 // speech bubble (2) + spaces
+		titleWidth = termWidth - (entity.HumanIdLength + statusWidth + authorWidth + assigneeWidth + commentCountWidth + paddingWidth)
+	} else {
+		fullTerm = false
+		const paddingWidth = 2 // spaces
+		titleWidth = termWidth - (entity.HumanIdLength + statusWidth + paddingWidth)
+	}
+
 	for _, b := range bugExcerpts {
 		var authorName string
 		if b.AuthorId != "" {
@@ -265,23 +289,33 @@ func lsDefaultFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 
 		// truncate + pad if needed
 		labelsFmt := termtext.TruncateMax(labelsTxt.String(), 10)
-		titleFmt := termtext.LeftPadMaxLine(strings.TrimSpace(b.Title), 50-termtext.Len(labelsFmt), 0)
-		authorFmt := termtext.LeftPadMaxLine(authorName, 15, 0)
-		assigneeFmt := termtext.LeftPadMaxLine(assigneeName, 15, 0)
+		titleFmt := termtext.LeftPadMaxLine(strings.TrimSpace(b.Title), titleWidth-termtext.Len(labelsFmt), 0)
+		authorFmt := termtext.LeftPadMaxLine(authorName, authorWidth, 0)
+		assigneeFmt := termtext.LeftPadMaxLine(assigneeName, assigneeWidth, 0)
 
-		comments := fmt.Sprintf("%4d 💬", b.LenComments)
-		if b.LenComments > 9999 {
-			comments = "    ∞ 💬"
+		comments := fmt.Sprintf("%*d 💬", commentCountWidth, b.LenComments)
+		if b.LenComments >= int(math.Pow(10, commentCountWidth)) {
+			comments = strings.Repeat(" ", commentCountWidth-1) + "∞ 💬"
 		}
 
-		env.out.Printf("%s %s\t%s\t%s\t%s\t%s\n",
-			colors.Cyan(b.Id.Human()),
-			text.LeftPadMaxLine(colors.Yellow(b.Status), 10, 0),
-			titleFmt+labelsFmt,
-			colors.Magenta(authorFmt),
-			colors.Blue(assigneeFmt),
-			comments,
-		)
+		if fullTerm {
+			env.out.Printf("%s %s %-*s %s %s %s\n",
+				colors.Cyan(b.Id.Human()),
+				termtext.LeftPadMaxLine(colors.Yellow(b.Status), statusWidth, 0),
+				titleWidth,
+				titleFmt+labelsFmt,
+				colors.Magenta(authorFmt),
+				colors.Blue(assigneeFmt),
+				comments,
+			)
+		} else {
+			env.out.Printf("%s %s %-*s\n",
+				colors.Cyan(b.Id.Human()),
+				termtext.LeftPadMaxLine(colors.Yellow(b.Status), statusWidth, 0),
+				titleWidth,
+				titleFmt+labelsFmt,
+			)
+		}
 	}
 	return nil
 }
