@@ -10,7 +10,7 @@ import (
 
 const IdLengthSHA1 = 40
 const IdLengthSHA256 = 64
-const humanIdLength = 7
+const HumanIdLength = 7
 
 const UnsetId = Id("unset")
 
@@ -24,7 +24,7 @@ func (i Id) String() string {
 
 // Human return the identifier, shortened for human consumption
 func (i Id) Human() string {
-	format := fmt.Sprintf("%%.%ds", humanIdLength)
+	format := fmt.Sprintf("%%.%ds", HumanIdLength)
 	return fmt.Sprintf(format, i)
 }
 
