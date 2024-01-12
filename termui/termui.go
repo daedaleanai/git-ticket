@@ -26,6 +26,7 @@ type termUI struct {
 	bugTable    *bugTable
 	showBug     *showBug
 	labelSelect *labelSelect
+	timeline    *timeline
 	msgPopup    *msgPopup
 	inputPopup  *inputPopup
 }
@@ -56,6 +57,7 @@ func Run(cache *cache.RepoCache) error {
 		bugTable:    newBugTable(cache),
 		showBug:     newShowBug(cache),
 		labelSelect: newLabelSelect(),
+		timeline:    newTimeline(),
 		msgPopup:    newMsgPopup(),
 		inputPopup:  newInputPopup(),
 	}
@@ -156,6 +158,10 @@ func keybindings(g *gocui.Gui) error {
 	}
 
 	if err := ui.labelSelect.keybindings(g); err != nil {
+		return err
+	}
+
+	if err := ui.timeline.keybindings(g); err != nil {
 		return err
 	}
 

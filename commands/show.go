@@ -314,24 +314,27 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 	indent := "  "
 
 	for i, comment := range snapshot.Comments {
-		var message string
-		env.out.Printf("%s#%d %s <%s>\n\n",
+		var edited string
+		if comment.Edited {
+			edited = " (edited)"
+		}
+
+		header := fmt.Sprintf("%s#%d %s <%s>%s",
 			indent,
 			i,
 			comment.Author.DisplayName(),
 			comment.Author.Email(),
+			edited,
 		)
 
+		var message string
 		if comment.Message == "" {
 			message = colors.GreyBold("No description provided.")
 		} else {
 			message = comment.Message
 		}
 
-		env.out.Printf("%s%s\n\n\n",
-			indent,
-			message,
-		)
+		env.out.Printf("%s\n\n%s\n\n\n", colors.WhiteBold(header), message)
 	}
 
 	return nil

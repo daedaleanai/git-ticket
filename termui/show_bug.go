@@ -1,7 +1,6 @@
 package termui
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -28,6 +27,7 @@ var showBugHelp = helpBar{
 	{"e", "Edit"},
 	{"c", "Comment"},
 	{"t", "Change title"},
+	{"s", "Show timeline"},
 	{"r", "Review"},
 }
 
@@ -225,6 +225,12 @@ func (sb *showBug) keybindings(g *gocui.Gui) error {
 		return err
 	}
 
+	// Timeline
+	if err := g.SetKeybinding(showBugView, 's', gocui.ModNone,
+		sb.showTimeline); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -247,26 +253,12 @@ func (sb *showBug) renderMain(g *gocui.Gui, mainView *gocui.View) error {
 
 	sb.mainSelectableView = nil
 
-	edited := ""
-	for _, item := range snap.Timeline {
-		// The create ticket timeline item may not be the first if there
-		// are review items that exist before ticket creation.
-		// That is a process issue, but should not break git ticket.
-		if createTimelineItem, ok := item.(*bug.CreateTimelineItem); ok {
-			if createTimelineItem.Edited() {
-				edited = " (edited)"
-			}
-			break
-		}
-	}
-
-	bugHeader := fmt.Sprintf("[%s] %s\n\n[%s] %s opened this bug on %s%s",
+	bugHeader := fmt.Sprintf("[%s] %s\n\n[%s] %s opened this bug on %s",
 		colors.Cyan(snap.Id().Human()),
 		colors.Bold(snap.Title),
 		colors.Yellow(snap.Status),
 		colors.Magenta(snap.Author.DisplayName()),
 		snap.CreateTime.Format(timeLayout),
-		edited,
 	)
 	bugHeader, lines := termtext.Wrap(bugHeader, maxX, termtext.WrapIndent("   "))
 
@@ -278,159 +270,35 @@ func (sb *showBug) renderMain(g *gocui.Gui, mainView *gocui.View) error {
 	_, _ = fmt.Fprint(v, bugHeader)
 	y0 += lines + 1
 
-	for _, op := range snap.Timeline {
-		viewName := op.Id().String()
-
-		// TODO: me might skip the rendering of blocks that are outside of the view
-		// but to do that we need to rework how sb.mainSelectableView is maintained
-
-		switch op := op.(type) {
-
-		case *bug.CreateTimelineItem:
-			var content string
-			var lines int
-
-			if op.MessageIsEmpty() {
-				content, lines = termtext.WrapLeftPadded(emptyMessagePlaceholder(), maxX-1, 4)
-			} else {
-				content, lines = termtext.WrapLeftPadded(op.Message, maxX-1, 4)
-			}
-
-			v, err := sb.createOpView(g, viewName, x0, y0, maxX+1, lines, true)
-			if err != nil {
-				return err
-			}
-			_, _ = fmt.Fprint(v, content)
-			y0 += lines + 2
-
-		case *bug.AddCommentTimelineItem:
-			edited := ""
-			if op.Edited() {
-				edited = " (edited)"
-			}
-
-			var message string
-			if op.MessageIsEmpty() {
-				message, _ = termtext.WrapLeftPadded(emptyMessagePlaceholder(), maxX-1, 4)
-			} else {
-				message, _ = termtext.WrapLeftPadded(op.Message, maxX-1, 4)
-			}
-
-			content := fmt.Sprintf("%s commented on %s%s\n\n%s",
-				colors.Magenta(op.Author.DisplayName()),
-				op.CreatedAt.Time().Format(timeLayout),
-				edited,
-				message,
-			)
-			content, lines = termtext.Wrap(content, maxX)
-
-			v, err := sb.createOpView(g, viewName, x0, y0, maxX+1, lines, true)
-			if err != nil {
-				return err
-			}
-			_, _ = fmt.Fprint(v, content)
-			y0 += lines + 2
-
-		case *bug.SetTitleTimelineItem:
-			content := fmt.Sprintf("%s changed the title to %s on %s",
-				colors.Magenta(op.Author.DisplayName()),
-				colors.Bold(op.Title),
-				op.UnixTime.Time().Format(timeLayout),
-			)
-			content, lines := termtext.Wrap(content, maxX)
-
-			v, err := sb.createOpView(g, viewName, x0, y0, maxX+1, lines, true)
-			if err != nil {
-				return err
-			}
-			_, _ = fmt.Fprint(v, content)
-			y0 += lines + 2
-
-		case *bug.SetStatusTimelineItem:
-			content := fmt.Sprintf("%s %s the bug on %s",
-				colors.Magenta(op.Author.DisplayName()),
-				colors.Bold(op.Status.Action()),
-				op.UnixTime.Time().Format(timeLayout),
-			)
-			content, lines := termtext.Wrap(content, maxX)
-
-			v, err := sb.createOpView(g, viewName, x0, y0, maxX+1, lines, true)
-			if err != nil {
-				return err
-			}
-			_, _ = fmt.Fprint(v, content)
-			y0 += lines + 2
-
-		case *bug.LabelChangeTimelineItem:
-			var added []string
-			for _, label := range op.Added {
-				added = append(added, colors.Bold("\""+label+"\""))
-			}
-
-			var removed []string
-			for _, label := range op.Removed {
-				removed = append(removed, colors.Bold("\""+label+"\""))
-			}
-
-			var action bytes.Buffer
-
-			if len(added) > 0 {
-				action.WriteString("added ")
-				action.WriteString(strings.Join(added, ", "))
-
-				if len(removed) > 0 {
-					action.WriteString(" and ")
-				}
-			}
-
-			if len(removed) > 0 {
-				action.WriteString("removed ")
-				action.WriteString(strings.Join(removed, ", "))
-			}
-
-			if len(added)+len(removed) > 1 {
-				action.WriteString(" labels")
-			} else {
-				action.WriteString(" label")
-			}
-
-			content := fmt.Sprintf("%s %s on %s",
-				colors.Magenta(op.Author.DisplayName()),
-				action.String(),
-				op.UnixTime.Time().Format(timeLayout),
-			)
-			content, lines := termtext.Wrap(content, maxX)
-
-			v, err := sb.createOpView(g, viewName, x0, y0, maxX+1, lines, true)
-			if err != nil {
-				return err
-			}
-			_, _ = fmt.Fprint(v, content)
-			y0 += lines + 2
-
-		case *bug.SetChecklistTimelineItem:
-			content := fmt.Sprintf("%s edited the %s on %s",
-				colors.Magenta(op.Author.DisplayName()),
-				colors.Bold(op.Checklist.Title),
-				op.UnixTime.Time().Format(timeLayout),
-			)
-			content, lines := termtext.Wrap(content, maxX)
-
-			v, err := sb.createOpView(g, viewName, x0, y0, maxX+1, lines, true)
-			if err != nil {
-				return err
-			}
-			_, _ = fmt.Fprint(v, content)
-			y0 += lines + 2
+	for _, comment := range snap.Comments {
+		var edited string
+		if comment.Edited {
+			edited = " (edited)"
 		}
+		var message string
+		if comment.Message == "" {
+			message, _ = termtext.WrapLeftPadded(colors.GreyBold("No description provided."), maxX-1, 4)
+		} else {
+			message, _ = termtext.WrapLeftPadded(comment.Message, maxX-1, 4)
+		}
+
+		content := fmt.Sprintf("%s commented on %s%s\n\n%s",
+			colors.Magenta(comment.Author.DisplayName()),
+			comment.UnixTime.Time().Format(timeLayout),
+			edited,
+			message,
+		)
+		content, lines = termtext.Wrap(content, maxX)
+
+		viewName := comment.Id().String()
+		v, err := sb.createOpView(g, viewName, x0, y0, maxX+1, lines, true)
+		if err != nil {
+			return err
+		}
+		_, _ = fmt.Fprint(v, content)
+		y0 += lines + 2
 	}
-
 	return nil
-}
-
-// emptyMessagePlaceholder return a formatted placeholder for an empty message
-func emptyMessagePlaceholder() string {
-	return colors.GreyBold("No description provided.")
 }
 
 func (sb *showBug) createOpView(g *gocui.Gui, name string, x0 int, y0 int, maxX int, height int, selectable bool) (*gocui.View, error) {
@@ -739,25 +607,20 @@ func (sb *showBug) edit(g *gocui.Gui, v *gocui.View) error {
 		return nil
 	}
 
-	op, err := snap.SearchTimelineItem(entity.Id(sb.selected))
+	op, err := snap.SearchComment(entity.Id(sb.selected))
 	if err != nil {
 		return err
 	}
 
-	switch op := op.(type) {
-	case *bug.AddCommentTimelineItem:
-		return editCommentWithEditor(sb.bug, op.Id(), op.Message)
-	case *bug.CreateTimelineItem:
-		return editCommentWithEditor(sb.bug, op.Id(), op.Message)
-	case *bug.LabelChangeTimelineItem:
-		return sb.editLabels(g, snap)
-	}
-
-	ui.msgPopup.Activate(msgPopupErrorTitle, "Selected field is not editable.")
-	return nil
+	return editCommentWithEditor(sb.bug, op.Id(), op.Message)
 }
 
 func (sb *showBug) editLabels(g *gocui.Gui, snap *bug.Snapshot) error {
 	ui.labelSelect.SetBug(sb.cache, sb.bug)
 	return ui.activateWindow(ui.labelSelect)
+}
+
+func (sb *showBug) showTimeline(g *gocui.Gui, v *gocui.View) error {
+	ui.timeline.SetBug(sb.bug)
+	return ui.activateWindow(ui.timeline)
 }

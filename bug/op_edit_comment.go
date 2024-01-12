@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/pkg/errors"
 
 	"github.com/daedaleanai/git-ticket/entity"
@@ -40,43 +41,32 @@ func (op *EditCommentOperation) Apply(snapshot *Snapshot) {
 
 	snapshot.addActor(op.Author)
 
-	var target TimelineItem
-
-	for i, item := range snapshot.Timeline {
-		if item.Id() == op.Target {
-			target = snapshot.Timeline[i]
-			break
-		}
-	}
-
-	if target == nil {
-		// Target not found, edit is a no-op
-		return
-	}
-
 	comment := Comment{
 		id:       op.Target,
+		Author:   op.Author,
 		Message:  op.Message,
 		Files:    op.Files,
+		Edited:   true,
 		UnixTime: timestamp.Timestamp(op.UnixTime),
 	}
 
-	switch target := target.(type) {
-	case *CreateTimelineItem:
-		target.Append(comment)
-	case *AddCommentTimelineItem:
-		target.Append(comment)
-	}
-
 	// Updating the corresponding comment
-
+	var index int
 	for i := range snapshot.Comments {
 		if snapshot.Comments[i].Id() == op.Target {
 			snapshot.Comments[i].Message = op.Message
 			snapshot.Comments[i].Files = op.Files
+			snapshot.Comments[i].Edited = true
+			index = i
 			break
 		}
 	}
+
+	item := &EditCommentTimelineItem{
+		CommentTimelineItem: NewCommentTimelineItem(op.Id(), index, comment),
+	}
+
+	snapshot.Timeline = append(snapshot.Timeline, item)
 }
 
 func (op *EditCommentOperation) GetFiles() []repository.Hash {
@@ -141,6 +131,27 @@ func NewEditCommentOp(author identity.Interface, unixTime int64, target entity.I
 		Files:   files,
 	}
 }
+
+// CreateTimelineItem replace a AddComment operation in the Timeline and hold its edition history
+type EditCommentTimelineItem struct {
+	CommentTimelineItem
+}
+
+func (a EditCommentTimelineItem) String() string {
+	termWidth, _, err := text.GetTermDim()
+	if err != nil {
+		termWidth = 200
+	}
+	comment, _ := termtext.WrapLeftPadded(a.Message, termWidth, timelineCommentOffset)
+	return fmt.Sprintf("(%s) %s: edited comment #%d\n%s",
+		a.CreatedAt.Time().Format("2006-01-02 15:04:05"),
+		termtext.LeftPadMaxLine(a.Author.DisplayName(), timelineDisplayNameWidth, 0),
+		a.Index,
+		comment)
+}
+
+// Sign post method for gqlgen
+func (a *EditCommentTimelineItem) IsAuthored() {}
 
 // Convenience function to apply the operation
 func EditComment(b Interface, author identity.Interface, unixTime int64, target entity.Id, message string) (*EditCommentOperation, error) {

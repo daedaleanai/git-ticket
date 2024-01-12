@@ -173,7 +173,7 @@ func (l LabelChangeTimelineItem) String() string {
 	}
 	return fmt.Sprintf("(%s) %s: %s",
 		l.UnixTime.Time().Format("2006-01-02 15:04:05"),
-		termtext.LeftPadMaxLine(l.Author.DisplayName(), 15, 0),
+		termtext.LeftPadMaxLine(l.Author.DisplayName(), timelineDisplayNameWidth, 0),
 		output.String())
 }
 

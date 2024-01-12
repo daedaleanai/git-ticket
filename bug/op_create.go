@@ -54,7 +54,7 @@ func (op *CreateOperation) Apply(snapshot *Snapshot) {
 
 	snapshot.Timeline = []TimelineItem{
 		&CreateTimelineItem{
-			CommentTimelineItem: NewCommentTimelineItem(op.Id(), comment),
+			CommentTimelineItem: NewCommentTimelineItem(op.Id(), 0, comment),
 		},
 	}
 }
@@ -136,9 +136,19 @@ type CreateTimelineItem struct {
 }
 
 func (c CreateTimelineItem) String() string {
-	return fmt.Sprintf("(%s) %s: created ticket",
+	message := c.Message
+	if c.Message == "" {
+		message = "No description provided."
+	}
+	termWidth, _, err := text.GetTermDim()
+	if err != nil {
+		termWidth = 200
+	}
+	message, _ = termtext.WrapLeftPadded(message, termWidth, timelineCommentOffset)
+	return fmt.Sprintf("(%s) %s: created ticket\n%s",
 		c.CreatedAt.Time().Format("2006-01-02 15:04:05"),
-		termtext.LeftPadMaxLine(c.Author.DisplayName(), 15, 0))
+		termtext.LeftPadMaxLine(c.Author.DisplayName(), timelineDisplayNameWidth, 0),
+		message)
 }
 
 // Sign post method for gqlgen

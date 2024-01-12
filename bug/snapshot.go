@@ -2,8 +2,9 @@ package bug
 
 import (
 	"fmt"
-	"github.com/daedaleanai/git-ticket/bug/review"
 	"time"
+
+	"github.com/daedaleanai/git-ticket/bug/review"
 
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
@@ -51,23 +52,21 @@ func (snap *Snapshot) GetCreateMetadata(key string) (string, bool) {
 	return snap.Operations[0].GetMetadata(key)
 }
 
-// SearchTimelineItem will search in the timeline for an item matching the given hash
-func (snap *Snapshot) SearchTimelineItem(id entity.Id) (TimelineItem, error) {
-	for i := range snap.Timeline {
-		if snap.Timeline[i].Id() == id {
-			return snap.Timeline[i], nil
-		}
-	}
-
-	return nil, fmt.Errorf("timeline item not found")
-}
-
 // SearchComment will search for a comment matching the given hash
 func (snap *Snapshot) SearchComment(id entity.Id) (*Comment, error) {
 	for _, c := range snap.Comments {
 		if c.id == id {
 			return &c, nil
 		}
+	}
+
+	return nil, fmt.Errorf("comment item not found")
+}
+
+// GetComment will return the comment for a given index
+func (snap *Snapshot) GetComment(index int) (*Comment, error) {
+	if index < len(snap.Comments) {
+		return &snap.Comments[index], nil
 	}
 
 	return nil, fmt.Errorf("comment item not found")
