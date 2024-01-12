@@ -318,8 +318,8 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 		if comment.Edited {
 			edited = " (edited)"
 		}
-		var message string
-		env.out.Printf("%s#%d %s <%s>%s\n\n",
+
+		header := fmt.Sprintf("%s#%d %s <%s>%s",
 			indent,
 			i,
 			comment.Author.DisplayName(),
@@ -327,13 +327,14 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 			edited,
 		)
 
+		var message string
 		if comment.Message == "" {
 			message = colors.GreyBold("No description provided.")
 		} else {
 			message = comment.Message
 		}
 
-		env.out.Printf("%s\n\n\n", colors.Italic(message))
+		env.out.Printf("%s\n\n%s\n\n\n", colors.WhiteBold(header), message)
 	}
 
 	return nil

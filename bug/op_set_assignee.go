@@ -111,7 +111,7 @@ func (s SetAssigneeTimelineItem) When() timestamp.Timestamp {
 func (s SetAssigneeTimelineItem) String() string {
 	return fmt.Sprintf("(%s) %s: set assignee \"%s\"",
 		s.UnixTime.Time().Format("2006-01-02 15:04:05"),
-		termtext.LeftPadMaxLine(s.Author.DisplayName(), 15, 0),
+		termtext.LeftPadMaxLine(s.Author.DisplayName(), timelineDisplayNameWidth, 0),
 		s.Assignee.DisplayName())
 }
 

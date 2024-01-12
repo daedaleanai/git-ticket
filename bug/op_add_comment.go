@@ -9,7 +9,6 @@ import (
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/repository"
-	"github.com/daedaleanai/git-ticket/util/colors"
 	"github.com/daedaleanai/git-ticket/util/text"
 	"github.com/daedaleanai/git-ticket/util/timestamp"
 )
@@ -123,10 +122,10 @@ func (a AddCommentTimelineItem) String() string {
 	if err != nil {
 		termWidth = 200
 	}
-	comment, _ := termtext.WrapLeftPadded(colors.Italic(a.Message), termWidth, 39)
+	comment, _ := termtext.WrapLeftPadded(a.Message, termWidth, timelineCommentOffset)
 	return fmt.Sprintf("(%s) %s: added comment #%d\n%s",
 		a.CreatedAt.Time().Format("2006-01-02 15:04:05"),
-		termtext.LeftPadMaxLine(a.Author.DisplayName(), 15, 0),
+		termtext.LeftPadMaxLine(a.Author.DisplayName(), timelineDisplayNameWidth, 0),
 		a.Index,
 		comment)
 }

@@ -176,7 +176,7 @@ func (s SetReviewTimelineItem) When() timestamp.Timestamp {
 func (s SetReviewTimelineItem) String() string {
 	return fmt.Sprintf("(%s) %s: updated %s %s",
 		s.UnixTime.Time().Format("2006-01-02 15:04:05"),
-		termtext.LeftPadMaxLine(s.Author.DisplayName(), 15, 0),
+		termtext.LeftPadMaxLine(s.Author.DisplayName(), timelineDisplayNameWidth, 0),
 		s.Review.Id(),
 		s.Event.Summary())
 }

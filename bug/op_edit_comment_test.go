@@ -43,6 +43,11 @@ func TestEdit(t *testing.T) {
 	edit.Apply(&snapshot)
 
 	assert.Equal(t, 5, len(snapshot.Timeline))
+	assert.Equal(t, snapshot.Timeline[0].(*CreateTimelineItem).Message, "create")
+	assert.Equal(t, snapshot.Timeline[1].(*AddCommentTimelineItem).Message, "comment 1")
+	assert.Equal(t, snapshot.Timeline[2].(*SetTitleTimelineItem).Title, "edited title")
+	assert.Equal(t, snapshot.Timeline[3].(*AddCommentTimelineItem).Message, "comment 2")
+	assert.Equal(t, snapshot.Timeline[4].(*EditCommentTimelineItem).Message, "create edited")
 	assert.Equal(t, snapshot.Comments[0].Message, "create edited")
 	assert.Equal(t, snapshot.Comments[1].Message, "comment 1")
 	assert.Equal(t, snapshot.Comments[2].Message, "comment 2")
@@ -51,6 +56,7 @@ func TestEdit(t *testing.T) {
 	edit2.Apply(&snapshot)
 
 	assert.Equal(t, 6, len(snapshot.Timeline))
+	assert.Equal(t, snapshot.Timeline[5].(*EditCommentTimelineItem).Message, "comment 1 edited")
 	assert.Equal(t, snapshot.Comments[0].Message, "create edited")
 	assert.Equal(t, snapshot.Comments[1].Message, "comment 1 edited")
 	assert.Equal(t, snapshot.Comments[2].Message, "comment 2")
@@ -59,6 +65,7 @@ func TestEdit(t *testing.T) {
 	edit3.Apply(&snapshot)
 
 	assert.Equal(t, 7, len(snapshot.Timeline))
+	assert.Equal(t, snapshot.Timeline[6].(*EditCommentTimelineItem).Message, "comment 2 edited")
 	assert.Equal(t, snapshot.Comments[0].Message, "create edited")
 	assert.Equal(t, snapshot.Comments[1].Message, "comment 1 edited")
 	assert.Equal(t, snapshot.Comments[2].Message, "comment 2 edited")

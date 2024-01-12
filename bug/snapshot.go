@@ -65,7 +65,7 @@ func (snap *Snapshot) SearchComment(id entity.Id) (*Comment, error) {
 
 // GetComment will return the comment for a given index
 func (snap *Snapshot) GetComment(index int) (*Comment, error) {
-	if len(snap.Comments) >= index+1 {
+	if index < len(snap.Comments) {
 		return &snap.Comments[index], nil
 	}
 

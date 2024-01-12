@@ -29,6 +29,9 @@ type CommentTimelineItem struct {
 	CreatedAt timestamp.Timestamp
 }
 
+const timelineDisplayNameWidth = 15
+const timelineCommentOffset = 39
+
 func NewCommentTimelineItem(ID entity.Id, index int, comment Comment) CommentTimelineItem {
 	return CommentTimelineItem{
 		id:        ID,
@@ -51,6 +54,6 @@ func (c CommentTimelineItem) When() timestamp.Timestamp {
 func (c CommentTimelineItem) String() string {
 	return fmt.Sprintf("(%s) %s: %s",
 		c.CreatedAt.Time().Format("2006-01-02 15:04:05"),
-		termtext.LeftPadMaxLine(c.Author.DisplayName(), 15, 0),
+		termtext.LeftPadMaxLine(c.Author.DisplayName(), timelineDisplayNameWidth, 0),
 		c.Message)
 }
