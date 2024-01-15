@@ -103,12 +103,15 @@ func (op *SetReviewOperation) MarshalJSON() ([]byte, error) {
 		OpBase
 		Phabricator *review2.PhabReviewInfo `json:"review"`
 		Gitea       *review2.GiteaInfo      `json:"reviewGitea"`
+		Remove      *review2.RemoveReview   `json:"removeReview"`
 	}{}
 	wrapper.OpBase = op.OpBase
 	if phab, ok := op.Review.(*review2.PhabReviewInfo); ok {
 		wrapper.Phabricator = phab
 	} else if gitea, ok := op.Review.(*review2.GiteaInfo); ok {
 		wrapper.Gitea = gitea
+	} else if remove, ok := op.Review.(*review2.RemoveReview); ok {
+		wrapper.Remove = remove
 	} else {
 		panic("Unknown review info")
 	}
@@ -130,6 +133,7 @@ func (op *SetReviewOperation) UnmarshalJSON(data []byte) error {
 	wrapper := struct {
 		Phabricator *review2.PhabReviewInfo `json:"review"`
 		Gitea       *review2.GiteaInfo      `json:"reviewGitea"`
+		Remove      *review2.RemoveReview   `json:"removeReview"`
 	}{}
 
 	err = json.Unmarshal(data, &wrapper)
@@ -141,6 +145,8 @@ func (op *SetReviewOperation) UnmarshalJSON(data []byte) error {
 		op.Review = wrapper.Phabricator
 	} else if wrapper.Gitea != nil {
 		op.Review = wrapper.Gitea
+	} else if wrapper.Remove != nil {
+		op.Review = wrapper.Remove
 	} else {
 		return fmt.Errorf("Unable to parse review info")
 	}
