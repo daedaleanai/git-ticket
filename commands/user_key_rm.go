@@ -13,7 +13,7 @@ func newUserKeyRmCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "rm <key-fingerprint> [<user name/id>]",
+		Use:      "rm key_fingerprint [user name/id]",
 		Short:    "Remove a PGP key from the adopted or the specified user.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),

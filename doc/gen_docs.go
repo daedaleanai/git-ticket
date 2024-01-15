@@ -62,6 +62,8 @@ func genManPage() error {
 		}
 	}
 
+	_ = os.Mkdir(dir, os.ModePerm)
+
 	return doc.GenManTree(commands.NewRootCommand(), header, dir)
 }
 
@@ -78,6 +80,8 @@ func genMarkdown() error {
 			return err
 		}
 	}
+
+	_ = os.Mkdir(dir, os.ModePerm)
 
 	return doc.GenMarkdownTree(commands.NewRootCommand(), dir)
 }

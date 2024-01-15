@@ -1,9 +1,11 @@
 git-ticket
-!/misc/bash_completion/git-ticket
-!/misc/fish_completion/git-ticket
-!/misc/powershell_completion/git-ticket
-!/misc/zsh_completion/git-ticket
+misc/bash_completion/
+misc/fish_completion/
+misc/powershell_completion/
+misc/zsh_completion/
 .gitkeep
 dist
 coverage.txt
 .idea/
+doc/man/
+doc/md/

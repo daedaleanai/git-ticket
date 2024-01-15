@@ -12,7 +12,7 @@ func newAssignCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "assign [<user name/id>] [<ticket id>]",
+		Use:      "assign [user name/id] [ticket id]",
 		Short:    "Assign a user to a ticket.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),

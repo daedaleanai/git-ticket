@@ -3,6 +3,11 @@ all: build
 GIT_COMMIT:=$(shell git rev-list -1 HEAD)
 GIT_LAST_TAG:=$(shell git describe --abbrev=0 --tags)
 GIT_EXACT_TAG:=$(shell git name-rev --name-only --tags HEAD)
+ifeq ($(GIT_EXACT_TAG),undefined)
+export GIT_TICKET_VERSION:=$(GIT_LAST_TAG)-dev-$(GIT_COMMIT)
+else
+export GIT_TICKET_VERSION:=$(GIT_EXACT_TAG)
+endif
 UNAME_S := $(shell uname -s)
 XARGS:=xargs -r
 ifeq ($(UNAME_S),Darwin)
@@ -30,6 +35,11 @@ install:
 releases:
 	go generate
 	gox -ldflags "$(LDFLAGS)" -output "dist/{{.Dir}}_{{.OS}}_{{.Arch}}"
+
+deb:
+	go generate
+	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)"
+	nfpm pkg --packager deb
 
 test:
 	go test -v -bench=. ./...

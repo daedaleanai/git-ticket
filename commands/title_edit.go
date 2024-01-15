@@ -16,7 +16,7 @@ func newTitleEditCommand() *cobra.Command {
 	options := titleEditOptions{}
 
 	cmd := &cobra.Command{
-		Use:      "edit [<ticket id>]",
+		Use:      "edit [ticket id]",
 		Short:    "Edit a title of a ticket.",
 		PreRunE:  loadBackendEnsureUser(env),
 		PostRunE: closeBackend(env),

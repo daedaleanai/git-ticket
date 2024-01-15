@@ -13,7 +13,7 @@ func newCcbAddCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "add <user name/id> <status> [<ticket id>]",
+		Use:      "add user_name/id status [ticket id]",
 		Short:    "Add a CCB member as an approver of a ticket status.",
 		PreRunE:  loadBackendEnsureUser(env),
 		PostRunE: closeBackend(env),

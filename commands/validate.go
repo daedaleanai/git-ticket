@@ -18,7 +18,7 @@ func newValidateCommand() *cobra.Command {
 	options := validateOptions{}
 
 	cmd := &cobra.Command{
-		Use:      "validate <commit>...",
+		Use:      "validate commit...",
 		Short:    "Validate identities and commits signatures.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),

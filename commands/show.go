@@ -28,7 +28,7 @@ func newShowCommand() *cobra.Command {
 	options := showOptions{}
 
 	cmd := &cobra.Command{
-		Use:      "show [<ticket id>]",
+		Use:      "show [ticket id]",
 		Short:    "Display the details of a ticket.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),

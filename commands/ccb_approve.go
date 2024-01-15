@@ -13,7 +13,7 @@ func newCcbApproveCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "approve <status> [<ticket id>]",
+		Use:      "approve status [ticket id]",
 		Short:    "Approve a ticket status.",
 		PreRunE:  loadBackendEnsureUser(env),
 		PostRunE: closeBackend(env),

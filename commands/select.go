@@ -12,7 +12,7 @@ func newSelectCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:   "select <ticket id>",
+		Use:   "select ticket_id",
 		Short: "Select a ticket for implicit use in future commands.",
 		Example: `git ticket select 2f15
 git ticket comment

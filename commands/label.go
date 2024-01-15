@@ -10,7 +10,7 @@ func newLabelCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "label [<ticket id>]",
+		Use:      "label [ticket id]",
 		Short:    "Display, add or remove labels to/from a ticket.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),

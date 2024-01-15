@@ -8,7 +8,7 @@ func newUserAdoptCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "adopt <user name/id>",
+		Use:      "adopt user_name/id",
 		Short:    "Adopt an existing identity as your own.",
 		Args:     cobra.ExactArgs(1),
 		PreRunE:  loadBackend(env),

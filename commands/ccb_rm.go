@@ -13,7 +13,7 @@ func newCcbRmCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "rm <user name/id> <status> [<ticket id>]",
+		Use:      "rm user_name/id status [ticket id]",
 		Short:    "Remove a CCB member as an approver of a ticket status.",
 		PreRunE:  loadBackendEnsureUser(env),
 		PostRunE: closeBackend(env),

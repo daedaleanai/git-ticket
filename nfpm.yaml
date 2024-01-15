@@ -1,0 +1,14 @@
+name: "git-ticket"
+arch: "amd64"
+platform: "linux"
+version: ${GIT_TICKET_VERSION}
+section: "default"
+priority: "extra"
+provides:
+  - git-ticket
+description: git-ticket
+vendor: "Daedalean"
+maintainer: "cert <cert@daedalean.ai>"
+contents:
+  - src: ./git-ticket
+    dst: /usr/local/bin/git-ticket
