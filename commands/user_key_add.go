@@ -21,7 +21,7 @@ func newUserKeyAddCommand() *cobra.Command {
 	options := userKeyAddOptions{}
 
 	cmd := &cobra.Command{
-		Use:      "add [user name/id]",
+		Use:      "add [{user_name | user_id}]",
 		Short:    "Add a PGP key from a user.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),

@@ -62,7 +62,10 @@ func genManPage() error {
 		}
 	}
 
-	_ = os.Mkdir(dir, os.ModePerm)
+	err = os.Mkdir(dir, os.ModePerm)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
 
 	return doc.GenManTree(commands.NewRootCommand(), header, dir)
 }
@@ -81,7 +84,10 @@ func genMarkdown() error {
 		}
 	}
 
-	_ = os.Mkdir(dir, os.ModePerm)
+	err = os.Mkdir(dir, os.ModePerm)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
 
 	return doc.GenMarkdownTree(commands.NewRootCommand(), dir)
 }

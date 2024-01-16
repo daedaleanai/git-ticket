@@ -10,7 +10,7 @@ func newTitleCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "title [ticket id]",
+		Use:      "title [ticket_id]",
 		Short:    "Display or change a title of a ticket.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),

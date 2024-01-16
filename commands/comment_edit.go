@@ -16,7 +16,7 @@ func newCommentEditCommand() *cobra.Command {
 	options := commentEditOptions{}
 
 	cmd := &cobra.Command{
-		Use:      "edit [ticket id]",
+		Use:      "edit [ticket_id]",
 		Short:    "Edit a comment on a ticket.",
 		PreRunE:  loadBackendEnsureUser(env),
 		PostRunE: closeBackend(env),

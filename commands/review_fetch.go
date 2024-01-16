@@ -15,7 +15,7 @@ func newReviewFetchCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:   "fetch revision_id_or_pull_request_ref [ticket id]",
+		Use:   "fetch {revision_id | pull_request_ref} [ticket_id]",
 		Short: "Get Differential Revision data from Phabricator or Gitea and store in a ticket.",
 		Long: `fetch stores Phabricator Differential Revision data in a ticket.
 

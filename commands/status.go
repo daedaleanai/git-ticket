@@ -10,7 +10,7 @@ func newStatusCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "status [ticket id]",
+		Use:      "status [ticket_id]",
 		Short:    "Display or change a ticket status.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),

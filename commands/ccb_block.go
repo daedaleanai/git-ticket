@@ -13,7 +13,7 @@ func newCcbBlockCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "block status [ticket id]",
+		Use:      "block status [ticket_id]",
 		Short:    "Block a ticket status.",
 		PreRunE:  loadBackendEnsureUser(env),
 		PostRunE: closeBackend(env),

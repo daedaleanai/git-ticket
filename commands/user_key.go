@@ -10,7 +10,7 @@ func newUserKeyCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "key [user name/id]",
+		Use:      "key [{user_name | user_id}]",
 		Short:    "Display, add or remove keys to/from a user.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),

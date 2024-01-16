@@ -60,7 +60,7 @@ func newUserCommand() *cobra.Command {
 	options := userOptions{}
 
 	cmd := &cobra.Command{
-		Use:      "user [user name/id]",
+		Use:      "user [{user_name | user_id}]",
 		Short:    "Display or change the user identity.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),
