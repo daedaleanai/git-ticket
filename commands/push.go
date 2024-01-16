@@ -17,7 +17,7 @@ func newPushCommand() *cobra.Command {
 	options := pushOptions{}
 
 	cmd := &cobra.Command{
-		Use:      "push [<remote>]",
+		Use:      "push [remote]",
 		Short:    "Push tickets update to a git remote.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),

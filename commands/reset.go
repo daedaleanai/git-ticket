@@ -10,7 +10,7 @@ func newResetCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "reset <ticket id>",
+		Use:      "reset ticket_id",
 		Short:    "Reset a ticket state to discard local changes.",
 		Long:     "Discards all local changes to a ticket.",
 		PreRunE:  loadBackendEnsureUser(env),

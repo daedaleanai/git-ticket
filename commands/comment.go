@@ -12,7 +12,7 @@ func newCommentCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "comment [<ticket id>]",
+		Use:      "comment [ticket_id]",
 		Short:    "Display or add comments to a ticket.",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),

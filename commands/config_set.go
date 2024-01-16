@@ -18,7 +18,7 @@ func newConfigSetCommand() *cobra.Command {
 	options := configSetOptions{}
 
 	cmd := &cobra.Command{
-		Use:      "set <config name>",
+		Use:      "set config_name",
 		Short:    "Set the named configuration data.",
 		Args:     cobra.ExactArgs(1),
 		PreRunE:  loadBackend(env),

@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"fmt"
+
 	"github.com/daedaleanai/git-ticket/bug/review"
 	"github.com/spf13/cobra"
 
@@ -14,7 +15,7 @@ func newReviewFetchCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:   "fetch <revision id or pull request ref> [<ticket id>]",
+		Use:   "fetch {revision_id | pull_request_ref} [ticket_id]",
 		Short: "Get Differential Revision data from Phabricator or Gitea and store in a ticket.",
 		Long: `fetch stores Phabricator Differential Revision data in a ticket.
 

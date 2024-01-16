@@ -10,7 +10,7 @@ func newRmCommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "rm <ticket id>",
+		Use:      "rm ticket_id",
 		Short:    "Remove an existing ticket.",
 		Long:     "Remove an existing ticket in the local repository.",
 		PreRunE:  loadBackendEnsureUser(env),

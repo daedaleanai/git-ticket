@@ -15,7 +15,7 @@ func newStatusSetCommands() <-chan *cobra.Command {
 		for s := bug.FirstStatus; s <= bug.LastStatus; s++ {
 			temp := s
 			cmd := &cobra.Command{
-				Use:      s.String() + " [<ticket id>]",
+				Use:      s.String() + " [ticket_id]",
 				Short:    "Ticket is " + s.Action() + ".",
 				Args:     cobra.MaximumNArgs(1),
 				PreRunE:  loadBackendEnsureUser(env),

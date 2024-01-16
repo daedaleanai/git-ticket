@@ -42,24 +42,28 @@ func main() {
 
 func genBash(root *cobra.Command) error {
 	cwd, _ := os.Getwd()
-	dir := path.Join(cwd, "misc", "bash_completion", "git-ticket")
-	return root.GenBashCompletionFile(dir)
+	dir := path.Join(cwd, "misc", "bash_completion")
+	_ = os.Mkdir(dir, os.ModePerm)
+	return root.GenBashCompletionFile(path.Join(dir, "git-ticket"))
 }
 
 func genFish(root *cobra.Command) error {
 	cwd, _ := os.Getwd()
-	dir := path.Join(cwd, "misc", "fish_completion", "git-ticket")
-	return root.GenFishCompletionFile(dir, true)
+	dir := path.Join(cwd, "misc", "fish_completion")
+	_ = os.Mkdir(dir, os.ModePerm)
+	return root.GenFishCompletionFile(path.Join(dir, "git-ticket"), true)
 }
 
 func genPowerShell(root *cobra.Command) error {
 	cwd, _ := os.Getwd()
-	filepath := path.Join(cwd, "misc", "powershell_completion", "git-ticket")
-	return root.GenPowerShellCompletionFile(filepath)
+	dir := path.Join(cwd, "misc", "powershell_completion")
+	_ = os.Mkdir(dir, os.ModePerm)
+	return root.GenPowerShellCompletionFile(path.Join(dir, "git-ticket"))
 }
 
 func genZsh(root *cobra.Command) error {
 	cwd, _ := os.Getwd()
-	filepath := path.Join(cwd, "misc", "zsh_completion", "git-ticket")
-	return root.GenZshCompletionFile(filepath)
+	dir := path.Join(cwd, "misc", "zsh_completion")
+	_ = os.Mkdir(dir, os.ModePerm)
+	return root.GenZshCompletionFile(path.Join(dir, "git-ticket"))
 }

@@ -62,6 +62,11 @@ func genManPage() error {
 		}
 	}
 
+	err = os.Mkdir(dir, os.ModePerm)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+
 	return doc.GenManTree(commands.NewRootCommand(), header, dir)
 }
 
@@ -77,6 +82,11 @@ func genMarkdown() error {
 		if err := os.Remove(f); err != nil {
 			return err
 		}
+	}
+
+	err = os.Mkdir(dir, os.ModePerm)
+	if err != nil && !os.IsExist(err) {
+		return err
 	}
 
 	return doc.GenMarkdownTree(commands.NewRootCommand(), dir)
