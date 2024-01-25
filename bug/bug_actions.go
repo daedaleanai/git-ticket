@@ -95,7 +95,7 @@ func Pull(repo repository.ClockedRepo, remote string) error {
 			return merge.Err
 		}
 		if merge.Status == entity.MergeStatusInvalid {
-			return errors.Errorf("merge failure: %s", merge.Reason)
+			return errors.Errorf("merge failure for ticket %s: %s", merge.Id.Human(), merge.Reason)
 		}
 	}
 
