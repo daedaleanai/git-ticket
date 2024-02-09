@@ -123,3 +123,13 @@ func IsCcbMember(user identity.Interface) (bool, error) {
 	}
 	return false, nil
 }
+
+// ListCcbMembers returns a list of CCB members
+func ListCcbMembers() ([]entity.Id, error) {
+	if ccbMembers == nil {
+		if err := readCcbMembers(); err != nil {
+			return nil, err
+		}
+	}
+	return ccbMembers, nil
+}
