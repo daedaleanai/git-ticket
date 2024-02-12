@@ -18,6 +18,7 @@ CCB members, as defined in the "ccb" config, can be added as approvers to the st
 	cmd.AddCommand(newCcbApproveCommand())
 	cmd.AddCommand(newCcbBlockCommand())
 	cmd.AddCommand(newCcbRmCommand())
+	cmd.AddCommand(newCcbListCommand())
 
 	return cmd
 }
