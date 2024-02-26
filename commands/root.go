@@ -90,6 +90,7 @@ _git_bug() {
 	cmd.AddCommand(newUserCommand())
 	cmd.AddCommand(newValidateCommand())
 	cmd.AddCommand(newVersionCommand())
+	cmd.AddCommand(newChecklistCommand())
 
 	return cmd
 }

@@ -72,6 +72,16 @@ func initChecklistStore() error {
 	return nil
 }
 
+// ListChecklists returns the list of available checklists
+func ListChecklists() (map[Label]Checklist, error) {
+	if checklistStore == nil {
+		if err := initChecklistStore(); err != nil {
+			return map[Label]Checklist{}, err
+		}
+	}
+	return checklistStore, nil
+}
+
 // GetChecklist returns a Checklist template out of the store
 func GetChecklist(label Label) (Checklist, error) {
 	if checklistStore == nil {
