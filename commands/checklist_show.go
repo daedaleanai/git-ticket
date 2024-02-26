@@ -3,10 +3,10 @@ package commands
 import (
 	"fmt"
 
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
 	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/daedaleanai/git-ticket/util/colors"
 )
 
 func newChecklistShowCommand() *cobra.Command {
@@ -15,7 +15,7 @@ func newChecklistShowCommand() *cobra.Command {
 		Use:      "show <label>",
 		Short:    "Shows the contents of the given checklist.",
 		Args:     cobra.ExactArgs(1),
-		PreRunE:  loadBackendEnsureUser(env),
+		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runChecklistShow(env, args)
@@ -31,10 +31,10 @@ func runChecklistShow(env *Env, args []string) error {
 		return err
 	}
 
-	env.out.Printf("%s\n", color.CyanString(checklist.Title))
+	env.out.Printf("%s\n", colors.Cyan(checklist.Title))
 
 	for i, section := range checklist.Sections {
-		env.out.Printf(color.GreenString(fmt.Sprintf("#### %d. %s ####\n", i, section.Title)))
+		env.out.Printf(colors.Green(fmt.Sprintf("#### %d. %s ####\n", i, section.Title)))
 		for j, question := range section.Questions {
 			env.out.Printf("(%d.%d) %s\n", i, j, question.Question)
 		}
