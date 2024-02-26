@@ -3,7 +3,6 @@ package commands
 import (
 	"sort"
 
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
 	"github.com/daedaleanai/git-ticket/bug"
@@ -48,7 +47,7 @@ func runChecklistList(env *Env, args []string) error {
 	})
 
 	for _, checklist := range checklistsArray {
-		env.out.Printf("%-*s %s\n", maxLabelWidth, color.CyanString(string(checklist.Label)), checklist.Title)
+		env.out.Printf("%-*s %s\n", maxLabelWidth, colors.Cyan(string(checklist.Label)), checklist.Title)
 	}
 	return nil
 }
