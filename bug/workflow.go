@@ -20,11 +20,15 @@ type Workflow struct {
 
 var workflowStore []Workflow
 
-// FindWorkflow searches the workflow store by name and returns a pointer to it
-func FindWorkflow(name Label) *Workflow {
-	for wf := range workflowStore {
-		if workflowStore[wf].label == name {
-			return &workflowStore[wf]
+// FindWorkflow searches a list of labels and attempts to match them to a workflow, returning the first found
+func FindWorkflow(names []Label) *Workflow {
+	for _, l := range names {
+		if l.IsWorkflow() {
+			for wf := range workflowStore {
+				if workflowStore[wf].label == l {
+					return &workflowStore[wf]
+				}
+			}
 		}
 	}
 	return nil
@@ -41,14 +45,14 @@ func GetWorkflowLabels() []Label {
 
 // NextStatuses returns a slice of next possible statuses in the workflow
 // for the given one
-func (w *Workflow) NextStatuses(s Status) ([]Status, error) {
+func (w *Workflow) NextStatuses(s Status) []Status {
 	var validStatuses []Status
 	for _, t := range w.transitions {
 		if t.start == s {
 			validStatuses = append(validStatuses, t.end)
 		}
 	}
-	return validStatuses, nil
+	return validStatuses
 }
 
 // ValidateTransition checks if the transition is valid for a given start and end
@@ -67,7 +71,7 @@ func (w *Workflow) ValidateTransition(snap *Snapshot, to Status) error {
 	}
 
 	// invalid transition, return error with list of valid transitions
-	nextStatuses, _ := w.NextStatuses(snap.Status)
+	nextStatuses := w.NextStatuses(snap.Status)
 	return fmt.Errorf("invalid transition %s->%s, possible next statuses: %s", snap.Status, to, nextStatuses)
 }
 

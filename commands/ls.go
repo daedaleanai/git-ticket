@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -66,7 +67,9 @@ git ticket ls --status merged --by creation
 	flags.StringSliceVarP(&options.query.Assignee, "assignee", "A", nil,
 		"Filter by assignee")
 	flags.StringSliceVarP(&options.query.Ccb, "ccb", "c", nil,
-		"Filter by ccb")
+		"Filter by ccb members")
+	flags.StringSliceVarP(&options.query.CcbPending, "ccb-pending", "C", nil,
+		"Filter by ccb members which are pending approval")
 	flags.StringSliceVarP(&options.query.Participant, "participant", "p", nil,
 		"Filter by participant")
 	flags.StringSliceVarP(&options.query.Actor, "actor", "", nil,
@@ -114,8 +117,12 @@ func runLs(env *Env, opts lsOptions, args []string) error {
 		}
 		q = &opts.query
 	}
-	if len(q.Status) == 0 {
+	if reflect.ValueOf(q.Filters).IsZero() {
+		// If no filters are set then default to active tickets
 		q.Status = bug.ActiveStatuses()
+	} else if len(q.Status) == 0 {
+		// If filters are set but not on status then apply to all tickets
+		q.Status = bug.AllStatuses()
 	}
 
 	allIds := env.backend.QueryBugs(q)
