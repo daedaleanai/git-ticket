@@ -84,25 +84,27 @@ func CcbFilter(query string) Filter {
 	}
 }
 
-// CcbPendingFilter return a Filter that match a bug ccb which is pending approval
+// CcbPendingFilter return a Filter that matches a ticket with pending ccb approval
 func CcbPendingFilter(query string) Filter {
 	return func(excerpt *BugExcerpt, resolver resolver) bool {
 		query = strings.ToLower(query)
-		w := bug.FindWorkflow(excerpt.Labels)
-		if w == nil {
+		workflow := bug.FindWorkflow(excerpt.Labels)
+		if workflow == nil {
 			// No workflow assigned
 			return false
 		}
+		nextStatuses := workflow.NextStatuses(excerpt.Status)
+
 		// For each of the next possible statuses of the ticket check if there is a ccb assigned,
 		// who is the queried user and the associated state is not approved
-		for _, nextStatus := range w.NextStatuses(excerpt.Status) {
-			for _, id := range excerpt.Ccb {
-				identityExcerpt, err := resolver.ResolveIdentityExcerpt(id.User)
-				if err != nil {
-					panic(err)
-				}
+		for _, id := range excerpt.Ccb {
+			identityExcerpt, err := resolver.ResolveIdentityExcerpt(id.User)
+			if err != nil {
+				panic(err)
+			}
 
-				if identityExcerpt.Match(query) {
+			if identityExcerpt.Match(query) {
+				for _, nextStatus := range nextStatuses {
 					if nextStatus == id.Status && id.State != bug.ApprovedCcbState {
 						return true
 					}
