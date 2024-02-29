@@ -203,31 +203,21 @@ func (snap *Snapshot) GetChecklistCompoundStates() map[Label]ChecklistState {
 
 // NextStatuses returns a slice of next possible statuses for the assigned workflow
 func (snap *Snapshot) NextStatuses() ([]Status, error) {
-	for _, l := range snap.Labels {
-		if l.IsWorkflow() {
-			w := FindWorkflow(l)
-			if w == nil {
-				return nil, fmt.Errorf("invalid workflow %s", l)
-			}
-			return w.NextStatuses(snap.Status)
-		}
+	w := FindWorkflow(snap.Labels)
+	if w == nil {
+		return nil, fmt.Errorf("ticket has no associated workflow")
 	}
-	return nil, fmt.Errorf("ticket has no associated workflow")
+	return w.NextStatuses(snap.Status), nil
 }
 
 // ValidateTransition returns an error if the supplied state is an invalid
 // destination from the current state for the assigned workflow
 func (snap *Snapshot) ValidateTransition(newStatus Status) error {
-	for _, l := range snap.Labels {
-		if l.IsWorkflow() {
-			w := FindWorkflow(l)
-			if w == nil {
-				return fmt.Errorf("invalid workflow %s", l)
-			}
-			return w.ValidateTransition(snap, newStatus)
-		}
+	w := FindWorkflow(snap.Labels)
+	if w == nil {
+		return fmt.Errorf("ticket has no associated workflow")
 	}
-	return fmt.Errorf("ticket has no associated workflow")
+	return w.ValidateTransition(snap, newStatus)
 }
 
 // ValidateAssigneeSet returns an error if the snapshot assignee is not set

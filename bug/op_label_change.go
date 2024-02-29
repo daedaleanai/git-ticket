@@ -205,7 +205,7 @@ func ChangeLabels(b Interface, author identity.Interface, unixTime int64, add, r
 
 		// if it's a workflow, check it exists
 		if label.IsWorkflow() {
-			if newWorkflow = FindWorkflow(Label(str)); newWorkflow == nil {
+			if newWorkflow = FindWorkflow([]Label{Label(str)}); newWorkflow == nil {
 				results = append(results, LabelChangeResult{Label: label, Status: LabelChangeInvalidWorkflow})
 				continue
 			}

@@ -84,6 +84,37 @@ func CcbFilter(query string) Filter {
 	}
 }
 
+// CcbPendingFilter return a Filter that matches a ticket with pending ccb approval
+func CcbPendingFilter(query string) Filter {
+	return func(excerpt *BugExcerpt, resolver resolver) bool {
+		query = strings.ToLower(query)
+		workflow := bug.FindWorkflow(excerpt.Labels)
+		if workflow == nil {
+			// No workflow assigned
+			return false
+		}
+		nextStatuses := workflow.NextStatuses(excerpt.Status)
+
+		// For each of the next possible statuses of the ticket check if there is a ccb assigned,
+		// who is the queried user and the associated state is not approved
+		for _, id := range excerpt.Ccb {
+			identityExcerpt, err := resolver.ResolveIdentityExcerpt(id.User)
+			if err != nil {
+				panic(err)
+			}
+
+			if identityExcerpt.Match(query) {
+				for _, nextStatus := range nextStatuses {
+					if nextStatus == id.Status && id.State != bug.ApprovedCcbState {
+						return true
+					}
+				}
+			}
+		}
+		return false
+	}
+}
+
 // LabelFilter return a Filter that match a label
 func LabelFilter(label string) Filter {
 	return func(excerpt *BugExcerpt, resolver resolver) bool {
@@ -197,6 +228,7 @@ type Matcher struct {
 	Author      []Filter
 	Assignee    []Filter
 	Ccb         []Filter
+	CcbPending  []Filter
 	Actor       []Filter
 	Participant []Filter
 	Label       []Filter
@@ -221,6 +253,9 @@ func compileMatcher(filters query.Filters) *Matcher {
 	}
 	for _, value := range filters.Ccb {
 		result.Ccb = append(result.Ccb, CcbFilter(value))
+	}
+	for _, value := range filters.CcbPending {
+		result.CcbPending = append(result.CcbPending, CcbPendingFilter(value))
 	}
 	for _, value := range filters.Actor {
 		result.Actor = append(result.Actor, ActorFilter(value))
@@ -257,6 +292,10 @@ func (f *Matcher) Match(excerpt *BugExcerpt, resolver resolver) bool {
 	}
 
 	if match := f.orMatch(f.Ccb, excerpt, resolver); !match {
+		return false
+	}
+
+	if match := f.orMatch(f.CcbPending, excerpt, resolver); !match {
 		return false
 	}
 

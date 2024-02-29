@@ -30,6 +30,7 @@ type Filters struct {
 	Author       []string
 	Assignee     []string
 	Ccb          []string
+	CcbPending   []string
 	Actor        []string
 	Participant  []string
 	Label        []string

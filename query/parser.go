@@ -44,6 +44,8 @@ func Parse(query string) (*Query, error) {
 			q.Assignee = append(q.Assignee, t.value)
 		case "ccb":
 			q.Ccb = append(q.Ccb, t.value)
+		case "ccb-pending":
+			q.CcbPending = append(q.CcbPending, t.value)
 		case "actor":
 			q.Actor = append(q.Actor, t.value)
 		case "participant":

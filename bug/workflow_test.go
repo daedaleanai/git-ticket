@@ -27,15 +27,15 @@ var testWorkflow = Workflow{label: "workflow:test",
 }
 
 func TestWorkflow_FindWorkflow(t *testing.T) {
-	if wf := FindWorkflow("workflow:eng"); wf == nil || wf.label != "workflow:eng" {
+	if wf := FindWorkflow([]Label{"workflow:eng"}); wf == nil || wf.label != "workflow:eng" {
 		t.Fatal("Finding workflow:eng failed")
 	}
 
-	if wf := FindWorkflow("workflow:qa"); wf == nil || wf.label != "workflow:qa" {
+	if wf := FindWorkflow([]Label{"workflow:qa"}); wf == nil || wf.label != "workflow:qa" {
 		t.Fatal("Finding workflow:qa failed")
 	}
 
-	if FindWorkflow("workflow:XYZGASH") != nil {
+	if FindWorkflow([]Label{"workflow:XYZGASH"}) != nil {
 		t.Fatal("FindWorkflow returned reference to non-existant workflow")
 	}
 }
@@ -56,11 +56,7 @@ func TestWorkflow_NextStatuses(t *testing.T) {
 	}
 
 	for currentStatus := FirstStatus; currentStatus <= LastStatus; currentStatus++ {
-		next, err := testWorkflow.NextStatuses(currentStatus)
-		if err != nil {
-			t.Fatal("Invalid next statuses", currentStatus, ">", next, "(error", err, ")")
-		}
-		assert.Equal(t, nextStatuses[currentStatus], next)
+		assert.Equal(t, nextStatuses[currentStatus], testWorkflow.NextStatuses(currentStatus))
 	}
 }
 
