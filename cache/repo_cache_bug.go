@@ -358,29 +358,35 @@ func (c *RepoCache) ValidLabels() []bug.Label {
 
 // NewBug create a new bug
 // The new bug is written in the repository (commit)
-func (c *RepoCache) NewBug(title string, message string) (*BugCache, *bug.CreateOperation, error) {
-	return c.NewBugWithFiles(title, message, nil)
+func (c *RepoCache) NewBug(title, message, workflow string) (*BugCache, *bug.CreateOperation, error) {
+	return c.NewBugWithFiles(title, message, workflow, nil)
 }
 
 // NewBugWithFiles create a new bug with attached files for the message
 // The new bug is written in the repository (commit)
-func (c *RepoCache) NewBugWithFiles(title string, message string, files []repository.Hash) (*BugCache, *bug.CreateOperation, error) {
+func (c *RepoCache) NewBugWithFiles(title, message, workflow string, files []repository.Hash) (*BugCache, *bug.CreateOperation, error) {
 	author, err := c.GetUserIdentity()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return c.NewBugRaw(author, time.Now().Unix(), title, message, files, nil)
+	return c.NewBugRaw(author, time.Now().Unix(), title, message, workflow, files, nil)
 }
 
 // NewBugWithFilesMeta create a new bug with attached files for the message, as
 // well as metadata for the Create operation.
 // The new bug is written in the repository (commit)
-func (c *RepoCache) NewBugRaw(author *IdentityCache, unixTime int64, title string, message string, files []repository.Hash, metadata map[string]string) (*BugCache, *bug.CreateOperation, error) {
+func (c *RepoCache) NewBugRaw(author *IdentityCache, unixTime int64, title, message, workflow string, files []repository.Hash, metadata map[string]string) (*BugCache, *bug.CreateOperation, error) {
+	// validate workflow
+	if bug.FindWorkflow([]bug.Label{bug.Label(workflow)}) == nil {
+		return nil, nil, fmt.Errorf("Invalid workflow: %s", workflow)
+	}
+
 	b, op, err := bug.CreateWithFiles(author.Identity, unixTime, title, message, files)
 	if err != nil {
 		return nil, nil, err
 	}
+	b.Append(bug.NewLabelChangeOperation(author.Identity, unixTime, []bug.Label{bug.Label(workflow)}, []bug.Label{}))
 
 	for key, value := range metadata {
 		op.SetMetadata(key, value)

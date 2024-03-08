@@ -1,8 +1,10 @@
 package commands
 
 import (
+	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 
+	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/input"
 
 	_select "github.com/daedaleanai/git-ticket/commands/select"
@@ -12,6 +14,7 @@ type addOptions struct {
 	title       string
 	message     string
 	messageFile string
+	workflow    string
 	noSelect    bool
 }
 
@@ -38,6 +41,8 @@ func newAddCommand() *cobra.Command {
 		"Provide a message to describe the issue")
 	flags.StringVarP(&options.messageFile, "file", "F", "",
 		"Take the message from the given file. Use - to read the message from the standard input")
+	flags.StringVarP(&options.workflow, "workflow", "w", "",
+		"Provide a workflow to apply to this ticket")
 	flags.BoolVarP(&options.noSelect, "noselect", "n", false,
 		"Do not automatically select the new ticket once it's created")
 
@@ -65,7 +70,21 @@ func runAdd(env *Env, opts addOptions) error {
 		}
 	}
 
-	b, _, err := env.backend.NewBug(opts.title, opts.message)
+	if opts.workflow == "" {
+		workflows := bug.GetWorkflowLabels()
+		prompt := promptui.Select{
+			Label: "Select workflow",
+			Items: workflows,
+		}
+
+		selectedItem, _, err := prompt.Run()
+		if err != nil {
+			return err
+		}
+		opts.workflow = string(workflows[selectedItem])
+	}
+
+	b, _, err := env.backend.NewBug(opts.title, opts.message, opts.workflow)
 	if err != nil {
 		return err
 	}

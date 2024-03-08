@@ -199,21 +199,38 @@ func newBugWithEditor(repo *cache.RepoCache) error {
 		return err
 	}
 
-	var b *cache.BugCache
 	if err == input.ErrEmptyTitle {
 		ui.msgPopup.Activate(msgPopupErrorTitle, "Empty title, aborting.")
 		initGui(nil)
 
 		return errTerminateMainloop
 	} else {
-		b, _, err = repo.NewBug(title, message)
-		if err != nil {
-			return err
-		}
-
 		initGui(func(ui *termUI) error {
-			ui.showBug.SetBug(b)
-			return ui.activateWindow(ui.showBug)
+			workflowLabels := bug.GetWorkflowLabels()
+			workflows := make([]string, 0, len(workflowLabels))
+
+			for _, k := range workflowLabels {
+				workflows = append(workflows, string(k))
+			}
+
+			c := ui.inputPopup.ActivateWithContent("[↓↑] Select workflows", workflows)
+			go func() {
+				selectedWorkflow := <-c
+
+				b, _, err := repo.NewBug(title, message, selectedWorkflow)
+
+				ui.g.Update(func(g *gocui.Gui) error {
+					if err != nil {
+						ui.msgPopup.Activate(msgPopupErrorTitle, fmt.Sprintf("Error creating ticket: %v", err))
+						return nil
+					}
+
+					ui.showBug.SetBug(b)
+					return ui.activateWindow(ui.showBug)
+				})
+			}()
+
+			return nil
 		})
 
 		return errTerminateMainloop
