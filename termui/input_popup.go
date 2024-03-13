@@ -66,6 +66,8 @@ func (ip *inputPopup) layout(g *gocui.Gui) error {
 		v.Frame = true
 		v.Title = ip.title
 		v.Editable = true
+		v.BgColor = gocui.ColorCyan
+
 		if len(ip.preload) > 0 {
 			_, err = v.Write([]byte(ip.preload[ip.sel]))
 			if err != nil {

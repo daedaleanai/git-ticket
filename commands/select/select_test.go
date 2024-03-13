@@ -35,14 +35,14 @@ func TestSelect(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
-		_, _, err := repoCache.NewBugRaw(rene, time.Now().Unix(), "title", "message", nil, nil)
+		_, _, err := repoCache.NewBugRaw(rene, time.Now().Unix(), "title", "message", "workflow:eng", nil, nil)
 		require.NoError(t, err)
 	}
 
 	// and two more for testing
-	b1, _, err := repoCache.NewBugRaw(rene, time.Now().Unix(), "title", "message", nil, nil)
+	b1, _, err := repoCache.NewBugRaw(rene, time.Now().Unix(), "title", "message", "workflow:eng", nil, nil)
 	require.NoError(t, err)
-	b2, _, err := repoCache.NewBugRaw(rene, time.Now().Unix(), "title", "message", nil, nil)
+	b2, _, err := repoCache.NewBugRaw(rene, time.Now().Unix(), "title", "message", "workflow:eng", nil, nil)
 	require.NoError(t, err)
 
 	err = Select(repoCache, b1.Id())

@@ -43,11 +43,11 @@ func TestCache(t *testing.T) {
 	require.Len(t, cache.identities, 2)
 
 	// Create a bug
-	bug1, _, err := cache.NewBug("title", "message")
+	bug1, _, err := cache.NewBug("title", "message", "workflow:eng")
 	require.NoError(t, err)
 
 	// It's possible to create two identical bugs
-	bug2, _, err := cache.NewBug("title", "message")
+	bug2, _, err := cache.NewBug("title", "message", "workflow:eng")
 	require.NoError(t, err)
 
 	// two identical bugs yield a different id
@@ -159,7 +159,7 @@ func TestPushPull(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a bug in A
-	_, _, err = cacheA.NewBug("bug1", "message")
+	_, _, err = cacheA.NewBug("bug1", "message", "workflow:eng")
 	require.NoError(t, err)
 
 	// A --> remote --> B
@@ -179,7 +179,7 @@ func TestPushPull(t *testing.T) {
 	require.NoError(t, err)
 
 	// B --> remote --> A
-	_, _, err = cacheB.NewBug("bug2", "message")
+	_, _, err = cacheB.NewBug("bug2", "message", "workflow:eng")
 	require.NoError(t, err)
 
 	err = cacheB.Push("origin", io.Discard)
@@ -253,11 +253,11 @@ func TestRemove(t *testing.T) {
 	err = repoCache.SetUserIdentity(rene)
 	require.NoError(t, err)
 
-	_, _, err = repoCache.NewBug("title", "message")
+	_, _, err = repoCache.NewBug("title", "message", "workflow:eng")
 	require.NoError(t, err)
 
 	// and one more for testing
-	b1, _, err := repoCache.NewBug("title", "message")
+	b1, _, err := repoCache.NewBug("title", "message", "workflow:eng")
 	require.NoError(t, err)
 
 	err = repoCache.Push("remoteA", io.Discard)
@@ -298,14 +298,14 @@ func TestCacheEviction(t *testing.T) {
 	err = repoCache.SetUserIdentity(rene)
 	require.NoError(t, err)
 
-	bug1, _, err := repoCache.NewBug("title", "message")
+	bug1, _, err := repoCache.NewBug("title", "message", "workflow:eng")
 	require.NoError(t, err)
 
 	checkBugPresence(t, repoCache, bug1, true)
 	require.Equal(t, 1, repoCache.loadedBugs.Len())
 	require.Equal(t, 1, len(repoCache.bugs))
 
-	bug2, _, err := repoCache.NewBug("title", "message")
+	bug2, _, err := repoCache.NewBug("title", "message", "workflow:eng")
 	require.NoError(t, err)
 
 	checkBugPresence(t, repoCache, bug1, true)
@@ -314,7 +314,7 @@ func TestCacheEviction(t *testing.T) {
 	require.Equal(t, 2, len(repoCache.bugs))
 
 	// Number of bugs should not exceed max size of lruCache, oldest one should be evicted
-	bug3, _, err := repoCache.NewBug("title", "message")
+	bug3, _, err := repoCache.NewBug("title", "message", "workflow:eng")
 	require.NoError(t, err)
 
 	require.Equal(t, 2, repoCache.loadedBugs.Len())
