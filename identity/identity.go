@@ -48,9 +48,10 @@ func NewIdentity(name string, email string) *Identity {
 		id: entity.UnsetId,
 		versions: []*Version{
 			{
-				name:  name,
-				email: email,
-				nonce: makeNonce(20),
+				name:    name,
+				email:   email,
+				nonce:   makeNonce(20),
+				giteaID: -1,
 			},
 		},
 	}

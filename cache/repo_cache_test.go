@@ -22,7 +22,7 @@ func TestCache(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create, set and get user identity
-	iden1, err := cache.NewIdentity("René Descartes", "rene@descartes.fr", true)
+	iden1, err := cache.NewIdentity("René Descartes", "rene@descartes.fr", true, true, "")
 	require.NoError(t, err)
 	err = cache.SetUserIdentity(iden1)
 	require.NoError(t, err)
@@ -31,7 +31,7 @@ func TestCache(t *testing.T) {
 	require.Equal(t, iden1.Id(), userIden.Id())
 
 	// it's possible to create two identical identities
-	iden2, err := cache.NewIdentity("René Descartes", "rene@descartes.fr", true)
+	iden2, err := cache.NewIdentity("René Descartes", "rene@descartes.fr", true, true, "")
 	require.NoError(t, err)
 
 	// Two identical identities yield a different id
@@ -147,7 +147,7 @@ func TestPushPull(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create, set and get user identity
-	reneA, err := cacheA.NewIdentity("René Descartes", "rene@descartes.fr", true)
+	reneA, err := cacheA.NewIdentity("René Descartes", "rene@descartes.fr", true, true, "")
 	require.NoError(t, err)
 	err = cacheA.SetUserIdentity(reneA)
 	require.NoError(t, err)
@@ -247,7 +247,7 @@ func TestRemove(t *testing.T) {
 	repoCache, err := NewRepoCache(repo, false)
 	require.NoError(t, err)
 
-	rene, err := repoCache.NewIdentity("René Descartes", "rene@descartes.fr", true)
+	rene, err := repoCache.NewIdentity("René Descartes", "rene@descartes.fr", true, true, "")
 	require.NoError(t, err)
 
 	err = repoCache.SetUserIdentity(rene)
@@ -293,7 +293,7 @@ func TestCacheEviction(t *testing.T) {
 	require.Equal(t, 0, len(repoCache.bugs))
 
 	// Generating some bugs
-	rene, err := repoCache.NewIdentity("René Descartes", "rene@descartes.fr", true)
+	rene, err := repoCache.NewIdentity("René Descartes", "rene@descartes.fr", true, true, "")
 	require.NoError(t, err)
 	err = repoCache.SetUserIdentity(rene)
 	require.NoError(t, err)

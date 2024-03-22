@@ -13,6 +13,7 @@ func TestVersionSerialize(t *testing.T) {
 		email:     "email",
 		avatarURL: "avatarUrl",
 		phabID:    "phabID",
+		giteaID:   123,
 		keys: []*Key{
 			{
 				armoredPublicKey: "pubkey1",
