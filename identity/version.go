@@ -31,6 +31,7 @@ type Version struct {
 	login     string // from a bridge when importing the identity
 	avatarURL string
 	phabID    string
+	giteaID   int64
 
 	// The set of keys valid at that time, from this version onward, until they get removed
 	// in a new version. This allow to have multiple key for the same identity (e.g. one per
@@ -60,6 +61,7 @@ type VersionJSON struct {
 	Login     string            `json:"login,omitempty"`
 	AvatarUrl string            `json:"avatar_url,omitempty"`
 	PhabID    string            `json:"phab_id,omitempty"`
+	GiteaID   int64             `json:"gitea_id,omitempty"`
 	Keys      []*Key            `json:"pub_keys,omitempty"`
 	Nonce     []byte            `json:"nonce,omitempty"`
 	Metadata  map[string]string `json:"metadata,omitempty"`
@@ -92,6 +94,7 @@ func (v *Version) MarshalJSON() ([]byte, error) {
 		Login:         v.login,
 		AvatarUrl:     v.avatarURL,
 		PhabID:        v.phabID,
+		GiteaID:       v.giteaID,
 		Keys:          v.keys,
 		Nonce:         v.nonce,
 		Metadata:      v.metadata,
@@ -99,7 +102,7 @@ func (v *Version) MarshalJSON() ([]byte, error) {
 }
 
 func (v *Version) UnmarshalJSON(data []byte) error {
-	var aux VersionJSON
+	aux := VersionJSON{GiteaID: -1}
 
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
@@ -116,6 +119,7 @@ func (v *Version) UnmarshalJSON(data []byte) error {
 	v.login = aux.Login
 	v.avatarURL = aux.AvatarUrl
 	v.phabID = aux.PhabID
+	v.giteaID = aux.GiteaID
 	v.keys = aux.Keys
 	v.nonce = aux.Nonce
 	v.metadata = aux.Metadata

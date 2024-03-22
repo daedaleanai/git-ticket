@@ -68,6 +68,10 @@ func (IdentityStub) PhabID() string {
 	panic("identities needs to be properly loaded with identity.ReadLocal()")
 }
 
+func (IdentityStub) GiteaID() string {
+	panic("identities needs to be properly loaded with identity.ReadLocal()")
+}
+
 func (IdentityStub) Keys() []*Key {
 	panic("identities needs to be properly loaded with identity.ReadLocal()")
 }

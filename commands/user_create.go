@@ -12,6 +12,8 @@ import (
 type userCreateOptions struct {
 	ArmoredKeyFile string
 	skipPhabId     bool
+	skipGiteaId    bool
+	giteaUserName  string
 }
 
 func newUserCreateCommand() *cobra.Command {
@@ -34,8 +36,13 @@ func newUserCreateCommand() *cobra.Command {
 	flags.StringVar(&options.ArmoredKeyFile, "key-file", "",
 		"Take the armored PGP public key from the given file. Use - to read the message from the standard input",
 	)
-	flags.BoolVarP(&options.skipPhabId, "skipPhabId", "s", false,
+	flags.BoolVar(&options.skipPhabId, "skip-phab-id", false,
 		"Do not attempt to retrieve the users Phabricator ID (note: fetching reviews where they commented will fail if it is not set)")
+	flags.BoolVar(&options.skipGiteaId, "skip-gitea-id", false,
+		"Do not attempt to retrieve the users Gitea ID (note: fetching reviews where they commented will fail if it is not set)")
+	flags.StringVar(&options.giteaUserName, "gitea-username", "",
+		"The username of this user in the Gitea server. Must match exactly one user",
+	)
 
 	return cmd
 }
@@ -81,7 +88,18 @@ func runUserCreate(env *Env, opts userCreateOptions) error {
 		fmt.Printf("Using key from file `%s`:\n%s\n", opts.ArmoredKeyFile, armoredPubkey)
 	}
 
-	id, err := env.backend.NewIdentityWithKeyRaw(name, email, "", avatarURL, nil, key, opts.skipPhabId)
+	if opts.skipGiteaId && len(opts.giteaUserName) != 0 {
+		return fmt.Errorf("Attempted to skip obtaining the gitea user ID, but provided a gitea username")
+	}
+	if !opts.skipGiteaId && len(opts.giteaUserName) == 0 {
+		userName, err := input.Prompt("Gitea Username", "gitea username")
+		if err != nil {
+			return err
+		}
+		opts.giteaUserName = userName
+	}
+
+	id, err := env.backend.NewIdentityWithKeyRaw(name, email, "", avatarURL, nil, key, opts.skipPhabId, opts.skipGiteaId, opts.giteaUserName)
 	if err != nil {
 		return err
 	}
