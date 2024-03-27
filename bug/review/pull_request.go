@@ -30,7 +30,6 @@ type TimelineEvent interface {
 type IdentityResolver interface {
 	ResolveIdentityPhabID(phabID string) (identity.Interface, error)
 	ResolveIdentityGiteaID(giteaId int64) (identity.Interface, error)
-	ResolveIdentityFromName(name string) (identity.Interface, error)
 }
 
 // PullRequest is a generic interface for pull request or phabricator revision

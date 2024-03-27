@@ -174,18 +174,6 @@ func (c *RepoCache) ResolveIdentityGiteaID(giteaID int64) (identity.Interface, e
 	return user.Identity, nil
 }
 
-// ResolveIdentityFromName retrieve an Identity matching a full name.
-// It fails if multiple identities match.
-func (c *RepoCache) ResolveIdentityFromName(name string) (identity.Interface, error) {
-	user, err := c.ResolveIdentityMatcher(func(excerpt *IdentityExcerpt) bool {
-		return excerpt.Name == name
-	})
-	if err != nil {
-		return nil, err
-	}
-	return user.Identity, nil
-}
-
 // ResolveIdentityPrefix retrieve an Identity matching an id prefix.
 // It fails if multiple identities match.
 func (c *RepoCache) ResolveIdentityPrefix(prefix string) (*IdentityCache, error) {
