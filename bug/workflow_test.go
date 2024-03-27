@@ -35,6 +35,10 @@ func TestWorkflow_FindWorkflow(t *testing.T) {
 		t.Fatal("Finding workflow:qa failed")
 	}
 
+	if wf := FindWorkflow([]Label{"workflow:change"}); wf == nil || wf.label != "workflow:change" {
+		t.Fatal("Finding workflow:change failed")
+	}
+
 	if FindWorkflow([]Label{"workflow:XYZGASH"}) != nil {
 		t.Fatal("FindWorkflow returned reference to non-existant workflow")
 	}
