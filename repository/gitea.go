@@ -7,7 +7,7 @@ import (
 	"code.gitea.io/sdk/gitea"
 )
 
-// getGiteaConfig returns the Gitea URL and API token from the repository config
+// GetGiteaConfig returns the Gitea URL and API token from the repository config
 func GetGiteaConfig() (string, string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {

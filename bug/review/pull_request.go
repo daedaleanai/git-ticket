@@ -29,7 +29,7 @@ type TimelineEvent interface {
 // IdentityResolver is subset of cache.RepoCache interface used to avoid circular dependency cache->bug->cache
 type IdentityResolver interface {
 	ResolveIdentityPhabID(phabID string) (identity.Interface, error)
-	ResolveIdentityFromName(name string) (identity.Interface, error)
+	ResolveIdentityGiteaID(giteaId int64) (identity.Interface, error)
 }
 
 // PullRequest is a generic interface for pull request or phabricator revision

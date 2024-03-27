@@ -221,20 +221,20 @@ func (g *GiteaInfo) EnsureIdentities(resolver identity.Resolver, found map[entit
 // FetchIdentities resolves users from pull request to git-ticket identities
 func (g *GiteaInfo) FetchIdentities(resolver IdentityResolver) error {
 	for i, t := range g.Reviews {
-		user, err := resolver.ResolveIdentityFromName(t.RawReview.Reviewer.FullName)
+		user, err := resolver.ResolveIdentityGiteaID(t.RawReview.Reviewer.ID)
 
 		if err != nil {
-			return fmt.Errorf("%s: %s", err, t.RawReview.Reviewer.FullName)
+			return fmt.Errorf("%s: %s (Gitea ID: %v)", err, t.RawReview.Reviewer.FullName, t.RawReview.Reviewer.ID)
 		}
 
 		g.Reviews[i].AuthorId = user
 	}
 
 	for i, t := range g.Commits {
-		user, err := resolver.ResolveIdentityFromName(t.RawCommit.Author.FullName)
+		user, err := resolver.ResolveIdentityGiteaID(t.RawCommit.Author.ID)
 
 		if err != nil {
-			return fmt.Errorf("%s: %s", err, t.RawCommit.Author.FullName)
+			return fmt.Errorf("%s: %s (Gitea ID: %v)", err, t.RawCommit.Author.FullName, t.RawCommit.Author.ID)
 		}
 
 		g.Commits[i].AuthorId = user

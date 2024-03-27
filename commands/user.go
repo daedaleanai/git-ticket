@@ -135,6 +135,7 @@ func runUser(env *Env, opts userOptions, args []string) error {
 	env.out.Printf("Email: %s\n", id.Email())
 	env.out.Printf("Login: %s\n", id.Login())
 	env.out.Printf("PhabID: %s\n", id.PhabID())
+	env.out.Printf("GiteaID: %v\n", id.GiteaID())
 	env.out.Printf("Last modification: %s (lamport %d)\n",
 		id.LastModification().Time().Format("2006-01-02 15:04:05"),
 		id.LastModificationLamport())

@@ -8,6 +8,7 @@ import (
 	"path"
 	"strings"
 
+	"code.gitea.io/sdk/gitea"
 	"github.com/pkg/errors"
 	"github.com/thought-machine/gonduit/requests"
 
@@ -161,11 +162,11 @@ func (c *RepoCache) ResolveIdentityPhabID(phabID string) (identity.Interface, er
 	return user.Identity, nil
 }
 
-// ResolveIdentityPhabID retrieve an Identity matching a full name.
+// ResolveIdentityGiteaID retrieve an Identity matching a Gitea ID.
 // It fails if multiple identities match.
-func (c *RepoCache) ResolveIdentityFromName(name string) (identity.Interface, error) {
+func (c *RepoCache) ResolveIdentityGiteaID(giteaID int64) (identity.Interface, error) {
 	user, err := c.ResolveIdentityMatcher(func(excerpt *IdentityExcerpt) bool {
-		return excerpt.Name == name
+		return excerpt.GiteaID == giteaID
 	})
 	if err != nil {
 		return nil, err
@@ -259,21 +260,21 @@ func (c *RepoCache) NewIdentityFromGitUserRaw(metadata map[string]string) (*Iden
 
 // NewIdentity create a new identity
 // The new identity is written in the repository (commit)
-func (c *RepoCache) NewIdentity(name string, email string, skipPhabId bool) (*IdentityCache, error) {
-	return c.NewIdentityRaw(name, email, "", "", nil, skipPhabId)
+func (c *RepoCache) NewIdentity(name string, email string, skipPhabId, skipGiteaId bool, giteaUserName string) (*IdentityCache, error) {
+	return c.NewIdentityRaw(name, email, "", "", nil, skipPhabId, skipGiteaId, giteaUserName)
 }
 
 // NewIdentityFull create a new identity
 // The new identity is written in the repository (commit)
-func (c *RepoCache) NewIdentityFull(name string, email string, login string, avatarUrl string, skipPhabId bool) (*IdentityCache, error) {
-	return c.NewIdentityRaw(name, email, login, avatarUrl, nil, skipPhabId)
+func (c *RepoCache) NewIdentityFull(name string, email string, login string, avatarUrl string, skipPhabId, skipGiteaId bool, giteaUserName string) (*IdentityCache, error) {
+	return c.NewIdentityRaw(name, email, login, avatarUrl, nil, skipPhabId, skipGiteaId, giteaUserName)
 }
 
-func (c *RepoCache) NewIdentityRaw(name string, email string, login string, avatarUrl string, metadata map[string]string, skipPhabId bool) (*IdentityCache, error) {
-	return c.NewIdentityWithKeyRaw(name, email, login, avatarUrl, metadata, nil, skipPhabId)
+func (c *RepoCache) NewIdentityRaw(name string, email string, login string, avatarUrl string, metadata map[string]string, skipPhabId, skipGiteaId bool, giteaUserName string) (*IdentityCache, error) {
+	return c.NewIdentityWithKeyRaw(name, email, login, avatarUrl, metadata, nil, skipPhabId, skipGiteaId, giteaUserName)
 }
 
-func (c *RepoCache) NewIdentityWithKeyRaw(name string, email string, login string, avatarUrl string, metadata map[string]string, key *identity.Key, skipPhabId bool) (*IdentityCache, error) {
+func (c *RepoCache) NewIdentityWithKeyRaw(name string, email string, login string, avatarUrl string, metadata map[string]string, key *identity.Key, skipPhabId, skipGiteaId bool, giteaUserName string) (*IdentityCache, error) {
 
 	var phabId string
 	if skipPhabId == false {
@@ -285,12 +286,22 @@ func (c *RepoCache) NewIdentityWithKeyRaw(name string, email string, login strin
 		}
 	}
 
-	i := identity.NewIdentityFull(name, email, login, avatarUrl, phabId, key)
+	var giteaID int64 = -1
+	if skipGiteaId == false {
+		var err error
+		// attempt to populate the gitea ID
+		giteaID, err = c.getGiteaId(giteaUserName)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to retrieve users Gitea ID")
+		}
+	}
+
+	i := identity.NewIdentityFull(name, email, login, avatarUrl, phabId, giteaID, key)
 	return c.finishIdentity(i, metadata)
 }
 
 // UpdatedIdentity updates an existing identity in the repository and cache
-func (c *RepoCache) UpdateIdentity(i *IdentityCache, name string, email string, login string, avatarUrl string, skipPhabId bool) error {
+func (c *RepoCache) UpdateIdentity(i *IdentityCache, name string, email string, login string, avatarUrl string, skipPhabId, skipGiteaId bool, giteaUserName string) error {
 
 	var phabId string
 	if skipPhabId == false {
@@ -302,11 +313,22 @@ func (c *RepoCache) UpdateIdentity(i *IdentityCache, name string, email string, 
 		}
 	}
 
+	var giteaID int64 = -1
+	if skipGiteaId == false {
+		var err error
+		// attempt to populate the gitea ID
+		giteaID, err = c.getGiteaId(giteaUserName)
+		if err != nil {
+			return errors.Wrap(err, "failed to retrieve users Gitea ID")
+		}
+	}
+
 	err := i.Mutate(func(mutator identity.Mutator) identity.Mutator {
 		mutator.Name = name
 		mutator.Email = email
 		mutator.AvatarUrl = avatarUrl
 		mutator.PhabID = phabId
+		mutator.GiteaID = giteaID
 		return mutator
 	})
 
@@ -348,6 +370,32 @@ func (c *RepoCache) getPhabId(email string) (string, error) {
 	}
 
 	return response.Data[0].PHID, nil
+}
+
+func (c *RepoCache) getGiteaId(userName string) (int64, error) {
+	giteaClient, err := repository.GetGiteaClient()
+	if err != nil {
+		return -1, err
+	}
+
+	users, _, err := giteaClient.SearchUsers(gitea.SearchUsersOption{
+		KeyWord: userName,
+	})
+	if err != nil {
+		return -1, err
+	}
+
+	if len(users) == 0 {
+		return -1, fmt.Errorf("no Gitea users matching %s", userName)
+	}
+	if len(users) > 1 {
+		for _, user := range users {
+			fmt.Println("matched user", user.FullName)
+		}
+		return -1, fmt.Errorf("too many Gitea users matching %s", userName)
+	}
+
+	return users[0].ID, nil
 }
 
 func (c *RepoCache) finishIdentity(i *identity.Identity, metadata map[string]string) (*IdentityCache, error) {

@@ -31,7 +31,7 @@ func TestSelect(t *testing.T) {
 
 	// generate a bunch of bugs
 
-	rene, err := repoCache.NewIdentity("René Descartes", "rene@descartes.fr", true)
+	rene, err := repoCache.NewIdentity("René Descartes", "rene@descartes.fr", true, true, "")
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {

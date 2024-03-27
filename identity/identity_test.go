@@ -41,8 +41,9 @@ func TestIdentityCommitLoad(t *testing.T) {
 		id: entity.UnsetId,
 		versions: []*Version{
 			{
-				name:  "René Descartes",
-				email: "rene.descartes@example.com",
+				name:    "René Descartes",
+				email:   "rene.descartes@example.com",
+				giteaID: -1,
 			},
 		},
 	}
@@ -63,25 +64,28 @@ func TestIdentityCommitLoad(t *testing.T) {
 		id: entity.UnsetId,
 		versions: []*Version{
 			{
-				time:  100,
-				name:  "René Descartes",
-				email: "rene.descartes@example.com",
+				time:    100,
+				name:    "René Descartes",
+				email:   "rene.descartes@example.com",
+				giteaID: -1,
 				keys: []*Key{
 					{armoredPublicKey: repository.CreatePubkey(t)},
 				},
 			},
 			{
-				time:  200,
-				name:  "René Descartes",
-				email: "rene.descartes@example.com",
+				time:    200,
+				name:    "René Descartes",
+				email:   "rene.descartes@example.com",
+				giteaID: -1,
 				keys: []*Key{
 					{armoredPublicKey: repository.CreatePubkey(t)},
 				},
 			},
 			{
-				time:  201,
-				name:  "René Descartes",
-				email: "rene.descartes@example.com",
+				time:    201,
+				name:    "René Descartes",
+				email:   "rene.descartes@example.com",
+				giteaID: -1,
 				keys: []*Key{
 					{armoredPublicKey: repository.CreatePubkey(t)},
 				},
@@ -103,18 +107,20 @@ func TestIdentityCommitLoad(t *testing.T) {
 	// add more version
 
 	identity.addVersionForTest(&Version{
-		time:  201,
-		name:  "René Descartes",
-		email: "rene.descartes@example.com",
+		time:    201,
+		name:    "René Descartes",
+		email:   "rene.descartes@example.com",
+		giteaID: -1,
 		keys: []*Key{
 			{armoredPublicKey: repository.CreatePubkey(t)},
 		},
 	})
 
 	identity.addVersionForTest(&Version{
-		time:  300,
-		name:  "René Descartes",
-		email: "rene.descartes@example.com",
+		time:    300,
+		name:    "René Descartes",
+		email:   "rene.descartes@example.com",
+		giteaID: -1,
 		keys: []*Key{
 			{armoredPublicKey: repository.CreatePubkey(t)},
 		},
@@ -170,41 +176,46 @@ func TestIdentity_ValidKeysAtTime(t *testing.T) {
 		id: entity.UnsetId,
 		versions: []*Version{
 			{
-				time:  100,
-				name:  "René Descartes",
-				email: "rene.descartes@example.com",
+				time:    100,
+				name:    "René Descartes",
+				email:   "rene.descartes@example.com",
+				giteaID: -1,
 				keys: []*Key{
 					{armoredPublicKey: "pubkeyA"},
 				},
 			},
 			{
-				time:  200,
-				name:  "René Descartes",
-				email: "rene.descartes@example.com",
+				time:    200,
+				name:    "René Descartes",
+				email:   "rene.descartes@example.com",
+				giteaID: -1,
 				keys: []*Key{
 					{armoredPublicKey: "pubkeyB"},
 				},
 			},
 			{
-				time:  201,
-				name:  "René Descartes",
-				email: "rene.descartes@example.com",
+				time:    201,
+				name:    "René Descartes",
+				email:   "rene.descartes@example.com",
+				giteaID: -1,
 				keys: []*Key{
 					{armoredPublicKey: "pubkeyC"},
 				},
 			},
 			{
-				time:  201,
-				name:  "René Descartes",
-				email: "rene.descartes@example.com",
+				time:    201,
+				name:    "René Descartes",
+				email:   "rene.descartes@example.com",
+				giteaID: -1,
 				keys: []*Key{
 					{armoredPublicKey: "pubkeyD"},
 				},
 			},
 			{
-				time:  300,
-				name:  "René Descartes",
-				email: "rene.descartes@example.com",
+				time:    300,
+				name:    "René Descartes",
+				email:   "rene.descartes@example.com",
+				giteaID: -1,
 				keys: []*Key{
 					{armoredPublicKey: "pubkeyE"},
 				},
@@ -272,8 +283,9 @@ func TestJSON(t *testing.T) {
 		id: entity.UnsetId,
 		versions: []*Version{
 			{
-				name:  "René Descartes",
-				email: "rene.descartes@example.com",
+				name:    "René Descartes",
+				email:   "rene.descartes@example.com",
+				giteaID: -1,
 			},
 		},
 	}
