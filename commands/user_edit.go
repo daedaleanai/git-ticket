@@ -70,7 +70,7 @@ func runUserEdit(env *Env, opts userEditOptions, args []string) error {
 	}
 
 	if !opts.skipGiteaId && len(opts.giteaUserName) == 0 {
-		userName, err := input.Prompt("Gitea Username", "gitea username")
+		userName, err := input.PromptDefault("Gitea Username", "gitea username", name)
 		if err != nil {
 			return err
 		}
