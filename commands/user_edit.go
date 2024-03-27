@@ -32,9 +32,9 @@ func newUserEditCommand() *cobra.Command {
 	flags := cmd.Flags()
 	flags.SortFlags = false
 
-	flags.BoolVar(&options.skipPhabId, "skipPhabId", false,
+	flags.BoolVar(&options.skipPhabId, "skip-phab-id", false,
 		"Do not attempt to retrieve the users Phabricator ID (note: fetching reviews where they commented will fail if it is not set)")
-	flags.BoolVar(&options.skipGiteaId, "skipGiteaId", false,
+	flags.BoolVar(&options.skipGiteaId, "skip-gitea-id", false,
 		"Do not attempt to retrieve the users Gitea ID (note: fetching reviews where they commented will fail if it is not set)")
 	flags.StringVar(&options.giteaUserName, "gitea-username", "",
 		"The username of this user in the Gitea server. Must match exactly one user",
