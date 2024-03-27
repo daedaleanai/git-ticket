@@ -224,7 +224,7 @@ func (g *GiteaInfo) FetchIdentities(resolver IdentityResolver) error {
 		user, err := resolver.ResolveIdentityGiteaID(t.RawReview.Reviewer.ID)
 
 		if err != nil {
-			return fmt.Errorf("%s: %s (%v)", err, t.RawReview.Reviewer.FullName, t.RawReview.Reviewer.ID)
+			return fmt.Errorf("%s: %s (Gitea ID: %v)", err, t.RawReview.Reviewer.FullName, t.RawReview.Reviewer.ID)
 		}
 
 		g.Reviews[i].AuthorId = user
@@ -234,7 +234,7 @@ func (g *GiteaInfo) FetchIdentities(resolver IdentityResolver) error {
 		user, err := resolver.ResolveIdentityGiteaID(t.RawCommit.Author.ID)
 
 		if err != nil {
-			return fmt.Errorf("%s: %s (%v)", err, t.RawCommit.Author.FullName, t.RawCommit.Author.ID)
+			return fmt.Errorf("%s: %s (Gitea ID: %v)", err, t.RawCommit.Author.FullName, t.RawCommit.Author.ID)
 		}
 
 		g.Commits[i].AuthorId = user
