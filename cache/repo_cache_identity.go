@@ -300,8 +300,8 @@ func (c *RepoCache) NewIdentityWithKeyRaw(name string, email string, login strin
 	return c.finishIdentity(i, metadata)
 }
 
-// UpdatedIdentity updates an existing identity in the repository and cache
-func (c *RepoCache) UpdateIdentity(i *IdentityCache, name string, email string, login string, avatarUrl string, skipPhabId, skipGiteaId bool, giteaUserName string) error {
+// UpdateIdentityWithGiteaId updates an existing identity in the repository and cache using the provided giteaID
+func (c *RepoCache) UpdateIdentityWithGiteaId(i *IdentityCache, name string, email string, login string, avatarUrl string, skipPhabId bool, giteaID int64) error {
 
 	var phabId string
 	if skipPhabId == false {
@@ -310,16 +310,6 @@ func (c *RepoCache) UpdateIdentity(i *IdentityCache, name string, email string, 
 		phabId, err = c.getPhabId(email)
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve users Phabricator ID")
-		}
-	}
-
-	var giteaID int64 = -1
-	if skipGiteaId == false {
-		var err error
-		// attempt to populate the gitea ID
-		giteaID, err = c.getGiteaId(giteaUserName)
-		if err != nil {
-			return errors.Wrap(err, "failed to retrieve users Gitea ID")
 		}
 	}
 
@@ -349,6 +339,21 @@ func (c *RepoCache) UpdateIdentity(i *IdentityCache, name string, email string, 
 	return c.identityUpdated(i.Id())
 }
 
+// UpdatedIdentity updates an existing identity in the repository and cache
+func (c *RepoCache) UpdateIdentity(i *IdentityCache, name string, email string, login string, avatarUrl string, skipPhabId, skipGiteaId bool, giteaUserName string) error {
+	var giteaID int64 = -1
+	if skipGiteaId == false {
+		var err error
+		// attempt to populate the gitea ID
+		giteaID, err = c.getGiteaId(giteaUserName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return c.UpdateIdentityWithGiteaId(i, name, email, login, avatarUrl, skipGiteaId, giteaID)
+}
+
 func (c *RepoCache) getPhabId(email string) (string, error) {
 	// Assuming that the e-mail prefix is username on Phabricator
 	user := email[0:strings.Index(email, "@")]
@@ -372,6 +377,22 @@ func (c *RepoCache) getPhabId(email string) (string, error) {
 	return response.Data[0].PHID, nil
 }
 
+type GiteaIdErrorType uint
+
+const (
+	GiteaIdNotFound GiteaIdErrorType = iota
+	GiteaIdMultipleMatches
+)
+
+type GiteaIdError struct {
+	error
+	GiteaIdErrorType GiteaIdErrorType
+}
+
+func newGiteaIdError(errorType GiteaIdErrorType, err error) GiteaIdError {
+	return GiteaIdError{err, errorType}
+}
+
 func (c *RepoCache) getGiteaId(userName string) (int64, error) {
 	giteaClient, err := repository.GetGiteaClient()
 	if err != nil {
@@ -386,13 +407,13 @@ func (c *RepoCache) getGiteaId(userName string) (int64, error) {
 	}
 
 	if len(users) == 0 {
-		return -1, fmt.Errorf("no Gitea users matching %s", userName)
+		return -1, newGiteaIdError(GiteaIdNotFound, fmt.Errorf("no Gitea users matching %s", userName))
 	}
 	if len(users) > 1 {
 		for _, user := range users {
-			fmt.Println("matched user", user.FullName)
+			fmt.Println("matched user", user.FullName, "id", user.ID)
 		}
-		return -1, fmt.Errorf("too many Gitea users matching %s", userName)
+		return -1, newGiteaIdError(GiteaIdMultipleMatches, fmt.Errorf("too many Gitea users matching %s", userName))
 	}
 
 	return users[0].ID, nil

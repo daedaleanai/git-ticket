@@ -74,6 +74,7 @@ func newUserCommand() *cobra.Command {
 	cmd.AddCommand(newUserEditCommand())
 	cmd.AddCommand(newUserKeyCommand())
 	cmd.AddCommand(newUserLsCommand())
+	cmd.AddCommand(newUserFixupCommand())
 
 	flags := cmd.Flags()
 	flags.SortFlags = false
