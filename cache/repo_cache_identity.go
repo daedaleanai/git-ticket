@@ -339,7 +339,7 @@ func (c *RepoCache) UpdateIdentityWithGiteaId(i *IdentityCache, name string, ema
 	return c.identityUpdated(i.Id())
 }
 
-// UpdatedIdentity updates an existing identity in the repository and cache
+// UpdateIdentity updates an existing identity in the repository and cache
 func (c *RepoCache) UpdateIdentity(i *IdentityCache, name string, email string, login string, avatarUrl string, skipPhabId, skipGiteaId bool, giteaUserName string) error {
 	var giteaID int64 = -1
 	if skipGiteaId == false {

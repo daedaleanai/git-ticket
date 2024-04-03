@@ -17,10 +17,11 @@ func newUserFixupCommand() *cobra.Command {
 		Short:    "Walks through all users and attempts to fetch their gitea identities",
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),
-		Args:     cobra.MaximumNArgs(1),
+		Args:     cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runUserFixup(env, args)
 		},
+		Hidden: true,
 	}
 
 	return cmd
@@ -37,10 +38,10 @@ func fixupIdentity(backend *cache.RepoCache, id *cache.IdentityCache) error {
 		return nil
 	}
 
-	// Attempt to update the identity using the name user name, without prompting the user.
+	// Attempt to update the identity using the user name, without prompting the user.
 	// This will often be sufficient.
 	fmt.Println("Updating identity ", id.Name())
-	err := backend.UpdateIdentity(id, id.Name(), id.Email(), "", id.AvatarUrl(), false, false, id.Name())
+	err := backend.UpdateIdentity(id, id.Name(), id.Email(), "", id.AvatarUrl(), true, false, id.Name())
 	if err == nil || !isGiteaIdError(err) {
 		return err
 	}
@@ -52,7 +53,7 @@ func fixupIdentity(backend *cache.RepoCache, id *cache.IdentityCache) error {
 		return err
 	}
 
-	err = backend.UpdateIdentity(id, id.Name(), id.Email(), "", id.AvatarUrl(), false, false, userName)
+	err = backend.UpdateIdentity(id, id.Name(), id.Email(), "", id.AvatarUrl(), true, false, userName)
 	if err == nil || !isGiteaIdError(err) {
 		return err
 	}
@@ -68,7 +69,7 @@ func fixupIdentity(backend *cache.RepoCache, id *cache.IdentityCache) error {
 		return fmt.Errorf("The Gitea user ID must be a signed integral number")
 	}
 
-	err = backend.UpdateIdentityWithGiteaId(id, id.Name(), id.Email(), "", id.AvatarUrl(), false, giteaId)
+	err = backend.UpdateIdentityWithGiteaId(id, id.Name(), id.Email(), "", id.AvatarUrl(), true, giteaId)
 	if err != nil {
 		return fmt.Errorf("Error updating identity %s: %v", id.Name(), err)
 	}
