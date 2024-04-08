@@ -44,7 +44,8 @@ func runCcbBlock(env *Env, args []string) error {
 
 	// Perform some checks before blocking the status of the ticket:
 	//   is the current user an approver of the ticket status?
-	//   has the current user already blocked the ticket?
+	//   has the current user already blocked the ticket status?
+	//   is the ticket in a status that can transition to the given ticket status?
 
 	currentUserIdentity, err := env.backend.GetUserIdentity()
 	if err != nil {
@@ -59,6 +60,26 @@ func runCcbBlock(env *Env, args []string) error {
 	if currentUserState == bug.BlockedCcbState {
 		fmt.Printf("you have already blocked this ticket status %s\n", status)
 		return nil
+	}
+
+	nextStatusMatchesRequestedBlock := func(currentStatus, nextStatus bug.Status, workflow *bug.Workflow) bool {
+		for _, status := range workflow.NextStatuses(currentStatus) {
+			if status == nextStatus {
+				return true
+			}
+		}
+		return false
+	}
+
+	workflow := bug.FindWorkflow(b.Snapshot().Labels)
+	if workflow == nil {
+		return fmt.Errorf("Could not find associated workflow for ticket %v", b.Id())
+	}
+
+	if !nextStatusMatchesRequestedBlock(b.Snapshot().Status, status, workflow) {
+		// Prevent accidental block of states, when the ticket is not in a state that transitions to the
+		// requested state
+		return fmt.Errorf("Requested CCB block for ticket status %s, but ticket is in status %s, which cannot directly transition to %s", status, b.Snapshot().Status, status)
 	}
 
 	// Everything looks ok, block
