@@ -217,6 +217,14 @@ func ChangeLabels(b Interface, author identity.Interface, unixTime int64, add, r
 			}
 		}
 
+		// if it's a checklist, check it exists
+		if label.IsChecklist() {
+			if _, err := GetChecklist(Label(str)); err != nil {
+				results = append(results, LabelChangeResult{Label: label, Status: LabelChangeInvalidChecklist})
+				continue
+			}
+		}
+
 		added = append(added, label)
 		results = append(results, LabelChangeResult{Label: label, Status: LabelChangeAdded})
 	}
@@ -317,6 +325,7 @@ const (
 	LabelChangeAlreadySet
 	LabelChangeDoesntExist
 	LabelChangeInvalidWorkflow
+	LabelChangeInvalidChecklist
 )
 
 type LabelChangeResult struct {
@@ -338,6 +347,8 @@ func (l LabelChangeResult) String() string {
 		return fmt.Sprintf("label %s doesn't exist on this bug", l.Label)
 	case LabelChangeInvalidWorkflow:
 		return fmt.Sprintf("invalid workflow operation %s", l.Label)
+	case LabelChangeInvalidChecklist:
+		return fmt.Sprintf("invalid checklist operation %s", l.Label)
 	default:
 		panic(fmt.Sprintf("unknown label change status %v", l.Status))
 	}
