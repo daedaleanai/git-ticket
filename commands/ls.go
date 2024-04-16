@@ -65,9 +65,9 @@ git ticket ls --status merged --by creation
 	flags.StringSliceVarP(&options.query.Author, "author", "a", nil,
 		"Filter by author")
 	flags.StringSliceVarP(&options.query.Assignee, "assignee", "A", nil,
-		"Filter by assignee")
+		"Filter by assignee, or specify UNASSIGNED")
 	flags.StringSliceVarP(&options.query.Ccb, "ccb", "c", nil,
-		"Filter by ccb members assigned to the ticket")
+		"Filter by ccb members assigned to the ticket, or specify UNASSIGNED")
 	flags.StringSliceVarP(&options.query.CcbPending, "ccb-pending", "C", nil,
 		"Filter by ccb members assigned to the ticket, which are pending approval")
 	flags.StringSliceVarP(&options.query.Participant, "participant", "p", nil,
