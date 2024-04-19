@@ -2,6 +2,7 @@ package termui
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/awesome-gocui/gocui"
 )
@@ -15,84 +16,87 @@ var querySelectHelp = helpBar{
 }
 
 type querySelect struct {
-	searches    []Search
-	selected    int
-	scroll      int
-	childViews  []string
-	cnt         int
+	searchKeys sort.StringSlice
+	searches   map[string]string
+	selected   int
+	scroll     int
+	childViews []string
 }
 
 func newQuerySelect() *querySelect {
 	return &querySelect{}
 }
 
-func (ls *querySelect) SetSearches(configuration *Configuration) {
-	ls.searches = configuration.Searches
-	ls.selected = 0 
-	ls.scroll = 0
-	ls.cnt = ls.cnt + 1
+func (qs *querySelect) SetSearches(searches map[string]string) {
+	qs.searches = searches
+	qs.searchKeys = nil
+	for key := range searches {
+		qs.searchKeys = append(qs.searchKeys, key)
+	}
+	sort.Sort(qs.searchKeys)
+	qs.selected = 0
+	qs.scroll = 0
 }
 
-func (ls *querySelect) keybindings(g *gocui.Gui) error {
+func (qs *querySelect) keybindings(g *gocui.Gui) error {
 	// Abort
-	if err := g.SetKeybinding(querySelectView, gocui.KeyEsc, gocui.ModNone, ls.abort); err != nil {
+	if err := g.SetKeybinding(querySelectView, gocui.KeyEsc, gocui.ModNone, qs.abort); err != nil {
 		return err
 	}
-	// Save and return
-	if err := g.SetKeybinding(querySelectView, 'q', gocui.ModNone, ls.abort); err != nil {
+	if err := g.SetKeybinding(querySelectView, 'q', gocui.ModNone, qs.abort); err != nil {
 		return err
 	}
 	// Up
-	if err := g.SetKeybinding(querySelectView, gocui.KeyArrowUp, gocui.ModNone, ls.selectPrevious); err != nil {
+	if err := g.SetKeybinding(querySelectView, gocui.KeyArrowUp, gocui.ModNone, qs.selectPrevious); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding(querySelectView, 'k', gocui.ModNone, ls.selectPrevious); err != nil {
+	if err := g.SetKeybinding(querySelectView, 'k', gocui.ModNone, qs.selectPrevious); err != nil {
 		return err
 	}
 	// Down
-	if err := g.SetKeybinding(querySelectView, gocui.KeyArrowDown, gocui.ModNone, ls.selectNext); err != nil {
+	if err := g.SetKeybinding(querySelectView, gocui.KeyArrowDown, gocui.ModNone, qs.selectNext); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding(querySelectView, 'j', gocui.ModNone, ls.selectNext); err != nil {
+	if err := g.SetKeybinding(querySelectView, 'j', gocui.ModNone, qs.selectNext); err != nil {
 		return err
 	}
 	// Select
-	if err := g.SetKeybinding(querySelectView, gocui.KeySpace, gocui.ModNone, ls.selectAndReturn); err != nil {
+	if err := g.SetKeybinding(querySelectView, gocui.KeySpace, gocui.ModNone, qs.selectAndReturn); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding(querySelectView, 'x', gocui.ModNone, ls.selectAndReturn); err != nil {
+	if err := g.SetKeybinding(querySelectView, 'x', gocui.ModNone, qs.selectAndReturn); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding(querySelectView, gocui.KeyEnter, gocui.ModNone, ls.selectAndReturn); err != nil {
+	if err := g.SetKeybinding(querySelectView, gocui.KeyEnter, gocui.ModNone, qs.selectAndReturn); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (ls *querySelect) layout(g *gocui.Gui) error {
+func (qs *querySelect) layout(g *gocui.Gui) error {
 	// Clean up child views to support scrolling
-	for _, view := range ls.childViews {
+	for _, view := range qs.childViews {
 		if err := g.DeleteView(view); err != nil && !gocui.IsUnknownView(err) {
 			return err
 		}
 	}
-	ls.childViews = nil
+	qs.childViews = nil
 
 	maxX, maxY := g.Size()
-	width := minInt(10, maxX) 
-	lines := len(ls.searches)
-	for _, search := range ls.searches {
-		width = maxInt(width, len(search.Name) + 3 + len(search.Search))
+	width := minInt(30, maxX)
+	lines := len(qs.searchKeys)
+	for _, search := range qs.searchKeys {
+		width = maxInt(width, len(search))
 	}
-	width = minInt(width + 10, maxX - 4)
-	height := minInt(2*lines+2, maxY-3)
-	x0 := (maxX - width) / 2 
+	width = minInt(width+10, maxX-4)
+	height := minInt(2*lines+4, maxY-3)
+	x0 := (maxX - width) / 2
 	y0 := (maxY - height) / 2
 	maxY = y0 + height
 
 	if (width <= 3) || (height < 4) {
 		// Handle case where the viewport is too small to show a full frame
-		return nil 
+		return nil
 	}
 
 	v, err := g.SetView(querySelectView, x0, y0, x0+width, y0+height, 0)
@@ -106,9 +110,9 @@ func (ls *querySelect) layout(g *gocui.Gui) error {
 
 	v.Title = "Quick Search"
 
-	y0 += 1
-	for i, search := range ls.searches {
-		if i < ls.scroll {
+	y0 += 3
+	for i, search := range qs.searchKeys {
+		if i < qs.scroll {
 			continue
 		}
 		viewname := fmt.Sprintf("queryedit%d", i)
@@ -116,31 +120,32 @@ func (ls *querySelect) layout(g *gocui.Gui) error {
 		if err != nil && !gocui.IsUnknownView(err) {
 			return err
 		}
-		ls.childViews = append(ls.childViews, viewname)
-		v.Frame = i == ls.selected
+		qs.childViews = append(qs.childViews, viewname)
+		v.Frame = i == qs.selected
 		v.Clear()
 
-		text := fmt.Sprintf("%s : %s", search.Name, search.Search)
+		text := fmt.Sprintf("%s", search)
 		if len(text) >= width-8 {
 			text = text[0:width-8] + "..."
 		}
 
-		_, _ = fmt.Fprint(v, text) 
+		_, _ = fmt.Fprint(v, text)
 
 		y0 += 2
 		if y0 >= maxY {
-			//break
+			break
 		}
 	}
 
+	_, _ = fmt.Fprint(v, querySelectHelp.Render(maxX))
 	if _, err := g.SetCurrentView(querySelectView); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (ls *querySelect) disable(g *gocui.Gui) error {
-	for _, view := range ls.childViews {
+func (qs *querySelect) disable(g *gocui.Gui) error {
+	for _, view := range qs.childViews {
 		if err := g.DeleteView(view); err != nil && !gocui.IsUnknownView(err) {
 			return err
 		}
@@ -148,41 +153,33 @@ func (ls *querySelect) disable(g *gocui.Gui) error {
 	return nil
 }
 
-func (ls *querySelect) focusView(g *gocui.Gui) error {
-	if ls.selected < 0 {
+func (qs *querySelect) selectPrevious(g *gocui.Gui, v *gocui.View) error {
+	if qs.selected < 0 {
 		return nil
 	}
 
-	ls.scroll = maxInt(0, ls.selected - len(ls.childViews) + 1)
-
+	qs.selected = maxInt(0, qs.selected-1)
+	qs.scroll = maxInt(0, qs.selected-len(qs.childViews)+1)
 	return nil
 }
 
-func (ls *querySelect) selectPrevious(g *gocui.Gui, v *gocui.View) error {
-	if ls.selected < 0 {
+func (qs *querySelect) selectNext(g *gocui.Gui, v *gocui.View) error {
+	if qs.selected < 0 {
 		return nil
 	}
 
-	ls.selected = maxInt(0, ls.selected-1)
-	return ls.focusView(g)
+	qs.selected = minInt(len(qs.searchKeys)-1, qs.selected+1)
+	qs.scroll = maxInt(0, qs.selected-len(qs.childViews)+1)
+	return nil
 }
 
-func (ls *querySelect) selectNext(g *gocui.Gui, v *gocui.View) error {
-	if ls.selected < 0 {
-		return nil
-	}
-
-	ls.selected = minInt(len(ls.searches)-1, ls.selected+1)
-	return ls.focusView(g)
-}
-
-func (ls *querySelect) abort(g *gocui.Gui, v *gocui.View) error {
+func (qs *querySelect) abort(g *gocui.Gui, v *gocui.View) error {
 	return ui.activateWindow(ui.bugTable)
 }
 
-func (ls *querySelect) selectAndReturn(g *gocui.Gui, v *gocui.View) error {
-	if ((ls.selected >= 0) && (ls.selected < len(ls.searches))) { 
-		queryStr := ls.searches[ls.selected].Search
+func (qs *querySelect) selectAndReturn(g *gocui.Gui, v *gocui.View) error {
+	if (qs.selected >= 0) && (qs.selected < len(qs.searchKeys)) {
+		queryStr := qs.searches[qs.searchKeys[qs.selected]]
 		updateQuery(ui.bugTable, queryStr)
 	}
 	return ui.activateWindow(ui.bugTable)

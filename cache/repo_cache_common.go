@@ -1,8 +1,10 @@
 package cache
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/daedaleanai/git-ticket/config"
@@ -366,4 +368,51 @@ func (c *RepoCache) GetConfig(name string) ([]byte, error) {
 	defer c.muConfig.RUnlock()
 
 	return config.GetConfig(c.repo, name)
+}
+
+func (c *RepoCache) GetSearches() (map[string]string, error) {
+	const gitConfigSearchPrefix = "git-ticket.search."
+	var searchMap map[string]string
+
+	// first retrieve the search terms from the "searches" saved config
+	searchData, err := config.GetConfig(c.repo, "searches")
+	if err != nil {
+		return searchMap, fmt.Errorf("unable to read searches config: %q", err)
+	}
+
+	// Parse the CCB member list from the configuration. Configurations must be of the form "map[string]interface{}" so
+	// is stored as {"ccbMembers" : ["<user id1>", "<user id2>", "..."]}.
+	err = json.Unmarshal(searchData, &searchMap)
+	if err != nil {
+		return searchMap, fmt.Errorf("unable to load searches: %q", err)
+	}
+
+	// next retrieve searches from the users global git config, potenitally overwriting the config ones
+	configs, err := c.repo.GlobalConfig().ReadAll(gitConfigSearchPrefix)
+	if err != nil {
+		return searchMap, err
+	}
+	for key, value := range configs {
+		query, _ := strings.CutPrefix(key, gitConfigSearchPrefix)
+		searchMap[query] = value
+	}
+
+	// finally retrieve searches from the users local git config
+	configs, err = c.repo.LocalConfig().ReadAll(gitConfigSearchPrefix)
+	if err != nil {
+		return searchMap, err
+	}
+	for key, value := range configs {
+		query, _ := strings.CutPrefix(key, gitConfigSearchPrefix)
+		searchMap[query] = value
+	}
+
+	// check that non of the search queries contain spaces
+	for key := range searchMap {
+		if strings.ContainsRune(key, ' ') {
+			return searchMap, fmt.Errorf("search query \"%s\" contains a space", key)
+		}
+	}
+
+	return searchMap, nil
 }

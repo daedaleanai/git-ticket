@@ -3,11 +3,7 @@ package termui
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"strings"
-	"encoding/json"
-	"path/filepath"
 
 	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/awesome-gocui/gocui"
@@ -38,48 +34,23 @@ var bugTableHelp = helpBar{
 	{"o", "Push"},
 }
 
-type Search struct {
-	Name   string `json:"name"`
-	Search string `json:"search"`
-}
-
-type Configuration struct {
-	Searches []Search `json:"searches"`
-}
-
-func newConfiguration(filename string) *Configuration {
-	config := Configuration{}
-	jsonFile, err := os.Open(filename)
-	if err == nil {
-		// Handle case where a configuration file is found
-		defer jsonFile.Close()
-
-		byteValue, _ := ioutil.ReadAll(jsonFile)
-
-		json.Unmarshal([]byte(byteValue), &config)
-	}
-
-	return &config
-}
-
 type bugTable struct {
-	repo          *cache.RepoCache
-	queryStr      string
-	query         *query.Query
-	allIds        []entity.Id
-	excerpts      []*cache.BugExcerpt
-	pageCursor    int
-	selectCursor  int
-	configuration *Configuration
+	repo         *cache.RepoCache
+	queryStr     string
+	query        *query.Query
+	allIds       []entity.Id
+	excerpts     []*cache.BugExcerpt
+	pageCursor   int
+	selectCursor int
+	searches     map[string]string
 }
 
 func newBugTable(c *cache.RepoCache) *bugTable {
-	dirname, err := os.UserHomeDir()
-    if err != nil {
-        panic(err)
-    }
 
-	cfg := newConfiguration(filepath.Join(dirname, ".git-ticket"))
+	searches, err := c.GetSearches()
+	if err != nil {
+		panic(err)
+	}
 
 	q, err := query.Parse(defaultQuery)
 	if err != nil {
@@ -87,12 +58,12 @@ func newBugTable(c *cache.RepoCache) *bugTable {
 	}
 
 	return &bugTable{
-		repo:          c,
-		query:         q,
-		queryStr:      defaultQuery,
-		pageCursor:    0,
-		selectCursor:  0,
-		configuration: cfg,
+		repo:         c,
+		query:        q,
+		queryStr:     defaultQuery,
+		pageCursor:   0,
+		selectCursor: 0,
+		searches:     searches,
 	}
 }
 
@@ -593,10 +564,12 @@ func (bt *bugTable) changeQuery(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (bt *bugTable) querySelect(g *gocui.Gui, v *gocui.View) error {
-	g.Update(func(gui *gocui.Gui) error {
-		ui.querySelect.SetSearches(bt.configuration)
-		return nil
-	})
-	return ui.activateWindow(ui.querySelect)
+	if len(bt.searches) > 0 {
+		g.Update(func(gui *gocui.Gui) error {
+			ui.querySelect.SetSearches(bt.searches)
+			return nil
+		})
+		return ui.activateWindow(ui.querySelect)
+	}
+	return nil
 }
-

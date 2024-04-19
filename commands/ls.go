@@ -23,6 +23,7 @@ import (
 type lsOptions struct {
 	query query.Query
 
+	search            string
 	statusQuery       []string
 	createBeforeQuery string
 	createAfterQuery  string
@@ -60,6 +61,8 @@ git ticket ls --status merged --by creation
 	flags := cmd.Flags()
 	flags.SortFlags = false
 
+	flags.StringVarP(&options.search, "quick-search", "S", "",
+		"Filter and sort using a predefined search query")
 	flags.StringSliceVarP(&options.statusQuery, "status", "s", nil,
 		"Filter by status. Valid values are [proposed,vetted,inprogress,inreview,reviewed,accepted,merged,done,rejected,ALL]")
 	flags.StringSliceVarP(&options.query.Author, "author", "a", nil,
@@ -102,7 +105,22 @@ func runLs(env *Env, opts lsOptions, args []string) error {
 	var q *query.Query
 	var err error
 
-	if len(args) >= 1 {
+	if opts.search != "" {
+		searches, err := env.backend.GetSearches()
+		if err != nil {
+			return err
+		}
+		searchQuery, ok := searches[opts.search]
+		if !ok {
+			return fmt.Errorf("search query \"%s\" does not exist", opts.search)
+		}
+
+		q, err = query.Parse(searchQuery)
+
+		if err != nil {
+			return err
+		}
+	} else if len(args) >= 1 {
 		// construct filter from query language
 		q, err = query.Parse(strings.Join(args, " "))
 

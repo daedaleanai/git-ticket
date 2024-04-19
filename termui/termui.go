@@ -400,13 +400,13 @@ func editQueryWithEditor(bt *bugTable) error {
 		return err
 	}
 
-	_ = updateQuery(bt, queryStr)
+	updateQuery(bt, queryStr)
 	initGui(nil)
 
 	return errTerminateMainloop
 }
 
-func updateQuery(bt *bugTable, queryStr string) error {
+func updateQuery(bt *bugTable, queryStr string) {
 	bt.queryStr = queryStr
 
 	q, err := query.Parse(queryStr)
@@ -416,8 +416,6 @@ func updateQuery(bt *bugTable, queryStr string) error {
 	} else {
 		bt.query = q
 	}
-
-	return nil
 }
 
 func maxInt(a, b int) int {
