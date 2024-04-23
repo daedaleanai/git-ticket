@@ -874,7 +874,6 @@ func ClearAllCcbApprovals(bug Interface, snapshot *Snapshot, next Status, author
 	for _, ccb := range snapshot.Ccb {
 		if ccb.State == ApprovedCcbState || ccb.State == BlockedCcbState {
 			// Transition to AddedCcbState
-			fmt.Println("Clearing ccb approval for", ccb.User, "status", ccb.Status)
 			_, err := ClearCcbApprovals(bug, author, unixTime, ccb.User, ccb.Status)
 			if err != nil {
 				return err

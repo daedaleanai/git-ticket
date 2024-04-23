@@ -197,12 +197,5 @@ func ClearCcbApprovals(b Interface, author identity.Interface, unixTime int64, u
 	}
 
 	b.Append(op)
-
-	op = NewSetCcbOp(author, unixTime, user, status, AddedCcbState)
-	if err := op.Validate(); err != nil {
-		return nil, err
-	}
-
-	b.Append(op)
 	return op, nil
 }
