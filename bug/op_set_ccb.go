@@ -188,3 +188,21 @@ func SetCcb(b Interface, author identity.Interface, unixTime int64, user identit
 	b.Append(op)
 	return op, nil
 }
+
+// Clear CCB approvals of the given user and status
+func ClearCcbApprovals(b Interface, author identity.Interface, unixTime int64, user identity.Interface, status Status) (*SetCcbOperation, error) {
+	op := NewSetCcbOp(author, unixTime, user, status, RemovedCcbState)
+	if err := op.Validate(); err != nil {
+		return nil, err
+	}
+
+	b.Append(op)
+
+	op = NewSetCcbOp(author, unixTime, user, status, AddedCcbState)
+	if err := op.Validate(); err != nil {
+		return nil, err
+	}
+
+	b.Append(op)
+	return op, nil
+}

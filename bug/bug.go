@@ -868,3 +868,19 @@ func (bug *Bug) Compile() Snapshot {
 
 	return snap
 }
+
+// Clears all CCB approvals, keeping the users that need to approve the ticket statuses, but removing their approval
+func ClearAllCcbApprovals(bug Interface, snapshot *Snapshot, next Status, author identity.Interface, unixTime int64) error {
+	for _, ccb := range snapshot.Ccb {
+		if ccb.State == ApprovedCcbState || ccb.State == BlockedCcbState {
+			// Transition to AddedCcbState
+			fmt.Println("Clearing ccb approval for", ccb.User, "status", ccb.Status)
+			_, err := ClearCcbApprovals(bug, author, unixTime, ccb.User, ccb.Status)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
