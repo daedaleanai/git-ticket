@@ -251,13 +251,13 @@ func ChangeLabels(b Interface, author identity.Interface, unixTime int64, add, r
 		}
 
 		// unless the action is performed by a CCB member, do not allow to remove checklists from a
-		// ticket that has already been vetted (and is not rejected)
+		// ticket that has already been vetted
 		isCcbMember, err := IsCcbMember(author)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		if label.IsChecklist() && !isCcbMember && (snap.Status != ProposedStatus) && (snap.Status != RejectedStatus) {
+		if label.IsChecklist() && !isCcbMember && (snap.Status != ProposedStatus) {
 			results = append(results, LabelChangeResult{Label: label, Status: LabelChangeUnauthorizedChecklistChange})
 			continue
 		}
