@@ -250,6 +250,18 @@ func ChangeLabels(b Interface, author identity.Interface, unixTime int64, add, r
 			continue
 		}
 
+		// unless the action is performed by a CCB member, do not allow to remove checklists from a
+		// ticket that has already been vetted
+		isCcbMember, err := IsCcbMember(author)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if label.IsChecklist() && !isCcbMember && (snap.Status != ProposedStatus) {
+			results = append(results, LabelChangeResult{Label: label, Status: LabelChangeUnauthorizedChecklistChange})
+			continue
+		}
+
 		removed = append(removed, label)
 		results = append(results, LabelChangeResult{Label: label, Status: LabelChangeRemoved})
 	}
@@ -326,6 +338,7 @@ const (
 	LabelChangeDoesntExist
 	LabelChangeInvalidWorkflow
 	LabelChangeInvalidChecklist
+	LabelChangeUnauthorizedChecklistChange
 )
 
 type LabelChangeResult struct {
@@ -349,6 +362,8 @@ func (l LabelChangeResult) String() string {
 		return fmt.Sprintf("invalid workflow operation %s", l.Label)
 	case LabelChangeInvalidChecklist:
 		return fmt.Sprintf("invalid checklist operation %s", l.Label)
+	case LabelChangeUnauthorizedChecklistChange:
+		return fmt.Sprintf("unauthorized checklist removal operation: %s", l.Label)
 	default:
 		panic(fmt.Sprintf("unknown label change status %v", l.Status))
 	}
