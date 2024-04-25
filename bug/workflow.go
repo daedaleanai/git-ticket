@@ -2,14 +2,21 @@ package bug
 
 import (
 	"fmt"
+
+	"github.com/daedaleanai/git-ticket/identity"
 )
 
+// Invoked to validate if a workflow transition can be taken. Returns an error if the transition is invalid.
 type ValidationFunc func(snap *Snapshot, next Status) error
 
+// Invoked to update a ticket as a consequence of a workflow status transition.
+type ActionFunc func(b Interface, snapshot *Snapshot, next Status, author identity.Interface, unixTime int64) error
+
 type Transition struct {
-	start Status
-	end   Status
-	hook  []ValidationFunc
+	start          Status
+	end            Status
+	validationHook []ValidationFunc
+	actionHook     []ActionFunc
 }
 
 type Workflow struct {
@@ -59,8 +66,8 @@ func (w *Workflow) NextStatuses(s Status) []Status {
 func (w *Workflow) ValidateTransition(snap *Snapshot, to Status) error {
 	for _, t := range w.transitions {
 		if t.start == snap.Status && t.end == to {
-			if t.hook != nil {
-				for _, v := range t.hook {
+			if t.validationHook != nil {
+				for _, v := range t.validationHook {
 					if err := v(snap, to); err != nil {
 						return err
 					}
@@ -75,6 +82,24 @@ func (w *Workflow) ValidateTransition(snap *Snapshot, to Status) error {
 	return fmt.Errorf("invalid transition %s->%s, possible next statuses: %s", snap.Status, to, nextStatuses)
 }
 
+// ApplyTransitionActions invokes the actionHooks of the transition that was taken
+func (w *Workflow) ApplyTransitionActions(b Interface, snap *Snapshot, to Status, author identity.Interface, unixTime int64) error {
+	for _, t := range w.transitions {
+		if t.start == snap.Status && t.end == to {
+			if t.actionHook != nil {
+				for _, a := range t.actionHook {
+					if err := a(b, snap, to, author, unixTime); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		}
+	}
+
+	return nil
+}
+
 func init() {
 	// Initialise list of workflows
 	workflowStore = []Workflow{
@@ -82,29 +107,30 @@ func init() {
 			initialState: ProposedStatus,
 			transitions: []Transition{
 				{start: ProposedStatus, end: VettedStatus,
-					hook: []ValidationFunc{ValidateCcb}},
-				{start: ProposedStatus, end: RejectedStatus},
+					validationHook: []ValidationFunc{ValidateCcb}},
+				{start: ProposedStatus, end: RejectedStatus, actionHook: []ActionFunc{
+					ClearAllCcbApprovals}},
 				{start: VettedStatus, end: InProgressStatus,
-					hook: []ValidationFunc{ValidateAssigneeSet}},
+					validationHook: []ValidationFunc{ValidateAssigneeSet}},
 				{start: VettedStatus, end: RejectedStatus,
-					hook: []ValidationFunc{ValidateCcb}},
+					validationHook: []ValidationFunc{ValidateCcb}, actionHook: []ActionFunc{ClearAllCcbApprovals}},
 				{start: InProgressStatus, end: VettedStatus},
 				{start: InProgressStatus, end: InReviewStatus},
 				{start: InProgressStatus, end: RejectedStatus,
-					hook: []ValidationFunc{ValidateCcb}},
+					validationHook: []ValidationFunc{ValidateCcb}, actionHook: []ActionFunc{ClearAllCcbApprovals}},
 				{start: InReviewStatus, end: InProgressStatus},
 				{start: InReviewStatus, end: ReviewedStatus},
 				{start: InReviewStatus, end: RejectedStatus,
-					hook: []ValidationFunc{ValidateCcb}},
+					validationHook: []ValidationFunc{ValidateCcb}, actionHook: []ActionFunc{ClearAllCcbApprovals}},
 				{start: ReviewedStatus, end: InProgressStatus},
 				{start: ReviewedStatus, end: AcceptedStatus,
-					hook: []ValidationFunc{ValidateCcb,
+					validationHook: []ValidationFunc{ValidateCcb,
 						ValidateChecklistsCompleted}},
 				{start: ReviewedStatus, end: RejectedStatus,
-					hook: []ValidationFunc{ValidateCcb}},
+					validationHook: []ValidationFunc{ValidateCcb}, actionHook: []ActionFunc{ClearAllCcbApprovals}},
 				{start: AcceptedStatus, end: MergedStatus},
 				{start: AcceptedStatus, end: RejectedStatus,
-					hook: []ValidationFunc{ValidateCcb}},
+					validationHook: []ValidationFunc{ValidateCcb}, actionHook: []ActionFunc{ClearAllCcbApprovals}},
 				{start: MergedStatus, end: AcceptedStatus},
 				{start: RejectedStatus, end: ProposedStatus},
 			},
@@ -113,7 +139,7 @@ func init() {
 			initialState: ProposedStatus,
 			transitions: []Transition{
 				{start: ProposedStatus, end: InProgressStatus,
-					hook: []ValidationFunc{ValidateAssigneeSet}},
+					validationHook: []ValidationFunc{ValidateAssigneeSet}},
 				{start: ProposedStatus, end: RejectedStatus},
 				{start: InProgressStatus, end: DoneStatus},
 				{start: InProgressStatus, end: RejectedStatus},
@@ -125,7 +151,7 @@ func init() {
 			initialState: ProposedStatus,
 			transitions: []Transition{
 				{start: ProposedStatus, end: InProgressStatus,
-					hook: []ValidationFunc{ValidateAssigneeSet}},
+					validationHook: []ValidationFunc{ValidateAssigneeSet}},
 				{start: ProposedStatus, end: RejectedStatus},
 				{start: InProgressStatus, end: DoneStatus},
 				{start: InProgressStatus, end: RejectedStatus},
