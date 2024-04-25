@@ -147,9 +147,10 @@ func SetStatus(b Interface, author identity.Interface, unixTime int64, status St
 	}
 
 	snap := b.Compile()
-	if err := snap.ValidateTransition(status); err != nil {
+	if err := snap.ValidateTransitionAndApplyActions(b, status, author, unixTime); err != nil {
 		return nil, err
 	}
 	b.Append(op)
+
 	return op, nil
 }

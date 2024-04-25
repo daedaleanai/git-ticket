@@ -210,14 +210,18 @@ func (snap *Snapshot) NextStatuses() ([]Status, error) {
 	return w.NextStatuses(snap.Status), nil
 }
 
-// ValidateTransition returns an error if the supplied state is an invalid
-// destination from the current state for the assigned workflow
-func (snap *Snapshot) ValidateTransition(newStatus Status) error {
+// ValidateTransitionAndApplyActions returns an error if the supplied state is an invalid
+// destination from the current state for the assigned workflow. If the destination status
+// is not invalid, then it applies the entry actions defined in the workflow
+func (snap *Snapshot) ValidateTransitionAndApplyActions(b Interface, newStatus Status, author identity.Interface, unixTime int64) error {
 	w := FindWorkflow(snap.Labels)
 	if w == nil {
 		return fmt.Errorf("ticket has no associated workflow")
 	}
-	return w.ValidateTransition(snap, newStatus)
+	if err := w.ValidateTransition(snap, newStatus); err != nil {
+		return err
+	}
+	return w.ApplyTransitionActions(b, snap, newStatus, author, unixTime)
 }
 
 // ValidateAssigneeSet returns an error if the snapshot assignee is not set
