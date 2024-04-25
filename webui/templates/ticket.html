@@ -27,12 +27,12 @@
 
                 <tr>
                     <td><b>Author</b></td>
-                    <td>{{ .Author.DisplayName }}</td>
+                    <td>{{ identityToName .Author }}</td>
                 </tr>
 
                 <tr>
                     <td><b>Assignee</b></td>
-                    <td>{{ .Assignee.DisplayName }}</td>
+                    <td>{{ identityToName .Assignee }}</td>
                 </tr>
 
                 <tr>
@@ -44,7 +44,7 @@
                     <td><b>CCB</b></td>
                     <td>
                     {{ range .Ccb }}
-                        <span class="badge {{ ccbStateColor .State }}">{{ .Status }}</span>&nbsp;{{ .User.DisplayName }}<br>
+                        <span class="badge {{ ccbStateColor .State }}">{{ .Status }}</span>&nbsp;{{ identityToName .User }}<br>
                     {{ end }}
                     </td>
                 </tr>
@@ -82,7 +82,7 @@
                     <td><b>Actors</b></td>
                     <td>
                     {{ range .Actors }}
-                        {{ .DisplayName }}<br>
+                        {{ identityToName . }}<br>
                     {{ end }}
                     </td>
                 </tr>
@@ -91,14 +91,14 @@
                     <td><b>Participants</b></td>
                     <td>
                         {{ range .Participants }}
-                            {{ .DisplayName }}<br>
+                            {{ identityToName . }}<br>
                         {{ end }}
                     </td>
                 </tr>
             </table>
             {{ range .Comments }}
             <p>
-                <b>{{ .Author.DisplayName }}</b></br>
+                <b>{{ identityToName .Author }}</b></br>
                 {{ comment .Message }}
             </p>
             {{ end }}

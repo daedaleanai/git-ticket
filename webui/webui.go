@@ -12,6 +12,7 @@ import (
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
 	"github.com/daedaleanai/git-ticket/entity"
+	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/query"
 )
 
@@ -87,6 +88,12 @@ var (
 		},
 		"comment": func(s string) string {
 			return strings.ReplaceAll(s, "\n", "<br>")
+		},
+		"identityToName": func(ident identity.Interface) string {
+			if ident == nil {
+				return "None"
+			}
+			return ident.DisplayName()
 		},
 	}).Parse(ticket))
 )
