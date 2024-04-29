@@ -14,6 +14,7 @@ import (
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/query"
+	"github.com/daedaleanai/git-ticket/repository"
 )
 
 var (
@@ -142,8 +143,15 @@ type Ticket struct {
 
 var titleRx = regexp.MustCompile(`^\[([a-zA-Z0-9-]+)\] (.*)$`)
 
-func getRoot(cache *cache.RepoCache) func(w http.ResponseWriter, r *http.Request) {
+func getRoot(repo repository.ClockedRepo) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		cache, err := cache.NewRepoCache(repo, false)
+		if err != nil {
+			w.Write([]byte("Unable to open git cache"))
+			return
+		}
+		defer cache.Close()
+
 		columns := map[bug.Status][]TicketExcerpt{}
 
 		query, err := query.Parse(r.URL.Query().Get("q"))
@@ -180,16 +188,23 @@ func getRoot(cache *cache.RepoCache) func(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func getTicket(cache *cache.RepoCache) func(w http.ResponseWriter, r *http.Request) {
+func getTicket(repo repository.ClockedRepo) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		cache, err := cache.NewRepoCache(repo, false)
+		if err != nil {
+			w.Write([]byte("Unable to open git cache"))
+			return
+		}
+
+		defer cache.Close()
 		id := r.URL.Query().Get("id")
 		bug, _ := cache.ResolveBug(entity.Id(id))
 		fmt.Println(ticketTmpl.Execute(w, bug.Snapshot()))
 	}
 }
 
-func Run(cache *cache.RepoCache) error {
-	http.HandleFunc("/", getRoot(cache))
-	http.HandleFunc("/ticket/", getTicket(cache))
+func Run(repo repository.ClockedRepo) error {
+	http.HandleFunc("/", getRoot(repo))
+	http.HandleFunc("/ticket/", getTicket(repo))
 	return http.ListenAndServe(":3333", nil)
 }

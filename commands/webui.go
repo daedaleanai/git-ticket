@@ -10,11 +10,10 @@ func newWebUICommand() *cobra.Command {
 	env := newEnv()
 
 	cmd := &cobra.Command{
-		Use:      "webui",
-		Aliases:  []string{"web"},
-		Short:    "Launch the web UI.",
-		PreRunE:  loadBackendEnsureUser(env),
-		PostRunE: closeBackend(env),
+		Use:     "webui",
+		Aliases: []string{"web"},
+		Short:   "Launch the web UI.",
+		PreRunE: loadRepoEnsureUser(env),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runWebUI(env)
 		},
@@ -24,5 +23,5 @@ func newWebUICommand() *cobra.Command {
 }
 
 func runWebUI(env *Env) error {
-	return webui.Run(env.backend)
+	return webui.Run(env.repo)
 }
