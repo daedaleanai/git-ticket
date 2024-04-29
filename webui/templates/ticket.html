@@ -21,6 +21,11 @@
         <div class="card-body">
             <table class="table">
                 <tr>
+                    <td><b>Id</b></td>
+                    <td>{{ .Id }}</td>
+                </tr>
+
+                <tr>
                     <td><b>Status</b></td>
                     <td><span class="badge {{ ticketStatusColor .Status }}" >{{ .Status }}</span></td>
                 </tr>
