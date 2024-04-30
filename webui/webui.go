@@ -1,8 +1,10 @@
 package webui
 
 import (
-	_ "embed"
+	"bytes"
+	"embed"
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
@@ -17,194 +19,169 @@ import (
 	"github.com/daedaleanai/git-ticket/repository"
 )
 
-var (
-	//go:embed templates/index.html
-	index string
-	//go:embed templates/ticket.html
-	ticket string
-
-	indexTmpl  = template.Must(template.New("").Parse(index))
-	ticketTmpl = template.Must(template.New("").Funcs(template.FuncMap{
-		"workflow": func(s *bug.Snapshot) string {
-			for _, l := range s.Labels {
-				if l.IsWorkflow() {
-					return strings.TrimPrefix(l.String(), "workflow:")
-				}
-			}
-			return ""
-		},
-		"ccbStateColor": func(s bug.CcbState) string {
-			switch s {
-			case bug.ApprovedCcbState:
-				return "bg-success"
-			case bug.BlockedCcbState:
-				return "bg-danger"
-			default:
-				return "bg-secondary"
-			}
-		},
-		"reviewStatusColor": func(s string) string {
-			if strings.Contains(s, string(gitea.ReviewStateApproved)) {
-				return "bg-success"
-			}
-			if strings.Contains(s, string(gitea.ReviewStateRequestChanges)) {
-				return "bg-danger"
-			}
-			return "bg-secondary"
-		},
-		"ticketStatusColor": func(s bug.Status) string {
-			switch s {
-			case bug.VettedStatus:
-				return "bg-info"
-			case bug.InProgressStatus:
-				return "bg-info"
-			case bug.InReviewStatus:
-				return "bg-info"
-			case bug.ReviewedStatus:
-				return "bg-info"
-			case bug.AcceptedStatus:
-				return "bg-success"
-			case bug.MergedStatus:
-				return "bg-success"
-			case bug.DoneStatus:
-				return "bg-success"
-			case bug.RejectedStatus:
-				return "bg-danger"
-			default:
-				return "bg-secondary"
-			}
-		},
-		"checklistStateColor": func(s bug.ChecklistState) string {
-			switch s {
-			case bug.Passed:
-				return "bg-success"
-			case bug.Failed:
-				return "bg-danger"
-			default:
-				return "bg-secondary"
-			}
-		},
-		"checklist": func(s bug.Label) string {
-			return strings.TrimPrefix(string(s), "checklist:")
-		},
-		"comment": func(s string) string {
-			return strings.ReplaceAll(s, "\n", "<br>")
-		},
-		"identityToName": func(ident identity.Interface) string {
-			if ident == nil {
-				return "None"
-			}
-			return ident.DisplayName()
-		},
-	}).Parse(ticket))
-)
-
-type TicketExcerpt struct {
-	Id      string
-	ShortId string
-	Repo    string
-	Title   string
-}
-
 type Column struct {
 	Status  string
-	Tickets []TicketExcerpt
+	Tickets []*cache.BugExcerpt
 }
 
-type Identity struct {
-	Name  string
-	Email string
+type (
+	Handler              = func(http.ResponseWriter, *http.Request)
+	HandlerWithRepoCache = func(*cache.RepoCache, http.ResponseWriter, *http.Request)
+)
+
+var (
+	//go:embed static
+	staticFs embed.FS
+	//go:embed templates
+	templatesFs embed.FS
+
+	templates = template.Must(template.New("").Funcs(templateHelpers).ParseFS(templatesFs, "templates/*.html"))
+)
+
+func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) {
+	query, err := query.Parse(r.URL.Query().Get("q"))
+	if err != nil {
+		w.WriteHeader(401)
+		fmt.Fprintf(w, "Unable to parse query: %s", err)
+		return
+	}
+
+	columns := map[bug.Status][]*cache.BugExcerpt{}
+	for _, id := range repo.QueryBugs(query) {
+		t, err := repo.ResolveBugExcerpt(id)
+		if err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "Unable to resolve ticket id: %s", err)
+			return
+		}
+		columns[t.Status] = append(columns[t.Status], t)
+	}
+
+	executeTemplate(w, "index.html", columns)
 }
 
-type Comment struct {
-	Message string
-	Author  Identity
+func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	bug, err := repo.ResolveBug(entity.Id(id))
+	if err != nil {
+		w.WriteHeader(404)
+		fmt.Fprintf(w, "Unable to find ticket: %s", err)
+	}
+
+	executeTemplate(w, "ticket.html", bug.Snapshot())
 }
 
-type Ccb struct {
-	Identity Identity
+func executeTemplate(w http.ResponseWriter, template string, data interface{}) {
+	buf := &bytes.Buffer{}
+	if err := templates.ExecuteTemplate(buf, template, data); err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Unable to render ticket %s: %s", template, err)
+	}
+	io.Copy(w, buf)
 }
 
-type Review struct {
-}
-
-type Ticket struct {
-	Id           string
-	Title        string
-	Status       string
-	Workflow     string
-	Ccb          []Ccb
-	Reviews      []Review
-	Labels       []bug.Label
-	Actors       []Identity
-	Participants []Identity
-	Comments     []Comment
-}
-
-var titleRx = regexp.MustCompile(`^\[([a-zA-Z0-9-]+)\] (.*)$`)
-
-func getRoot(repo repository.ClockedRepo) func(w http.ResponseWriter, r *http.Request) {
+func withRepoCache(repo repository.ClockedRepo, handler HandlerWithRepoCache) Handler {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cache, err := cache.NewRepoCache(repo, false)
 		if err != nil {
-			w.Write([]byte("Unable to open git cache"))
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "Unable to open git cache: %s", err)
 			return
 		}
 		defer cache.Close()
 
-		columns := map[bug.Status][]TicketExcerpt{}
-
-		query, err := query.Parse(r.URL.Query().Get("q"))
-		if err != nil {
-			w.Write([]byte("invalid query"))
-			return
-		}
-		for _, id := range cache.QueryBugs(query) {
-			t, _ := cache.ResolveBugExcerpt(id)
-
-			ticket := TicketExcerpt{
-				Id:      string(t.Id),
-				ShortId: string(t.Id[:7]),
-				Repo:    "&lt;none&gt;",
-				Title:   t.Title,
-			}
-
-			if match := titleRx.FindStringSubmatch(t.Title); match != nil {
-				ticket.Repo = match[1]
-				ticket.Title = match[2]
-			}
-
-			columns[t.Status] = append(columns[t.Status], ticket)
-		}
-
-		cols := []Column{}
-		for _, s := range bug.AllStatuses() {
-			if tickets := columns[s]; tickets != nil {
-				cols = append(cols, Column{s.String(), tickets})
-			}
-		}
-
-		indexTmpl.Execute(w, cols)
+		handler(cache, w, r)
 	}
 }
 
-func getTicket(repo repository.ClockedRepo) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		cache, err := cache.NewRepoCache(repo, false)
-		if err != nil {
-			w.Write([]byte("Unable to open git cache"))
-			return
-		}
+func Run(repo repository.ClockedRepo, port int) error {
+	http.HandleFunc("/", withRepoCache(repo, handleIndex))
+	http.HandleFunc("/ticket/", withRepoCache(repo, handleTicket))
+	http.Handle("/static/", http.FileServer(http.FS(staticFs)))
 
-		defer cache.Close()
-		id := r.URL.Query().Get("id")
-		bug, _ := cache.ResolveBug(entity.Id(id))
-		fmt.Println(ticketTmpl.Execute(w, bug.Snapshot()))
-	}
+	fmt.Printf("Running webui at http://localhost:%d\n", port)
+	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 }
 
-func Run(repo repository.ClockedRepo) error {
-	http.HandleFunc("/", getRoot(repo))
-	http.HandleFunc("/ticket/", getTicket(repo))
-	return http.ListenAndServe(":3333", nil)
+var templateHelpers = template.FuncMap{
+	"allStatuses": func() []bug.Status {
+		return bug.AllStatuses()
+	},
+	"workflow": func(s *bug.Snapshot) string {
+		for _, l := range s.Labels {
+			if l.IsWorkflow() {
+				return strings.TrimPrefix(l.String(), "workflow:")
+			}
+		}
+		return ""
+	},
+	"ccbStateColor": func(s bug.CcbState) string {
+		switch s {
+		case bug.ApprovedCcbState:
+			return "bg-success"
+		case bug.BlockedCcbState:
+			return "bg-danger"
+		default:
+			return "bg-secondary"
+		}
+	},
+	"reviewStatusColor": func(s string) string {
+		if strings.Contains(s, string(gitea.ReviewStateApproved)) {
+			return "bg-success"
+		}
+		if strings.Contains(s, string(gitea.ReviewStateRequestChanges)) {
+			return "bg-danger"
+		}
+		return "bg-secondary"
+	},
+	"ticketStatusColor": func(s bug.Status) string {
+		switch s {
+		case bug.VettedStatus:
+			return "bg-info"
+		case bug.InProgressStatus:
+			return "bg-info"
+		case bug.InReviewStatus:
+			return "bg-info"
+		case bug.ReviewedStatus:
+			return "bg-info"
+		case bug.AcceptedStatus:
+			return "bg-success"
+		case bug.MergedStatus:
+			return "bg-success"
+		case bug.DoneStatus:
+			return "bg-success"
+		case bug.RejectedStatus:
+			return "bg-danger"
+		default:
+			return "bg-secondary"
+		}
+	},
+	"checklistStateColor": func(s bug.ChecklistState) string {
+		switch s {
+		case bug.Passed:
+			return "bg-success"
+		case bug.Failed:
+			return "bg-danger"
+		default:
+			return "bg-secondary"
+		}
+	},
+	"checklist": func(s bug.Label) string {
+		return strings.TrimPrefix(string(s), "checklist:")
+	},
+	"comment": func(s string) string {
+		return strings.ReplaceAll(s, "\n", "<br>")
+	},
+	"identityToName": func(ident identity.Interface) string {
+		if ident == nil {
+			return "None"
+		}
+		return ident.DisplayName()
+	},
+	"splitTitle": func(s string) [2]string {
+		if match := regexp.MustCompile(`^\[([a-zA-Z0-9-]+)\] (.*)$`).FindStringSubmatch(s); match != nil {
+			return [2]string{match[1], match[2]}
+		}
+		return [2]string{"<none>", s}
+	},
 }

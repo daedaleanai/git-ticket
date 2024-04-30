@@ -1,0 +1,76 @@
+html,
+body {
+    height: 100%;
+}
+
+a {
+    text-decoration: none;
+}
+
+.card-body::-webkit-scrollbar {
+    display: none;
+}
+
+.gt-container {
+    display: flex;
+    height: 100%;
+    justify-content: left;
+}
+
+.gt-buffer {
+    flex: 1 1 0px;
+}
+
+.gt-columns {
+    flex: 1 1;
+    overflow: auto;
+    display: flex;
+    height: 100%;
+    justify-content: left;
+    align-items: stretch;
+    column-gap: 10px;
+}
+
+.gt-column {
+    flex: 1 0 400px;
+    padding: 16px 0;
+    width: 0;
+}
+
+.gt-menu {
+    flex: 0 0 250px;
+    width: 0;
+    color: whitesmoke;
+    padding: 16px 0;
+}
+
+.gt-menu-group {
+    margin-top: 32px;
+}
+
+.gt-menu-group>span {
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 4px 16px;
+}
+
+.gt-menu-bookmark {
+    padding: 4px 40px;
+}
+
+.gt-menu-bookmark {
+    color: whitesmoke;
+}
+
+.gt-menu-bookmark.active {
+    background-color: whitesmoke;
+    color: black;
+}
+
+#menu-info {
+    position: absolute;
+    padding: 16px;
+    bottom: 32px;
+    font-size: 10pt;
+    width: 250px;
+}

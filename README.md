@@ -200,6 +200,34 @@ git ticket bridge rm [<name>]
 ```
 -->
 
+## Web UI
+
+A simple experimental read-only web UI is available using the command `git ticket webui` to browse tickets on a kanban-style board. git ticket will expose the web UI on a local port (defaults to 3333, but can be changed using the `--port` parameter).
+
+### Filtering and Sorting
+
+Tickets shown in the web UI can filtered and sorted by providing a [query](doc/queries.md) as the `q` URL parameter.
+
+### Bookmarks
+
+Queries can be bookmarked by storing a JSON object with the following structure in the [local storage](https://developer.chrome.com/docs/devtools/storage/localstorage) under the `git-ticket` key.
+Bookmarks are organized in groups, with each bookmark group being an object with bookmark names as keys and [queries](doc/queries.md) as values:
+
+```
+{
+    "bookmarks": {
+        "by author": {
+            "author X": "author:x",
+            "author Y": "author:y"
+        },
+        "by label": {
+            "label A": "label:a",
+            "label B": "label:b"
+        }
+    }
+}
+```
+
 ## Internals
 
 Interested by how it works ? Have a look at the [data model](doc/model.md) and the [internal bird-view](doc/architecture.md).
