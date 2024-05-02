@@ -3,45 +3,66 @@
 
 <head>
     <title>git-ticket</title>
-    <link href="static/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH">
-    <link href="static/main.css" rel="stylesheet">
-    <script src="static/main.js"></script>
+    <link href="/static/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH">
+    <link href="/static/index.css" rel="stylesheet">
 </head>
 <body>
     <div class="gt-container">
-        <div class="gt-menu bg-dark" id="menu">
-            <p id="menu-info">
-                To add / edit entries in this sidebar update the "git-ticket" key in the local storage via the DeveloperConsole.
-                The "git-ticket" key should contain a JSON object with a "bookmarks" property.
-                Each property of the "bookmarks" object defines a group of bookmarks.
-                Each bookmark group is a JSON object, where the key is the name of the bookmark
-                and the value is a git ticket query (i.e., anything that can be passed to "git ticket ls").
-            </p>
+        <div class="gt-menu bg-dark">
+            <div class="gt-menu-section mt-5">
+                <span class="mx-3"><a href="/">HOME</a></span>
+            </div>
+
+            <div class="gt-menu-section mt-2">
+                <span class="mx-3">bookmarks</span>
+                {{ range $.Bookmarks }}
+                    <div>
+                        <span class="px-4">{{ .Group }}</span>
+                        {{ range .Bookmarks }}
+                            <a href="/?q={{ .Query }}">
+                                <div class="px-5 my-1 gt-menu-bookmark {{ if eq .Query $.Query }}active{{ end }}">
+                                    {{ .Label }}
+                                </div>
+                            </a>
+                        {{ end }}
+                    </div>
+                {{ end }}
+            </div>
+            {{ if len $.ColorKey }}
+                <div class="gt-menu-section mt-2">
+                    <span class="mx-3">COLOR KEY</span>
+                    {{ range $k, $v := $.ColorKey }}
+                        <div class="gt-color-key mx-4">
+                            <div class="gt-color-key-dot" style="background-color: {{ $v }};"></div><div>{{ $k }}</div>
+                        </div>
+                    {{ end }}
+                </div>
+            {{ end }}
         </div>
         <div class="gt-columns">
             <div class="gt-buffer"></div>
             
-            {{- range allStatuses }}
-            <div class="gt-column">
-                <div class="card h-100">
-                    <div class="card-header text-center">
-                        <h6 class="card-title">{{ . }}</h6>
-                    </div>
-                    <div class="card-body overflow-auto">
-                    
-                        {{- range index $ . }}
-                        <a href="ticket?id={{ .Id }}">
-                        <div class="card mb-2 mt-2" style="padding: 4px 8px;">
-                            <span><b>{{ index (splitTitle .Title) 0 }}</b> | <b>{{ slice .Id 0 7 }}</b></span>
-                            </span>{{ index (splitTitle .Title) 1 }}</span>
+            {{ range $.Statuses }}
+                <div class="gt-column">
+                    <div class="card h-100">
+                        <div class="card-header text-center">
+                            <h6 class="card-title my-2">{{ . }}</h6>
                         </div>
-                        </a>
-                        {{- end }}
+                        <div class="card-body overflow-auto">
+                        
+                            {{ range index $.Tickets . }}
+                                <a href="ticket?id={{ .Id }}">
+                                    <div class="card px-2 py-1 my-2" {{ if index $.Colors .Id }}style="border-left-width: 8px; border-left-color: {{ index $.Colors .Id }};"{{ end }}>
+                                        <span><b>{{ index (splitTitle .Title) 0 }}</b> | <b>{{ slice .Id 0 7 }}</b></span>
+                                        </span>{{ index (splitTitle .Title) 1 }}</span>
+                                    </div>
+                                </a>
+                            {{ end }}
 
+                        </div>
                     </div>
                 </div>
-            </div>
-            {{- end }}
+            {{ end }}
 
             <div class="gt-buffer"></div>
         </div>

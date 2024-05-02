@@ -1,0 +1,12 @@
+.badge a {
+    color: white;
+}
+
+.card {
+    width: 800px;
+    margin: 32px auto;
+}
+
+.pointer {
+    cursor: pointer;
+}

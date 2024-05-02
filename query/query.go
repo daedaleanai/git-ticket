@@ -14,6 +14,8 @@ type Query struct {
 	Filters
 	OrderBy
 	OrderDirection
+	ColorBy
+	ColorByLabelPrefix
 }
 
 // NewQuery return an identity query with the default sorting (creation-desc).
@@ -58,3 +60,14 @@ const (
 	OrderAscending
 	OrderDescending
 )
+
+type ColorBy int
+
+const (
+	_ ColorBy = iota
+	ColorByAuthor
+	ColorByAssignee
+	ColorByLabel
+)
+
+type ColorByLabelPrefix string

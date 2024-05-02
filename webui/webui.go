@@ -4,117 +4,168 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
-	"text/template"
+	"time"
+
+	"gopkg.in/yaml.v2"
 
 	"code.gitea.io/sdk/gitea"
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/query"
 	"github.com/daedaleanai/git-ticket/repository"
+	"github.com/daedaleanai/git-ticket/util/timestamp"
 )
 
-type Column struct {
-	Status  string
-	Tickets []*cache.BugExcerpt
+type XrefRule struct {
+	Pattern string
+	Link    string
 }
 
-type (
-	Handler              = func(http.ResponseWriter, *http.Request)
-	HandlerWithRepoCache = func(*cache.RepoCache, http.ResponseWriter, *http.Request)
-)
+type Bookmark struct {
+	Label string
+	Query string
+}
+
+type BookmarkGroup struct {
+	Group     string
+	Bookmarks []Bookmark
+}
+
+// Configuration for the web UI.
+type WebUiConfig struct {
+	Xref      []XrefRule
+	Bookmarks []BookmarkGroup
+}
+
+type HandlerWithRepoCache = func(*cache.RepoCache, io.Writer, *http.Request) error
 
 var (
 	//go:embed static
 	staticFs embed.FS
+
 	//go:embed templates
 	templatesFs embed.FS
+	templates   = template.Must(template.New("").Funcs(templateHelpers).ParseFS(templatesFs, "templates/*.html"))
 
-	templates = template.Must(template.New("").Funcs(templateHelpers).ParseFS(templatesFs, "templates/*.html"))
+	webUiConfig WebUiConfig
+
+	colors = []string{
+		"#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4", "#42d4f4", "#f032e6", "#bfef45", "#fabed4",
+		"#469990", "#dcbeff", "#9A6324", "#fffac8", "#800000", "#aaffc3", "#808000", "#ffd8b1", "#000075", "#a9a9a9",
+	}
 )
 
-func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) {
-	query, err := query.Parse(r.URL.Query().Get("q"))
+func handleIndex(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
+	qParam := r.URL.Query().Get("q")
+	q, err := query.Parse(qParam)
 	if err != nil {
-		w.WriteHeader(401)
-		fmt.Fprintf(w, "Unable to parse query: %s", err)
-		return
+		return fmt.Errorf("unable to parse query: %w", err)
 	}
 
-	columns := map[bug.Status][]*cache.BugExcerpt{}
-	for _, id := range repo.QueryBugs(query) {
-		t, err := repo.ResolveBugExcerpt(id)
+	tickets := map[bug.Status][]*cache.BugExcerpt{}
+	colorKey := map[string]string{}
+	ticketColors := map[entity.Id]string{}
+
+	for _, id := range repo.QueryBugs(q) {
+		ticket, err := repo.ResolveBugExcerpt(id)
 		if err != nil {
-			w.WriteHeader(500)
-			fmt.Fprintf(w, "Unable to resolve ticket id: %s", err)
-			return
+			return fmt.Errorf("unable to resolve ticket id: %w", err)
 		}
-		columns[t.Status] = append(columns[t.Status], t)
+		tickets[ticket.Status] = append(tickets[ticket.Status], ticket)
+
+		key := ""
+		switch q.ColorBy {
+		case query.ColorByAuthor:
+			if id, err := repo.ResolveIdentityExcerpt(ticket.AuthorId); err == nil {
+				key = id.DisplayName()
+			}
+		case query.ColorByAssignee:
+			if id, err := repo.ResolveIdentityExcerpt(ticket.AssigneeId); err == nil {
+				key = id.DisplayName()
+			}
+		case query.ColorByLabel:
+			labels := []string{}
+			for _, label := range ticket.Labels {
+				if strings.HasPrefix(label.String(), string(q.ColorByLabelPrefix)) {
+					labels = append(labels, strings.TrimPrefix(label.String(), string(q.ColorByLabelPrefix)))
+				}
+			}
+			sort.Strings(labels)
+			key = strings.Join(labels, " ")
+		}
+
+		if key != "" {
+			if _, ok := colorKey[key]; !ok {
+				colorKey[key] = colors[len(colorKey)%len(colors)]
+			}
+			ticketColors[ticket.Id] = colorKey[key]
+		}
 	}
 
-	executeTemplate(w, "index.html", columns)
+	return templates.ExecuteTemplate(w, "index.html", struct {
+		Statuses  []bug.Status
+		Bookmarks []BookmarkGroup
+		Tickets   map[bug.Status][]*cache.BugExcerpt
+		Colors    map[entity.Id]string
+		ColorKey  map[string]string
+		Query     string
+	}{bug.AllStatuses(), webUiConfig.Bookmarks, tickets, ticketColors, colorKey, qParam})
 }
 
-func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) {
+func handleTicket(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 	id := r.URL.Query().Get("id")
-	bug, err := repo.ResolveBug(entity.Id(id))
+	bug, err := repo.ResolveBugPrefix(id)
 	if err != nil {
-		w.WriteHeader(404)
-		fmt.Fprintf(w, "Unable to find ticket: %s", err)
+		return fmt.Errorf("unable to find ticket %s: %w", id, err)
 	}
-
-	executeTemplate(w, "ticket.html", bug.Snapshot())
+	return templates.ExecuteTemplate(w, "ticket.html", bug.Snapshot())
 }
 
-func executeTemplate(w http.ResponseWriter, template string, data interface{}) {
-	buf := &bytes.Buffer{}
-	if err := templates.ExecuteTemplate(buf, template, data); err != nil {
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Unable to render ticket %s: %s", template, err)
-	}
-	io.Copy(w, buf)
-}
-
-func withRepoCache(repo repository.ClockedRepo, handler HandlerWithRepoCache) Handler {
+func withRepoCache(repo repository.ClockedRepo, handler HandlerWithRepoCache) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cache, err := cache.NewRepoCache(repo, false)
 		if err != nil {
 			w.WriteHeader(500)
-			fmt.Fprintf(w, "Unable to open git cache: %s", err)
+			fmt.Fprintf(w, "Error: unable to open git cache: %s", err)
 			return
 		}
 		defer cache.Close()
 
-		handler(cache, w, r)
+		buf := &bytes.Buffer{}
+		if err := handler(cache, buf, r); err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "Error: %s", err)
+			return
+		}
+		io.Copy(w, buf)
 	}
 }
 
 func Run(repo repository.ClockedRepo, port int) error {
+	// Load the config. Ignore, if no config can be found.
+	data, _ := config.GetConfig(repo, "webui")
+	if err := yaml.Unmarshal(data, &webUiConfig); err != nil {
+		return fmt.Errorf("failed to unmarshal web-ui config: %w", err)
+	}
+
 	http.HandleFunc("/", withRepoCache(repo, handleIndex))
 	http.HandleFunc("/ticket/", withRepoCache(repo, handleTicket))
 	http.Handle("/static/", http.FileServer(http.FS(staticFs)))
 
-	fmt.Printf("Running webui at http://localhost:%d\n", port)
+	fmt.Printf("Running web-ui at http://localhost:%d\n", port)
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 }
 
 var templateHelpers = template.FuncMap{
-	"allStatuses": func() []bug.Status {
-		return bug.AllStatuses()
-	},
-	"workflow": func(s *bug.Snapshot) string {
-		for _, l := range s.Labels {
-			if l.IsWorkflow() {
-				return strings.TrimPrefix(l.String(), "workflow:")
-			}
-		}
-		return ""
-	},
 	"ccbStateColor": func(s bug.CcbState) string {
 		switch s {
 		case bug.ApprovedCcbState:
@@ -125,6 +176,34 @@ var templateHelpers = template.FuncMap{
 			return "bg-secondary"
 		}
 	},
+	"checklist": func(s bug.Label) string {
+		return strings.TrimPrefix(string(s), "checklist:")
+	},
+	"checklistStateColor": func(s bug.ChecklistState) string {
+		switch s {
+		case bug.Passed:
+			return "bg-success"
+		case bug.Failed:
+			return "bg-danger"
+		default:
+			return "bg-secondary"
+		}
+	},
+	"comment": func(s string) string {
+		return strings.ReplaceAll(s, "\n", "<br>")
+	},
+	"formatTime": func(t time.Time) string {
+		return t.Format(time.DateTime)
+	},
+	"formatTimestamp": func(ts timestamp.Timestamp) string {
+		return ts.Time().Format(time.DateTime)
+	},
+	"identityToName": func(ident identity.Interface) string {
+		if ident == nil {
+			return ""
+		}
+		return ident.DisplayName()
+	},
 	"reviewStatusColor": func(s string) string {
 		if strings.Contains(s, string(gitea.ReviewStateApproved)) {
 			return "bg-success"
@@ -133,6 +212,12 @@ var templateHelpers = template.FuncMap{
 			return "bg-danger"
 		}
 		return "bg-secondary"
+	},
+	"splitTitle": func(s string) [2]string {
+		if match := regexp.MustCompile(`^\[([a-zA-Z0-9-]+)\] (.*)$`).FindStringSubmatch(s); match != nil {
+			return [2]string{match[1], match[2]}
+		}
+		return [2]string{"<none>", s}
 	},
 	"ticketStatusColor": func(s bug.Status) string {
 		switch s {
@@ -156,32 +241,30 @@ var templateHelpers = template.FuncMap{
 			return "bg-secondary"
 		}
 	},
-	"checklistStateColor": func(s bug.ChecklistState) string {
-		switch s {
-		case bug.Passed:
-			return "bg-success"
-		case bug.Failed:
-			return "bg-danger"
-		default:
-			return "bg-secondary"
+	"workflow": func(s *bug.Snapshot) string {
+		for _, l := range s.Labels {
+			if l.IsWorkflow() {
+				return strings.TrimPrefix(l.String(), "workflow:")
+			}
 		}
+		return ""
 	},
-	"checklist": func(s bug.Label) string {
-		return strings.TrimPrefix(string(s), "checklist:")
-	},
-	"comment": func(s string) string {
-		return strings.ReplaceAll(s, "\n", "<br>")
-	},
-	"identityToName": func(ident identity.Interface) string {
-		if ident == nil {
-			return "None"
+	"xref": func(s string) template.HTML {
+		patterns := []string{}
+		for _, rule := range webUiConfig.Xref {
+			patterns = append(patterns, fmt.Sprintf("(?:%s)", rule.Pattern))
 		}
-		return ident.DisplayName()
-	},
-	"splitTitle": func(s string) [2]string {
-		if match := regexp.MustCompile(`^\[([a-zA-Z0-9-]+)\] (.*)$`).FindStringSubmatch(s); match != nil {
-			return [2]string{match[1], match[2]}
-		}
-		return [2]string{"<none>", s}
+		fullPattern := regexp.MustCompile(strings.Join(patterns, "|"))
+
+		return template.HTML(fullPattern.ReplaceAllStringFunc(s, func(s string) string {
+			for _, rule := range webUiConfig.Xref {
+				if match := regexp.MustCompile(rule.Pattern).FindStringSubmatch(s); match != nil {
+					link := &bytes.Buffer{}
+					template.Must(template.New("").Parse(rule.Link)).Execute(link, match)
+					return fmt.Sprintf("<a href=\"%s\">%s</a>", link.String(), match[0])
+				}
+			}
+			return s
+		}))
 	},
 }

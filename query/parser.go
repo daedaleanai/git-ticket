@@ -25,6 +25,7 @@ func Parse(query string) (*Query, error) {
 		OrderDirection: OrderDescending,
 	}
 	sortingDone := false
+	coloringDone := false
 
 	for _, t := range tokens {
 		switch t.qualifier {
@@ -94,6 +95,15 @@ func Parse(query string) (*Query, error) {
 				return nil, err
 			}
 			sortingDone = true
+		case "color-by":
+			if coloringDone {
+				return nil, fmt.Errorf("multiple coloring")
+			}
+			err = parseColoring(q, t.value)
+			if err != nil {
+				return nil, err
+			}
+			coloringDone = true
 
 		default:
 			return nil, fmt.Errorf("unknown qualifier \"%s\"", t.qualifier)
@@ -144,5 +154,23 @@ func parseTime(input string) (time.Time, error) {
 			return t, nil
 		}
 	}
-	return time.Time{}, errors.New("Unrecognized time format")
+	return time.Time{}, errors.New("unrecognized time format")
+}
+
+func parseColoring(q *Query, value string) error {
+	switch value {
+	case "author":
+		q.ColorBy = ColorByAuthor
+	case "assignee":
+		q.ColorBy = ColorByAssignee
+
+	default:
+		if !strings.HasPrefix(value, "label:") {
+			return fmt.Errorf("unknown coloring %s", value)
+		}
+		q.ColorBy = ColorByLabel
+		q.ColorByLabelPrefix = ColorByLabelPrefix(strings.TrimPrefix(value, "label:"))
+	}
+
+	return nil
 }

@@ -3,8 +3,13 @@ body {
     height: 100%;
 }
 
+h6 {
+    text-transform: uppercase;
+}
+
 a {
     text-decoration: none;
+    color: inherit;
 }
 
 .card-body::-webkit-scrollbar {
@@ -41,25 +46,13 @@ a {
     flex: 0 0 250px;
     width: 0;
     color: whitesmoke;
-    padding: 16px 0;
+    overflow: auto;
+    font-size: small;
 }
 
-.gt-menu-group {
-    margin-top: 32px;
-}
-
-.gt-menu-group>span {
+.gt-menu-section>span {
     font-weight: bold;
     text-transform: uppercase;
-    padding: 4px 16px;
-}
-
-.gt-menu-bookmark {
-    padding: 4px 40px;
-}
-
-.gt-menu-bookmark {
-    color: whitesmoke;
 }
 
 .gt-menu-bookmark.active {
@@ -67,10 +60,15 @@ a {
     color: black;
 }
 
-#menu-info {
-    position: absolute;
-    padding: 16px;
-    bottom: 32px;
-    font-size: 10pt;
-    width: 250px;
+.gt-color-key {
+    display:flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gt-color-key-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background-color: red;
 }
