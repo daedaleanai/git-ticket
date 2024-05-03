@@ -219,32 +219,50 @@ In addition, the web UI also supports a `color-by` qualifier in queries to color
 | `color-by:assignee`          | colors tickets by assignee                                 |
 | `color-by:label:some-prefix` | colors tickets based on labels starting with `some-prefix` |
 
-### Configuration
+### Bookmarks
 
-The web UI can be configured through the `git ticket config webui` command. The configuration is a 
-
-#### Cross-Reference Configuration
-
-
-
-#### Bookmark Configuration
-
-Queries can be bookmarked by storing a JSON object with the following structure in the [local storage](https://developer.chrome.com/docs/devtools/storage/localstorage) under the `git-ticket` key.
-Bookmarks are organized in groups, with each bookmark group being an object with bookmark names as keys and [queries](doc/queries.md) as values:
+Queries can be bookmarked by storing a JSON array with the following structure in the local git config key `git-bug.webui.bookmarks`.
+Bookmarks are organized in named groups, with each bookmark having a label and an associated [query](doc/queries.md) property:
 
 ```
-{
-    "bookmarks": {
-        "by author": {
-            "author X": "author:x",
-            "author Y": "author:y"
-        },
-        "by label": {
-            "label A": "label:a",
-            "label B": "label:b"
-        }
-    }
-}
+[{
+    "group": "me",
+    "bookmarks": [{
+        "label": "created",
+        "query": "author:me"
+    }, {
+        "label": "assigned",
+        "query": "assignee:me"
+    }]
+}, {
+    "group": "milestones",
+    "bookmarks": [{
+        "label": "milestone 1",
+        "query": "label:milestone-1"
+    }, {
+        "label": "milestone 2",
+        "query": "label:milestone-2"
+    }]
+}]
+```
+
+### Cross-References
+
+The detailed ticket view supports rendering certain patterns in the ticket's title, description or comments as clickable links.
+This behavior is controlled by a set of rules, which can be configured by setting a JSON array of such rules in the local git config key `git-bug.webui.xref`.
+Each rule consists of a regular expression (pattern) and a link template. Each match of a pattern is transformed to a clickable link.
+The link target is constructed by instantiating the link template associated with the pattern. The Nth capture groups of the regular expression can be referenced in the link template by using `{{ index . N}}` notation. Capture group 0 always refers to the full match.
+
+The following examples create links for URLs and create links to the detailed ticked view of this web UI for ticket IDs, respectively.
+
+```
+[{
+    "pattern": "\\bhttps://\\S+\\b",
+    "link": "{{ index . 0 }}"
+}, {
+    "pattern": "\\b[a-f0-9]{7,64}\\b",
+    "link": "/ticket?id={{ index . 0 }}"
+}]
 ```
 
 ## Internals
