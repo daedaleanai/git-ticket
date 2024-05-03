@@ -206,9 +206,28 @@ A simple experimental read-only web UI is available using the command `git ticke
 
 ### Filtering and Sorting
 
-Tickets shown in the web UI can filtered and sorted by providing a [query](doc/queries.md) as the `q` URL parameter.
+Tickets shown in the web UI can filtered and sorted  by providing a query as the `q` URL parameter.
+See [here](doc/queries.md) for a documentation of the query language.
 
-### Bookmarks
+### Coloring
+
+In addition, the web UI also supports a `color-by` qualifier in queries to color tickets based on author, assignee or labels.
+
+| Qualifier                    | Example                                                    |
+| ---                          | ---                                                        |
+| `color-by:author`            | colors tickets by author                                   |
+| `color-by:assignee`          | colors tickets by assignee                                 |
+| `color-by:label:some-prefix` | colors tickets based on labels starting with `some-prefix` |
+
+### Configuration
+
+The web UI can be configured through the `git ticket config webui` command. The configuration is a 
+
+#### Cross-Reference Configuration
+
+
+
+#### Bookmark Configuration
 
 Queries can be bookmarked by storing a JSON object with the following structure in the [local storage](https://developer.chrome.com/docs/devtools/storage/localstorage) under the `git-ticket` key.
 Bookmarks are organized in groups, with each bookmark group being an object with bookmark names as keys and [queries](doc/queries.md) as values:
