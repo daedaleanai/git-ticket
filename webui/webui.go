@@ -193,10 +193,10 @@ var templateHelpers = template.FuncMap{
 		return strings.ReplaceAll(s, "\n", "<br>")
 	},
 	"formatTime": func(t time.Time) string {
-		return t.Format(time.DateTime)
+		return t.Format("2006-01-02 15:04:05")
 	},
 	"formatTimestamp": func(ts timestamp.Timestamp) string {
-		return ts.Time().Format(time.DateTime)
+		return ts.Time().Format("2006-01-02 15:04:05")
 	},
 	"identityToName": func(ident identity.Interface) string {
 		if ident == nil {
