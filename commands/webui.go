@@ -14,7 +14,7 @@ func newWebUICommand() *cobra.Command {
 		Use:     "webui",
 		Aliases: []string{"web"},
 		Short:   "Launch the web UI.",
-		PreRunE: loadRepo(env),
+		PreRunE: loadRepoEnsureUser(env),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runWebUI(env, port)
 		},

@@ -51,6 +51,12 @@ type WebUiConfig struct {
 	BookmarkGroups []BookmarkGroup
 }
 
+type ApiAction struct {
+	Action string
+	Ticket string
+	Status string
+}
+
 type HandlerWithRepoCache = func(*cache.RepoCache, io.Writer, *http.Request) error
 
 var (
@@ -127,6 +133,39 @@ func handleTicket(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 	return templates.ExecuteTemplate(w, "ticket.html", ticket.Snapshot())
 }
 
+func handleApi(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
+	action := ApiAction{}
+	if err := json.NewDecoder(r.Body).Decode(&action); err != nil {
+		return fmt.Errorf("failed to decode body: %w", err)
+	}
+
+	ticket, err := repo.ResolveBug(entity.Id(action.Ticket))
+	if err != nil {
+		return fmt.Errorf("invalid ticket id: %w", err)
+	}
+
+	switch action.Action {
+	case "setStatus":
+		status, err := bug.StatusFromString(action.Status)
+		if err != nil {
+			return fmt.Errorf("invalid status %s", action.Status)
+		}
+		_, err = ticket.SetStatus(status)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("invalid action %s", action.Action)
+	}
+
+	if err := ticket.CommitAsNeeded(); err != nil {
+		return fmt.Errorf("failed to commit changes: %w", err)
+	}
+
+	fmt.Fprintln(w, "Success.")
+	return nil
+}
+
 func withRepoCache(repo repository.ClockedRepo, handler HandlerWithRepoCache) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cache, err := cache.NewRepoCache(repo, false)
@@ -152,9 +191,10 @@ func Run(repo repository.ClockedRepo, port int) error {
 		return err
 	}
 
+	http.Handle("/static/", http.FileServer(http.FS(staticFs)))
 	http.HandleFunc("/", withRepoCache(repo, handleIndex))
 	http.HandleFunc("/ticket/", withRepoCache(repo, handleTicket))
-	http.Handle("/static/", http.FileServer(http.FS(staticFs)))
+	http.HandleFunc("/api", withRepoCache(repo, handleApi))
 
 	fmt.Printf("Running web-ui at http://localhost:%d\n", port)
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
