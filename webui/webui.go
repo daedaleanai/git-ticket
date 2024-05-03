@@ -3,6 +3,7 @@ package webui
 import (
 	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -12,12 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	"code.gitea.io/sdk/gitea"
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
-	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/query"
@@ -151,10 +149,8 @@ func withRepoCache(repo repository.ClockedRepo, handler HandlerWithRepoCache) fu
 }
 
 func Run(repo repository.ClockedRepo, port int) error {
-	// Load the config. Ignore, if no config can be found.
-	data, _ := config.GetConfig(repo, "webui")
-	if err := yaml.Unmarshal(data, &webUiConfig); err != nil {
-		return fmt.Errorf("failed to unmarshal web-ui config: %w", err)
+	if err := loadConfig(repo); err != nil {
+		return err
 	}
 
 	http.HandleFunc("/", withRepoCache(repo, handleIndex))
@@ -163,6 +159,26 @@ func Run(repo repository.ClockedRepo, port int) error {
 
 	fmt.Printf("Running web-ui at http://localhost:%d\n", port)
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+}
+
+func loadConfig(repo repository.ClockedRepo) error {
+	config, _ := repo.LocalConfig().ReadAll("git-bug.webui")
+
+	bookmarksConfig := config["git-bug.webui.bookmarks"]
+	if bookmarksConfig != "" {
+		if err := json.Unmarshal([]byte(bookmarksConfig), &webUiConfig.Bookmarks); err != nil {
+			return fmt.Errorf("failed to unmarshal web ui bookmarks: %w", err)
+		}
+	}
+
+	xrefConfig := config["git-bug.webui.xref"]
+	if xrefConfig != "" {
+		if err := json.Unmarshal([]byte(xrefConfig), &webUiConfig.Xref); err != nil {
+			return fmt.Errorf("failed to unmarshal web ui xref config: %w", err)
+		}
+	}
+
+	return nil
 }
 
 var templateHelpers = template.FuncMap{
