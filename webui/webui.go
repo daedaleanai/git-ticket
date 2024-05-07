@@ -13,9 +13,13 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
 	"code.gitea.io/sdk/gitea"
+
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/query"
@@ -24,8 +28,8 @@ import (
 )
 
 type XrefRule struct {
-	Pattern string
-	Link    string
+	Pattern *regexp.Regexp
+	Link    *template.Template
 }
 
 type Bookmark struct {
@@ -38,10 +42,15 @@ type BookmarkGroup struct {
 	Bookmarks []Bookmark
 }
 
+type Xref struct {
+	FullPattern *regexp.Regexp
+	Rules       []XrefRule
+}
+
 // Configuration for the web UI.
 type WebUiConfig struct {
-	Xref      []XrefRule
-	Bookmarks []BookmarkGroup
+	Xref
+	BookmarkGroups []BookmarkGroup
 }
 
 type HandlerWithRepoCache = func(*cache.RepoCache, io.Writer, *http.Request) error
@@ -72,6 +81,7 @@ func handleIndex(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 	tickets := map[bug.Status][]*cache.BugExcerpt{}
 	colorKey := map[string]string{}
 	ticketColors := map[entity.Id]string{}
+	workflows := map[*bug.Workflow]struct{}{}
 
 	for _, id := range repo.QueryBugs(q) {
 		ticket, err := repo.ResolveBugExcerpt(id)
@@ -80,27 +90,16 @@ func handleIndex(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 		}
 		tickets[ticket.Status] = append(tickets[ticket.Status], ticket)
 
-		key := ""
-		switch q.ColorBy {
-		case query.ColorByAuthor:
-			if id, err := repo.ResolveIdentityExcerpt(ticket.AuthorId); err == nil {
-				key = id.DisplayName()
+		for _, label := range ticket.Labels {
+			if label.IsWorkflow() {
+				workflows[bug.FindWorkflow(ticket.Labels)] = struct{}{}
 			}
-		case query.ColorByAssignee:
-			if id, err := repo.ResolveIdentityExcerpt(ticket.AssigneeId); err == nil {
-				key = id.DisplayName()
-			}
-		case query.ColorByLabel:
-			labels := []string{}
-			for _, label := range ticket.Labels {
-				if strings.HasPrefix(label.String(), string(q.ColorByLabelPrefix)) {
-					labels = append(labels, strings.TrimPrefix(label.String(), string(q.ColorByLabelPrefix)))
-				}
-			}
-			sort.Strings(labels)
-			key = strings.Join(labels, " ")
 		}
 
+		key, err := getTicketColorKey(repo, q, ticket)
+		if err != nil {
+			return fmt.Errorf("failed to determine ticket color: %w", err)
+		}
 		if key != "" {
 			if _, ok := colorKey[key]; !ok {
 				colorKey[key] = colors[len(colorKey)%len(colors)]
@@ -109,23 +108,25 @@ func handleIndex(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 		}
 	}
 
+	ticketStatuses := determineWorkflowStatuses(workflows)
+
 	return templates.ExecuteTemplate(w, "index.html", struct {
-		Statuses  []bug.Status
-		Bookmarks []BookmarkGroup
-		Tickets   map[bug.Status][]*cache.BugExcerpt
-		Colors    map[entity.Id]string
-		ColorKey  map[string]string
-		Query     string
-	}{bug.AllStatuses(), webUiConfig.Bookmarks, tickets, ticketColors, colorKey, qParam})
+		Statuses       []bug.Status
+		BookmarkGroups []BookmarkGroup
+		Tickets        map[bug.Status][]*cache.BugExcerpt
+		Colors         map[entity.Id]string
+		ColorKey       map[string]string
+		Query          string
+	}{ticketStatuses, webUiConfig.BookmarkGroups, tickets, ticketColors, colorKey, qParam})
 }
 
 func handleTicket(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 	id := r.URL.Query().Get("id")
-	bug, err := repo.ResolveBugPrefix(id)
+	ticket, err := repo.ResolveBugPrefix(id)
 	if err != nil {
 		return fmt.Errorf("unable to find ticket %s: %w", id, err)
 	}
-	return templates.ExecuteTemplate(w, "ticket.html", bug.Snapshot())
+	return templates.ExecuteTemplate(w, "ticket.html", ticket.Snapshot())
 }
 
 func withRepoCache(repo repository.ClockedRepo, handler HandlerWithRepoCache) func(http.ResponseWriter, *http.Request) {
@@ -162,23 +163,119 @@ func Run(repo repository.ClockedRepo, port int) error {
 }
 
 func loadConfig(repo repository.ClockedRepo) error {
-	config, _ := repo.LocalConfig().ReadAll("git-bug.webui")
+	// Load bookmarks from the local git config
+	localGitConfig, err := repo.LocalConfig().ReadAll("git-bug.webui")
+	if err != nil {
+		return fmt.Errorf("failed to read webui config from local git config: %w", err)
+	}
 
-	bookmarksConfig := config["git-bug.webui.bookmarks"]
-	if bookmarksConfig != "" {
-		if err := json.Unmarshal([]byte(bookmarksConfig), &webUiConfig.Bookmarks); err != nil {
-			return fmt.Errorf("failed to unmarshal web ui bookmarks: %w", err)
+	bookmarks := localGitConfig["git-bug.webui.bookmarks"]
+	if len(bookmarks) > 0 {
+		if err := json.Unmarshal([]byte(bookmarks), &webUiConfig.BookmarkGroups); err != nil {
+			return fmt.Errorf("failed to unmarshal bookmarks from local git config: %w", err)
 		}
 	}
 
-	xrefConfig := config["git-bug.webui.xref"]
-	if xrefConfig != "" {
-		if err := json.Unmarshal([]byte(xrefConfig), &webUiConfig.Xref); err != nil {
-			return fmt.Errorf("failed to unmarshal web ui xref config: %w", err)
+	// Load bookmarks from the git ticket config
+	gitTicketConfig, err := config.GetConfig(repo, "webui")
+	if err != nil {
+		return fmt.Errorf("failed to read webui config from git ticket config: %w", err)
+	}
+
+	xrefConfig := struct {
+		Xref []struct {
+			Pattern string
+			Link    string
 		}
+	}{}
+	if len(gitTicketConfig) > 0 {
+		if err := yaml.Unmarshal(gitTicketConfig, &xrefConfig); err != nil {
+			return fmt.Errorf("failed to unmarshal xref rules from git ticket config: %w", err)
+		}
+	}
+
+	// Verify that all regexp and templates in the xref configuration actually compile.
+	patterns := []string{}
+	for _, rule := range xrefConfig.Xref {
+		pattern, err := regexp.Compile(rule.Pattern)
+		if err != nil {
+			return fmt.Errorf("failed to compile xref pattern %s: %w", rule.Pattern, err)
+		}
+		link, err := template.New("").Parse(rule.Link)
+		if err != nil {
+			return fmt.Errorf("failed to compile xref link template %s: %w", rule.Link, err)
+		}
+
+		webUiConfig.Xref.Rules = append(webUiConfig.Xref.Rules, XrefRule{
+			Pattern: pattern,
+			Link:    link,
+		})
+
+		patterns = append(patterns, rule.Pattern)
+	}
+
+	fullPattern := strings.Join(patterns, "|")
+	webUiConfig.Xref.FullPattern, err = regexp.Compile(fullPattern)
+	if err != nil {
+		return fmt.Errorf("failed to compile xref patterns %s: %w", fullPattern, err)
 	}
 
 	return nil
+}
+
+func getTicketColorKey(repo *cache.RepoCache, q *query.Query, ticket *cache.BugExcerpt) (string, error) {
+	key := ""
+	switch q.ColorBy {
+	case query.ColorByAuthor:
+		id, err := repo.ResolveIdentityExcerpt(ticket.AuthorId)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve identity %s: %w", ticket.AuthorId, err)
+		}
+		key = id.DisplayName()
+
+	case query.ColorByAssignee:
+		if ticket.AssigneeId != "" {
+			break
+		}
+		id, err := repo.ResolveIdentityExcerpt(ticket.AssigneeId)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve identity %s: %w", ticket.AssigneeId, err)
+		}
+		key = id.DisplayName()
+
+	case query.ColorByLabel:
+		labels := []string{}
+		for _, label := range ticket.Labels {
+			if strings.HasPrefix(label.String(), string(q.ColorByLabelPrefix)) {
+				labels = append(labels, strings.TrimPrefix(label.String(), string(q.ColorByLabelPrefix)))
+			}
+		}
+		sort.Strings(labels)
+		key = strings.Join(labels, " ")
+	}
+
+	return key, nil
+}
+
+func determineWorkflowStatuses(workflows map[*bug.Workflow]struct{}) []bug.Status {
+	statusesMap := map[bug.Status]struct{}{}
+	for workflow := range workflows {
+		if workflow == nil {
+			continue
+		}
+		for _, s := range workflow.AllStatuses() {
+			statusesMap[s] = struct{}{}
+		}
+	}
+
+	statuses := []bug.Status{}
+	for _, s := range bug.AllStatuses() {
+		if _, ok := statusesMap[s]; ok {
+			statuses = append(statuses, s)
+		}
+	}
+
+	return statuses
 }
 
 var templateHelpers = template.FuncMap{
@@ -205,8 +302,8 @@ var templateHelpers = template.FuncMap{
 			return "bg-secondary"
 		}
 	},
-	"comment": func(s string) string {
-		return strings.ReplaceAll(s, "\n", "<br>")
+	"split": func(s template.HTML) template.HTML {
+		return template.HTML(strings.ReplaceAll(string(s), "\n", "<br>"))
 	},
 	"formatTime": func(t time.Time) string {
 		return t.Format("2006-01-02 15:04:05")
@@ -221,13 +318,14 @@ var templateHelpers = template.FuncMap{
 		return ident.DisplayName()
 	},
 	"reviewStatusColor": func(s string) string {
-		if strings.Contains(s, string(gitea.ReviewStateApproved)) {
+		switch s {
+		case string(gitea.ReviewStateApproved):
 			return "bg-success"
-		}
-		if strings.Contains(s, string(gitea.ReviewStateRequestChanges)) {
+		case string(gitea.ReviewStateRequestChanges):
 			return "bg-danger"
+		default:
+			return "bg-secondary"
 		}
-		return "bg-secondary"
 	},
 	"splitTitle": func(s string) [2]string {
 		if match := regexp.MustCompile(`^\[([a-zA-Z0-9-]+)\] (.*)$`).FindStringSubmatch(s); match != nil {
@@ -266,17 +364,11 @@ var templateHelpers = template.FuncMap{
 		return ""
 	},
 	"xref": func(s string) template.HTML {
-		patterns := []string{}
-		for _, rule := range webUiConfig.Xref {
-			patterns = append(patterns, fmt.Sprintf("(?:%s)", rule.Pattern))
-		}
-		fullPattern := regexp.MustCompile(strings.Join(patterns, "|"))
-
-		return template.HTML(fullPattern.ReplaceAllStringFunc(s, func(s string) string {
-			for _, rule := range webUiConfig.Xref {
-				if match := regexp.MustCompile(rule.Pattern).FindStringSubmatch(s); match != nil {
+		return template.HTML(webUiConfig.Xref.FullPattern.ReplaceAllStringFunc(s, func(s string) string {
+			for _, rule := range webUiConfig.Xref.Rules {
+				if match := rule.Pattern.FindStringSubmatch(s); match != nil {
 					link := &bytes.Buffer{}
-					template.Must(template.New("").Parse(rule.Link)).Execute(link, match)
+					rule.Link.Execute(link, match)
 					return fmt.Sprintf("<a href=\"%s\">%s</a>", link.String(), match[0])
 				}
 			}

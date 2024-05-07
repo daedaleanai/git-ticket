@@ -206,7 +206,7 @@ A simple experimental read-only web UI is available using the command `git ticke
 
 ### Filtering and Sorting
 
-Tickets shown in the web UI can filtered and sorted  by providing a query as the `q` URL parameter.
+Tickets shown in the web UI can filtered and sorted by providing a query as the `q` URL parameter.
 See [here](doc/queries.md) for a documentation of the query language.
 
 ### Coloring
@@ -222,47 +222,63 @@ In addition, the web UI also supports a `color-by` qualifier in queries to color
 ### Bookmarks
 
 Queries can be bookmarked by storing a JSON array with the following structure in the local git config key `git-bug.webui.bookmarks`.
-Bookmarks are organized in named groups, with each bookmark having a label and an associated [query](doc/queries.md) property:
+Bookmarks are organized in named groups, with each bookmark having a label and an associated [query](doc/queries.md) property.
 
 ```
-[{
-    "group": "me",
-    "bookmarks": [{
-        "label": "created",
-        "query": "author:me"
-    }, {
-        "label": "assigned",
-        "query": "assignee:me"
-    }]
-}, {
-    "group": "milestones",
-    "bookmarks": [{
-        "label": "milestone 1",
-        "query": "label:milestone-1"
-    }, {
-        "label": "milestone 2",
-        "query": "label:milestone-2"
-    }]
-}]
+[
+    {
+        "group": "me",
+        "bookmarks": [
+            {
+                "label": "created",
+                "query": "author:me"
+            },
+            {
+                "label": "assigned",
+                "query": "assignee:me"
+            }
+        ]
+    },
+    {
+        "group": "milestones",
+        "bookmarks": [
+            {
+                "label": "milestone 1",
+                "query": "label:milestone-1"
+            },
+            {
+                "label": "milestone 2",
+                "query": "label:milestone-2"
+            }
+        ]
+    }
+]
+```
+
+Note: The git config value may not contain any newlines. The easiest way to add configure bookmarks is to edit the `.git/config` file directly rather than using the `git` command. E.g. to add the bookmarks from the above example, add the following lines to the `.git/config` file.
+
+```
+[git-bug "webui"]
+	bookmarks = "[{\"group\":\"me\",\"bookmarks\":[{\"label\":\"created\",\"query\":\"author:me\"},{\"label\":\"assigned\",\"query\":\"assignee:me\"}]},{\"group\":\"milestones\",\"bookmarks\":[{\"label\":\"milestone1\",\"query\":\"label:milestone-1\"},{\"label\":\"milestone2\",\"query\":\"label:milestone-2\"}]}]"
 ```
 
 ### Cross-References
 
 The detailed ticket view supports rendering certain patterns in the ticket's title, description or comments as clickable links.
-This behavior is controlled by a set of rules, which can be configured by setting a JSON array of such rules in the local git config key `git-bug.webui.xref`.
+This behavior is controlled by a set of rules, which can be configured via the git ticket config key `webui`.
+The configuration is a YAML object with a single key `xref` that contains a array of rule objects.
 Each rule consists of a regular expression (pattern) and a link template. Each match of a pattern is transformed to a clickable link.
 The link target is constructed by instantiating the link template associated with the pattern. The Nth capture groups of the regular expression can be referenced in the link template by using `{{ index . N}}` notation. Capture group 0 always refers to the full match.
 
-The following examples create links for URLs and create links to the detailed ticked view of this web UI for ticket IDs, respectively.
+The following examples create links for URLs and create links to the detailed ticked view of this web UI for ticket IDs, respectively, and can be set by running `git ticket config webui`.
 
 ```
-[{
-    "pattern": "\\bhttps://\\S+\\b",
-    "link": "{{ index . 0 }}"
-}, {
-    "pattern": "\\b[a-f0-9]{7,64}\\b",
-    "link": "/ticket?id={{ index . 0 }}"
-}]
+---
+xref:
+- pattern: "\\bhttps?://\\S+\\b"
+  link: "{{ index . 0 }}"
+- pattern: "\\b[a-f0-9]{7,64}\\b"
+  link: "/ticket?id={{ index . 0 }}"
 ```
 
 ## Internals

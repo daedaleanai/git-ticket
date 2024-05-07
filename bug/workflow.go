@@ -50,6 +50,23 @@ func GetWorkflowLabels() []Label {
 	return labels
 }
 
+// AllStatuses returns a slice of all possible statuses in the workflow
+// for the given one
+func (w *Workflow) AllStatuses() []Status {
+	allStatusesMap := map[Status]struct{}{}
+	for _, t := range w.transitions {
+		allStatusesMap[t.start] = struct{}{}
+		allStatusesMap[t.end] = struct{}{}
+	}
+	var allStatuses []Status
+	for _, s := range AllStatuses() {
+		if _, ok := allStatusesMap[s]; ok {
+			allStatuses = append(allStatuses, s)
+		}
+	}
+	return allStatuses
+}
+
 // NextStatuses returns a slice of next possible statuses in the workflow
 // for the given one
 func (w *Workflow) NextStatuses(s Status) []Status {

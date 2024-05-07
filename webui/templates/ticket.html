@@ -18,6 +18,10 @@
                     <td><b>Id</b></td>
                     <td>{{ .Id }}&nbsp;&nbsp;<span class="badge bg-secondary"><a href="#" onclick="navigator.clipboard.writeText('{{ .Id }}');">copy</a></span></a></td>
                 </tr>
+                <tr>
+                    <td><b>Short Id</b></td>
+                    <td>{{  slice .Id 0 7 }}&nbsp;&nbsp;<span class="badge bg-secondary"><a href="#" onclick="navigator.clipboard.writeText('{{ slice .Id 0 7 }}');">copy</a></span></a></td>
+                </tr>
 
                 <tr>
                     <td><b>Status</b></td>
@@ -103,8 +107,8 @@
             {{ range .Comments }}
                 {{ if .Message }}
                     <p>
-                        <b>{{ identityToName .Author }} | {{ formatTimestamp .UnixTime }}</b></br>
-                        {{ xref (comment .Message) }}
+                        <b>{{ identityToName .Author }} | {{ formatTimestamp .UnixTime }} {{ if .Edited }}(edited){{ end }}</b></br>
+                        {{ split (xref .Message) }}
                     </p>
                 {{ end }}
             {{ end }}
