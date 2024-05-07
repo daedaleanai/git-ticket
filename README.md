@@ -266,19 +266,25 @@ Note: The git config value may not contain any newlines. The easiest way to add 
 
 The detailed ticket view supports rendering certain patterns in the ticket's title, description or comments as clickable links.
 This behavior is controlled by a set of rules, which can be configured via the git ticket config key `webui`.
-The configuration is a YAML object with a single key `xref` that contains a array of rule objects.
+The configuration is a JSON object with a single key `xref` that contains a array of rule objects.
 Each rule consists of a regular expression (pattern) and a link template. Each match of a pattern is transformed to a clickable link.
 The link target is constructed by instantiating the link template associated with the pattern. The Nth capture groups of the regular expression can be referenced in the link template by using `{{ index . N}}` notation. Capture group 0 always refers to the full match.
 
 The following examples create links for URLs and create links to the detailed ticked view of this web UI for ticket IDs, respectively, and can be set by running `git ticket config webui`.
 
 ```
----
-xref:
-- pattern: "\\bhttps?://\\S+\\b"
-  link: "{{ index . 0 }}"
-- pattern: "\\b[a-f0-9]{7,64}\\b"
-  link: "/ticket?id={{ index . 0 }}"
+{
+  "xref": [
+    {
+      "pattern": "\\bhttps?://\\S+\\b",
+      "link": "{{ index . 0 }}"
+    },
+    {
+      "pattern": "\\b[a-f0-9]{7,64}\\b",
+      "link": "/ticket?id={{ index . 0 }}"
+    }
+  ]
+}
 ```
 
 ## Internals

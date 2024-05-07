@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	"code.gitea.io/sdk/gitea"
 
 	"github.com/daedaleanai/git-ticket/bug"
@@ -189,7 +187,7 @@ func loadConfig(repo repository.ClockedRepo) error {
 		}
 	}{}
 	if len(gitTicketConfig) > 0 {
-		if err := yaml.Unmarshal(gitTicketConfig, &xrefConfig); err != nil {
+		if err := json.Unmarshal(gitTicketConfig, &xrefConfig); err != nil {
 			return fmt.Errorf("failed to unmarshal xref rules from git ticket config: %w", err)
 		}
 	}
