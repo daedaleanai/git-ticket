@@ -5,8 +5,10 @@
     <title>git-ticket</title>
     <link href="/static/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH">
     <link href="/static/index.css" rel="stylesheet">
+    <script src="/static/index.js"></script>
 </head>
 <body>
+    <div id="alert" class="alert" role="alert"></div>
     <div class="gt-container">
         <div class="gt-menu bg-dark">
             <div class="gt-menu-section mt-5">
@@ -48,10 +50,10 @@
                         <div class="card-header text-center">
                             <h6 class="card-title my-2">{{ . }}</h6>
                         </div>
-                        <div class="card-body overflow-auto">
+                        <div class="gt-column-body card-body overflow-auto" data-status="{{ . }}">
                         
                             {{ range index $.Tickets . }}
-                                <a href="ticket?id={{ .Id }}">
+                                <a id="{{ .Id }}" class="gt-ticket" href="ticket?id={{ .Id }}">
                                     <div class="card px-2 py-1 my-2" {{ if index $.Colors .Id }}style="border-left-width: 8px; border-left-color: {{ index $.Colors .Id }};"{{ end }}>
                                         <span><b>{{ index (splitTitle .Title) 0 }}</b> | <b>{{ slice .Id 0 7 }}</b></span>
                                         </span>{{ index (splitTitle .Title) 1 }}</span>
@@ -67,6 +69,7 @@
             <div class="gt-buffer"></div>
         </div>
     </div>
+    <div id="drag-drop-placeholder" class="card"></div>
 </body>
 
 </html>

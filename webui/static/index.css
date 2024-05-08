@@ -61,7 +61,7 @@ a {
 }
 
 .gt-color-key {
-    display:flex;
+    display: flex;
     align-items: center;
     gap: 8px;
 }
@@ -71,4 +71,19 @@ a {
     height: 8px;
     border-radius: 4px;
     background-color: red;
+}
+
+#drag-drop-placeholder {
+    display: none;
+    background-color: #f0f0f0;
+    border: none;
+}
+
+#alert {
+    display: none;
+    position: absolute;
+    z-index: 1;
+    top: 32px;
+    right: 32px;
+    width: 600px;
 }
