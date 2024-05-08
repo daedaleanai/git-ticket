@@ -10,3 +10,16 @@
 .pointer {
     cursor: pointer;
 }
+
+.submitButton {
+    margin: 32px auto;
+}
+
+#alert {
+    display: none;
+    position: absolute;
+    z-index: 1;
+    top: 32px;
+    right: 32px;
+    width: 600px;
+}

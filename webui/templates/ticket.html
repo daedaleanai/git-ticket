@@ -5,9 +5,11 @@
     <title>git-ticket | {{ .Id }}</title>
     <link href="/static/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH">
     <link href="/static/ticket.css" rel="stylesheet">
+    <script src="/static/ticket.js"></script>
 </head>
 
 <body>
+    <div id="alert" class="alert alert-danger" role="alert"></div>
     <div class="card">
         <div class="card-header text-center">
             <h5 class="card-title">{{ xref .Title }}</h5>
@@ -16,7 +18,7 @@
             <table class="table">
                 <tr>
                     <td><b>Id</b></td>
-                    <td>{{ .Id }}&nbsp;&nbsp;<span class="badge bg-secondary"><a href="#" onclick="navigator.clipboard.writeText('{{ .Id }}');">copy</a></span></a></td>
+                        <td> <span id="ticketId">{{ .Id }}</span> &nbsp;&nbsp;<span class="badge bg-secondary"><a href="#" onclick="navigator.clipboard.writeText('{{ .Id }}');">copy</a></span></a></td>
                 </tr>
                 <tr>
                     <td><b>Short Id</b></td>
@@ -112,6 +114,9 @@
                     </p>
                 {{ end }}
             {{ end }}
+
+            <textarea class="form-control" id="commentFormControlTextArea" rows="3"></textarea>
+            <button type="submit" class="btn btn-primary mb-3 submitButton" onclick="submitComment()">Submit comment</button>
         </div>
     </div>
 </body>
