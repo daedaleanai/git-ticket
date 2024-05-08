@@ -200,6 +200,91 @@ git ticket bridge rm [<name>]
 ```
 -->
 
+## Web UI
+
+A simple experimental read-only web UI is available using the command `git ticket webui` to browse tickets on a kanban-style board. git ticket will expose the web UI on a local port (defaults to 3333, but can be changed using the `--port` parameter).
+
+### Filtering and Sorting
+
+Tickets shown in the web UI can filtered and sorted by providing a query as the `q` URL parameter.
+See [here](doc/queries.md) for a documentation of the query language.
+
+### Coloring
+
+In addition, the web UI also supports a `color-by` qualifier in queries to color tickets based on author, assignee or labels.
+
+| Qualifier                    | Example                                                    |
+| ---                          | ---                                                        |
+| `color-by:author`            | colors tickets by author                                   |
+| `color-by:assignee`          | colors tickets by assignee                                 |
+| `color-by:label:some-prefix` | colors tickets based on labels starting with `some-prefix` |
+
+### Bookmarks
+
+Queries can be bookmarked by storing a JSON array with the following structure in the local git config key `git-bug.webui.bookmarks`.
+Bookmarks are organized in named groups, with each bookmark having a label and an associated [query](doc/queries.md) property.
+
+```
+[
+    {
+        "group": "me",
+        "bookmarks": [
+            {
+                "label": "created",
+                "query": "author:me"
+            },
+            {
+                "label": "assigned",
+                "query": "assignee:me"
+            }
+        ]
+    },
+    {
+        "group": "milestones",
+        "bookmarks": [
+            {
+                "label": "milestone 1",
+                "query": "label:milestone-1"
+            },
+            {
+                "label": "milestone 2",
+                "query": "label:milestone-2"
+            }
+        ]
+    }
+]
+```
+
+Note: The git config value may not contain any newlines. E.g., the bookmarks from the above example can be configured by running the following command:
+```
+git config --local git-bug.webui.bookmarks '[ { "group": "me", "bookmarks": [ { "label": "created", "query": "author:me" }, { "label": "assigned", "query": "assignee:me" } ] }, { "group": "milestones", "bookmarks": [ { "label": "milestone 1", "query": "label:milestone-1" }, { "label": "milestone 2", "query": "label:milestone-2" } ] } ]'
+```
+
+### Cross-References
+
+The detailed ticket view supports rendering certain patterns in the ticket's title, description or comments as clickable links.
+This behavior is controlled by a set of rules, which can be configured via the git ticket config key `webui`.
+The configuration is a JSON object with a single key `xref` that contains a array of rule objects.
+Each rule consists of a regular expression (pattern) and a link template. Each match of a pattern is transformed to a clickable link.
+The link target is constructed by instantiating the link template associated with the pattern. The Nth capture groups of the regular expression can be referenced in the link template by using `{{ index . N}}` notation. Capture group 0 always refers to the full match.
+
+The following examples create links for URLs and create links to the detailed ticked view of this web UI for ticket IDs, respectively, and can be set by running `git ticket config webui`.
+
+```
+{
+  "xref": [
+    {
+      "pattern": "\\bhttps?://\\S+\\b",
+      "link": "{{ index . 0 }}"
+    },
+    {
+      "pattern": "\\b[a-f0-9]{7,64}\\b",
+      "link": "/ticket?id={{ index . 0 }}"
+    }
+  ]
+}
+```
+
 ## Internals
 
 Interested by how it works ? Have a look at the [data model](doc/model.md) and the [internal bird-view](doc/architecture.md).

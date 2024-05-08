@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>git-ticket | {{ .Id }}</title>
+    <link href="/static/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH">
+    <link href="/static/ticket.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="card">
+        <div class="card-header text-center">
+            <h5 class="card-title">{{ xref .Title }}</h5>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <tr>
+                    <td><b>Id</b></td>
+                    <td>{{ .Id }}&nbsp;&nbsp;<span class="badge bg-secondary"><a href="#" onclick="navigator.clipboard.writeText('{{ .Id }}');">copy</a></span></a></td>
+                </tr>
+                <tr>
+                    <td><b>Short Id</b></td>
+                    <td>{{  slice .Id 0 7 }}&nbsp;&nbsp;<span class="badge bg-secondary"><a href="#" onclick="navigator.clipboard.writeText('{{ slice .Id 0 7 }}');">copy</a></span></a></td>
+                </tr>
+
+                <tr>
+                    <td><b>Status</b></td>
+                    <td><span class="badge {{ ticketStatusColor .Status }}" >{{ .Status }}</span></td>
+                </tr>
+
+                <tr>
+                    <td><b>Created</b></td>
+                    <td>{{ formatTime .CreateTime }}</td>
+                </tr>
+
+                <tr>
+                    <td><b>Author</b></td>
+                    <td><a href="/?q=author:&quot;{{ identityToName .Author }}&quot;">{{ identityToName .Author }}</td>
+                    </tr>
+
+                <tr>
+                    <td><b>Assignee</b></td>
+                    <td><a href="/?q=assignee:&quot;{{ identityToName .Assignee }}&quot;">{{ identityToName .Assignee }}</td>
+                </tr>
+
+                <tr>
+                    <td><b>Workflow</b></td>
+                    <td><span class="badge bg-secondary">{{ workflow . }}</span></td>
+                </tr>
+
+                <tr>
+                    <td><b>CCB</b></td>
+                    <td>
+                    {{ range .Ccb }}
+                        <span class="badge {{ ccbStateColor .State }}">{{ .Status }}</span>&nbsp;{{ identityToName .User }}<br>
+                    {{ end }}
+                    </td>
+                </tr>
+
+                <tr>
+                    <td><b>Reviews</b></td>
+                    <td>
+                    {{ range .Reviews }}
+                        <span class="badge {{ reviewStatusColor .LatestOverallStatus }}">{{ xref .Id }}</span><br>
+                    {{ end }}
+                    </td>
+                </tr>
+
+                <tr>
+                    <td><b>Checklists</b></td>
+                    <td>
+                    {{ range $k, $v := .GetChecklistCompoundStates }}
+                        <span class="badge {{ checklistStateColor $v }}">{{ checklist $k }}</span>
+                    {{ end }}
+                    </td>
+                <tr>
+
+                <tr>
+                    <td><b>Labels</b></td>
+                    <td>
+                    {{ range .Labels }}
+                        {{ if and (not .IsWorkflow) (not .IsChecklist) }}
+                            <span class="badge bg-secondary"><a href="/?q=label:{{ . }}">{{ . }}</a></span>
+                        {{ end }}
+                    {{ end }}
+                    </td>
+                </tr>
+
+                <tr>
+                    <td><b>Actors</b></td>
+                    <td>
+                    {{ range .Actors }}
+                        <a href="/?q=actor:&quot;{{ identityToName . }}&quot;">{{ identityToName . }}<br>
+                    {{ end }}
+                    </td>
+                </tr>
+
+                <tr>
+                    <td><b>Participants</b></td>
+                    <td>
+                        {{ range .Participants }}
+                            <a href="/?q=participant:&quot;{{ identityToName . }}&quot;">{{ identityToName . }}<br>
+                        {{ end }}
+                    </td>
+                </tr>
+            </table>
+            {{ range .Comments }}
+                {{ if .Message }}
+                    <p>
+                        <b>{{ identityToName .Author }} | {{ formatTimestamp .UnixTime }} {{ if .Edited }}(edited){{ end }}</b></br>
+                        {{ split (xref .Message) }}
+                    </p>
+                {{ end }}
+            {{ end }}
+        </div>
+    </div>
+</body>
+
+</html>

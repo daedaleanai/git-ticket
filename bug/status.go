@@ -22,7 +22,7 @@ const (
 
 const FirstStatus = ProposedStatus
 const LastStatus = RejectedStatus
-const NumStatuses = 8
+const NumStatuses = LastStatus - FirstStatus + 1
 
 func ActiveStatuses() []Status {
 	return []Status{InProgressStatus, InReviewStatus, ReviewedStatus, AcceptedStatus}

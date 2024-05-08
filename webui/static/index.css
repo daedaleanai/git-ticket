@@ -1,0 +1,74 @@
+html,
+body {
+    height: 100%;
+}
+
+h6 {
+    text-transform: uppercase;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.card-body::-webkit-scrollbar {
+    display: none;
+}
+
+.gt-container {
+    display: flex;
+    height: 100%;
+    justify-content: left;
+}
+
+.gt-buffer {
+    flex: 1 1 0px;
+}
+
+.gt-columns {
+    flex: 1 1;
+    overflow: auto;
+    display: flex;
+    height: 100%;
+    justify-content: left;
+    align-items: stretch;
+    column-gap: 10px;
+}
+
+.gt-column {
+    flex: 1 0 400px;
+    padding: 16px 0;
+    width: 0;
+}
+
+.gt-menu {
+    flex: 0 0 250px;
+    width: 0;
+    color: whitesmoke;
+    overflow: auto;
+    font-size: small;
+}
+
+.gt-menu-section>span {
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.gt-menu-bookmark.active {
+    background-color: whitesmoke;
+    color: black;
+}
+
+.gt-color-key {
+    display:flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gt-color-key-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background-color: red;
+}
