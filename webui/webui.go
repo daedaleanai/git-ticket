@@ -366,7 +366,9 @@ var templateHelpers = template.FuncMap{
 			for _, rule := range webUiConfig.Xref.Rules {
 				if match := rule.Pattern.FindStringSubmatch(s); match != nil {
 					link := &bytes.Buffer{}
-					rule.Link.Execute(link, match)
+					if err := rule.Link.Execute(link, match); err != nil {
+						panic(err)
+					}
 					return fmt.Sprintf("<a href=\"%s\">%s</a>", link.String(), match[0])
 				}
 			}

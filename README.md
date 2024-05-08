@@ -255,11 +255,9 @@ Bookmarks are organized in named groups, with each bookmark having a label and a
 ]
 ```
 
-Note: The git config value may not contain any newlines. The easiest way to add configure bookmarks is to edit the `.git/config` file directly rather than using the `git` command. E.g. to add the bookmarks from the above example, add the following lines to the `.git/config` file.
-
+Note: The git config value may not contain any newlines. E.g., the bookmarks from the above example can be configured by running the following command:
 ```
-[git-bug "webui"]
-	bookmarks = "[{\"group\":\"me\",\"bookmarks\":[{\"label\":\"created\",\"query\":\"author:me\"},{\"label\":\"assigned\",\"query\":\"assignee:me\"}]},{\"group\":\"milestones\",\"bookmarks\":[{\"label\":\"milestone1\",\"query\":\"label:milestone-1\"},{\"label\":\"milestone2\",\"query\":\"label:milestone-2\"}]}]"
+git config --local git-bug.webui.bookmarks '[ { "group": "me", "bookmarks": [ { "label": "created", "query": "author:me" }, { "label": "assigned", "query": "assignee:me" } ] }, { "group": "milestones", "bookmarks": [ { "label": "milestone 1", "query": "label:milestone-1" }, { "label": "milestone 2", "query": "label:milestone-2" } ] } ]'
 ```
 
 ### Cross-References
