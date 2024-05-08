@@ -1,8 +1,17 @@
 'use strict';
 
 async function submitComment() {
-    const ticket = document.getElementById('ticketId').textContent;
-    const comment = document.getElementById('commentFormControlTextArea').value;
+    const ticket = document.getElementById('ticketId').textContent.trim();
+    const comment =
+        document.getElementById('commentFormControlTextArea').value.trim();
+
+    if (comment.length === 0) {
+        const alertEl = document.getElementById('alert');
+        alertEl.style.display = 'block';
+        alertEl.innerText = 'did not submit empty comment';
+        return
+    }
+
     const resp = await fetch('/api/submit-comment', {
         method: 'POST',
         body: JSON.stringify({
