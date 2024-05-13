@@ -1,9 +1,9 @@
 'use strict';
 
 async function submitComment() {
-    const ticket = document.getElementById('ticketId').textContent.trim();
+    const ticket = document.getElementById('ticket-id').textContent.trim();
     const comment =
-        document.getElementById('commentFormControlTextArea').value.trim();
+        document.getElementById('comment-form-control-text-area').value.trim();
 
     if (comment.length === 0) {
         const alertEl = document.getElementById('alert');

@@ -18,7 +18,7 @@
             <table class="table">
                 <tr>
                     <td><b>Id</b></td>
-                    <td> <span id="ticketId">{{ .Id }}</span> &nbsp;&nbsp;<span class="badge bg-secondary"><a href="#" onclick="navigator.clipboard.writeText('{{ .Id }}');">copy</a></span></a></td>
+                    <td> <span id="ticket-id">{{ .Id }}</span> &nbsp;&nbsp;<span class="badge bg-secondary"><a href="#" onclick="navigator.clipboard.writeText('{{ .Id }}');">copy</a></span></a></td>
                 </tr>
                 <tr>
                     <td><b>Short Id</b></td>
@@ -115,8 +115,8 @@
                 {{ end }}
             {{ end }}
 
-            <textarea class="form-control" id="commentFormControlTextArea" rows="3"></textarea>
-            <button type="submit" class="btn btn-primary mb-3 submitButton" onclick="submitComment()">Submit comment</button>
+            <textarea class="form-control" id="comment-form-control-text-area" rows="3"></textarea>
+            <button type="submit" id="submit-button" class="btn btn-primary mb-3" onclick="submitComment()">Submit comment</button>
         </div>
     </div>
 </body>

@@ -11,7 +11,7 @@
     cursor: pointer;
 }
 
-.submitButton {
+#submit-button {
     margin: 32px auto;
 }
 
