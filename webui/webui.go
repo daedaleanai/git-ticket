@@ -286,14 +286,13 @@ func loadConfig(repo repository.ClockedRepo) error {
 }
 
 func getTicketColorKey(repo *cache.RepoCache, q *query.Query, ticket *cache.BugExcerpt) (string, error) {
-	key := ""
 	switch q.ColorBy {
 	case query.ColorByAuthor:
 		id, err := repo.ResolveIdentityExcerpt(ticket.AuthorId)
 		if err != nil {
 			return "", fmt.Errorf("failed to resolve identity %s: %w", ticket.AuthorId, err)
 		}
-		key = id.DisplayName()
+		return id.DisplayName(), nil
 
 	case query.ColorByAssignee:
 		if ticket.AssigneeId != "" {
@@ -303,7 +302,7 @@ func getTicketColorKey(repo *cache.RepoCache, q *query.Query, ticket *cache.BugE
 		if err != nil {
 			return "", fmt.Errorf("failed to resolve identity %s: %w", ticket.AssigneeId, err)
 		}
-		key = id.DisplayName()
+		return id.DisplayName(), nil
 
 	case query.ColorByLabel:
 		labels := []string{}
@@ -313,7 +312,7 @@ func getTicketColorKey(repo *cache.RepoCache, q *query.Query, ticket *cache.BugE
 			}
 		}
 		sort.Strings(labels)
-		key = strings.Join(labels, " ")
+		return strings.Join(labels, " "), nil
 
 	case query.ColorByCcbPendingByUser:
 		workflow := bug.FindWorkflow(ticket.Labels)
@@ -324,16 +323,16 @@ func getTicketColorKey(repo *cache.RepoCache, q *query.Query, ticket *cache.BugE
 
 		nextStatuses := workflow.NextStatuses(ticket.Status)
 
-		for _, id := range ticket.Ccb {
-			identityExcerpt, err := repo.ResolveIdentityExcerpt(id.User)
+		for _, ccbInfo := range ticket.Ccb {
+			identityExcerpt, err := repo.ResolveIdentityExcerpt(ccbInfo.User)
 			if err != nil {
-				panic(err)
+				return "", err
 			}
 
 			if identityExcerpt.Match(string(q.ColorByCcbUserName)) {
 				for _, nextStatus := range nextStatuses {
-					if nextStatus == id.Status && id.State != bug.ApprovedCcbState {
-						key = string(q.ColorByCcbUserName)
+					if nextStatus == ccbInfo.Status && ccbInfo.State != bug.ApprovedCcbState {
+						return string(q.ColorByCcbUserName), nil
 					}
 				}
 			}
@@ -341,7 +340,7 @@ func getTicketColorKey(repo *cache.RepoCache, q *query.Query, ticket *cache.BugE
 
 	}
 
-	return key, nil
+	return "", nil
 }
 
 func determineWorkflowStatuses(workflows map[*bug.Workflow]struct{}) []bug.Status {
