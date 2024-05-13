@@ -314,6 +314,31 @@ func getTicketColorKey(repo *cache.RepoCache, q *query.Query, ticket *cache.BugE
 		}
 		sort.Strings(labels)
 		key = strings.Join(labels, " ")
+
+	case query.ColorByCcbPendingByUser:
+		workflow := bug.FindWorkflow(ticket.Labels)
+		if workflow == nil {
+			// No workflow assigned
+			break
+		}
+
+		nextStatuses := workflow.NextStatuses(ticket.Status)
+
+		for _, id := range ticket.Ccb {
+			identityExcerpt, err := repo.ResolveIdentityExcerpt(id.User)
+			if err != nil {
+				panic(err)
+			}
+
+			if identityExcerpt.Match(string(q.ColorByCcbUserName)) {
+				for _, nextStatus := range nextStatuses {
+					if nextStatus == id.Status && id.State != bug.ApprovedCcbState {
+						key = string(q.ColorByCcbUserName)
+					}
+				}
+			}
+		}
+
 	}
 
 	return key, nil
