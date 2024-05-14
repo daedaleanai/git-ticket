@@ -158,19 +158,27 @@ func parseTime(input string) (time.Time, error) {
 }
 
 func parseColoring(q *Query, value string) error {
-	switch value {
-	case "author":
-		q.ColorBy = ColorByAuthor
-	case "assignee":
-		q.ColorBy = ColorByAssignee
-
-	default:
-		if !strings.HasPrefix(value, "label:") {
-			return fmt.Errorf("unknown coloring %s", value)
-		}
-		q.ColorBy = ColorByLabel
-		q.ColorByLabelPrefix = ColorByLabelPrefix(strings.TrimPrefix(value, "label:"))
+	if strings.HasPrefix(value, "ccb-pending-user:") {
+		q.ColorBy = ColorByCcbPendingByUser
+		q.ColorByCcbUserName = ColorByCcbUserName(strings.TrimPrefix(value, "ccb-pending-user:"))
+		return nil
 	}
 
-	return nil
+	if strings.HasPrefix(value, "label:") {
+		q.ColorBy = ColorByLabel
+		q.ColorByLabelPrefix = ColorByLabelPrefix(strings.TrimPrefix(value, "label:"))
+		return nil
+	}
+
+	if value == "author" {
+		q.ColorBy = ColorByAuthor
+		return nil
+	}
+
+	if value == "assignee" {
+		q.ColorBy = ColorByAssignee
+		return nil
+	}
+
+	return fmt.Errorf("unknown coloring %s", value)
 }

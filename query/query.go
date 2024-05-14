@@ -16,6 +16,7 @@ type Query struct {
 	OrderDirection
 	ColorBy
 	ColorByLabelPrefix
+	ColorByCcbUserName
 }
 
 // NewQuery return an identity query with the default sorting (creation-desc).
@@ -68,6 +69,9 @@ const (
 	ColorByAuthor
 	ColorByAssignee
 	ColorByLabel
+	ColorByCcbPendingByUser
 )
 
 type ColorByLabelPrefix string
+
+type ColorByCcbUserName string
