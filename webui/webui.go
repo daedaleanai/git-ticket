@@ -80,6 +80,9 @@ var (
 )
 
 func handleIndex(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
+	if r.URL.Path != "/" {
+		return fmt.Errorf("Unknown request path: %s", r.URL.Path)
+	}
 	qParam := r.URL.Query().Get("q")
 	q, err := query.Parse(qParam)
 	if err != nil {

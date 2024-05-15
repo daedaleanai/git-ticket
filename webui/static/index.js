@@ -39,10 +39,9 @@ window.onload = function () {
             const ticket = e.dataTransfer.getData("text/plain");
             const status = columnEl.dataset.status;
 
-            const resp = await fetch("/api", {
+            const resp = await fetch("/api/set-status", {
                 method: "POST",
                 body: JSON.stringify({
-                    action: "setStatus",
                     ticket,
                     status,
                 })
