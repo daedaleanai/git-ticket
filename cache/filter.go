@@ -59,6 +59,8 @@ func AssigneeFilter(query string) Filter {
 			}
 
 			return assignee.Match(query)
+		} else if query == "unassigned" {
+			return true
 		}
 
 		return false
@@ -69,6 +71,10 @@ func AssigneeFilter(query string) Filter {
 func CcbFilter(query string) Filter {
 	return func(excerpt *BugExcerpt, resolver resolver) bool {
 		query = strings.ToLower(query)
+
+		if query == "unassigned" && len(excerpt.Ccb) == 0 {
+			return true
+		}
 
 		for _, id := range excerpt.Ccb {
 			identityExcerpt, err := resolver.ResolveIdentityExcerpt(id.User)
