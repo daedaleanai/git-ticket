@@ -80,7 +80,7 @@ func newUserCommand() *cobra.Command {
 	flags.SortFlags = false
 
 	flags.StringVarP(&options.fields, "field", "f", "",
-		"Select field to display. Valid values are [email,humanId,id,keys,lastModification,lastModificationLamport,login,metadata,name,phabId]")
+		"Select field to display. Valid values are [email,humanId,id,keys,lastModification,lastModificationLamport,login,metadata,name,phabId,giteaId]")
 
 	return cmd
 }
@@ -123,6 +123,8 @@ func runUser(env *Env, opts userOptions, args []string) error {
 			env.out.Printf("%s\n", id.Name())
 		case "phabId":
 			env.out.Printf("%s\n", id.PhabID())
+		case "giteaId":
+			env.out.Printf("%d\n", id.GiteaID())
 
 		default:
 			return fmt.Errorf("\nUnsupported field: %s\n", opts.fields)
