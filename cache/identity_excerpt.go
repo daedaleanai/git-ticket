@@ -21,6 +21,7 @@ type IdentityExcerpt struct {
 	Id entity.Id
 
 	Name              string
+	Email             string
 	Login             string
 	PhabID            string
 	GiteaID           int64
@@ -31,6 +32,7 @@ func NewIdentityExcerpt(i *identity.Identity) *IdentityExcerpt {
 	return &IdentityExcerpt{
 		Id:                i.Id(),
 		Name:              i.Name(),
+		Email:             i.Email(),
 		Login:             i.Login(),
 		PhabID:            i.PhabID(),
 		GiteaID:           i.GiteaID(),

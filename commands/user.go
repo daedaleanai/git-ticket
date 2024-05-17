@@ -32,7 +32,7 @@ func ResolveUser(repo *cache.RepoCache, args []string) (*cache.IdentityCache, []
 				return id, nil, err
 			}
 
-			if i.Id.HasPrefix(args[0]) || userMatch {
+			if i.Id.HasPrefix(args[0]) || i.Email == args[0] || userMatch {
 				if id != nil {
 					return id, nil, fmt.Errorf("multiple users matching %s:\n%s\n%s", args[0], id.Name(), i.Name)
 				}
