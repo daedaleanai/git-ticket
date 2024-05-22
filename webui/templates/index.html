@@ -56,7 +56,7 @@
                                 <a id="{{ .Id }}" class="gt-ticket" href="ticket?id={{ .Id }}">
                                     <div class="card px-2 py-1 my-2" {{ if index $.Colors .Id }}style="border-left-width: 8px; border-left-color: {{ index $.Colors .Id }};"{{ end }}>
                                         <span><b>{{ index (splitTitle .Title) 0 }}</b> | <b>{{ slice .Id 0 7 }}</b></span>
-                                        </span>{{ index (splitTitle .Title) 1 }}</span>
+                                        <span>{{ index (splitTitle .Title) 1 }}</span>
                                     </div>
                                 </a>
                             {{ end }}
