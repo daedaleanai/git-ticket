@@ -15,8 +15,6 @@ import (
 	"github.com/daedaleanai/git-ticket/util/timestamp"
 )
 
-const GiteaURL = "https://gitea.daedalean.ai"
-
 // Comment holds data about single review comment
 type Comment struct {
 	RawComment gitea.PullReviewComment
@@ -160,7 +158,12 @@ type GiteaInfo struct {
 
 // Id returns Phabricator revision id
 func (g *GiteaInfo) Id() string {
-	return fmt.Sprintf("%s/%s/%s/pulls/%d", GiteaURL, g.Owner, g.Repository, g.PullId)
+	giteaUrl, _, _ := repository.GetGiteaConfig()
+	if giteaUrl != "" {
+		return fmt.Sprintf("%s/%s/%s/pulls/%d", giteaUrl, g.Owner, g.Repository, g.PullId)
+	} else {
+		return fmt.Sprintf("%s/%s#%d", g.Owner, g.Repository, g.PullId)
+	}
 }
 
 // Title returns Phabricator revision title
