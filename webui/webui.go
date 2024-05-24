@@ -374,11 +374,23 @@ var md = goldmark.New(
 	goldmark.WithExtensions(gmextension.GFM),
 	goldmark.WithRendererOptions(
 		gmhtml.WithWriter(gmhtml.DefaultWriter),
-		gmhtml.WithHardWraps(),
 	),
 )
 
 type markdown string
+
+func applyXrefs(s string, handleMatch func(match []string, link string) string) string {
+	for _, rule := range webUiConfig.Xref.Rules {
+		if match := rule.Pattern.FindStringSubmatch(s); match != nil {
+			link := &bytes.Buffer{}
+			if err := rule.Link.Execute(link, match); err != nil {
+				panic(err)
+			}
+			return handleMatch(match, link.String())
+		}
+	}
+	return s
+}
 
 var templateHelpers = template.FuncMap{
 	"ccbStateColor": func(s bug.CcbState) string {
@@ -467,30 +479,16 @@ var templateHelpers = template.FuncMap{
 	},
 	"xref": func(s string) template.HTML {
 		return template.HTML(webUiConfig.Xref.FullPattern.ReplaceAllStringFunc(s, func(s string) string {
-			for _, rule := range webUiConfig.Xref.Rules {
-				if match := rule.Pattern.FindStringSubmatch(s); match != nil {
-					link := &bytes.Buffer{}
-					if err := rule.Link.Execute(link, match); err != nil {
-						panic(err)
-					}
-					return fmt.Sprintf("<a href=\"%s\">%s</a>", link.String(), match[0])
-				}
-			}
-			return s
+			return applyXrefs(s, func(match []string, link string) string {
+				return fmt.Sprintf("<a href=\"%s\">%s</a>", link, match[0])
+			})
 		}))
 	},
 	"xrefMd": func(s string) markdown {
 		return markdown(webUiConfig.Xref.FullPattern.ReplaceAllStringFunc(s, func(s string) string {
-			for _, rule := range webUiConfig.Xref.Rules {
-				if match := rule.Pattern.FindStringSubmatch(s); match != nil {
-					link := &bytes.Buffer{}
-					if err := rule.Link.Execute(link, match); err != nil {
-						panic(err)
-					}
-					return fmt.Sprintf("[%s](%s)", match[0], link.String())
-				}
-			}
-			return s
+			return applyXrefs(s, func(match []string, link string) string {
+				return fmt.Sprintf("[%s](%s)", match[0], link)
+			})
 		}))
 	},
 	"mdToHtml": func(s markdown) template.HTML {
