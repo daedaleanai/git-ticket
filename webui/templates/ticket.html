@@ -110,7 +110,9 @@
                 {{ if .Message }}
                     <p>
                         <b>{{ identityToName .Author }} | {{ formatTimestamp .UnixTime }} {{ if .Edited }}(edited){{ end }}</b></br>
-                        {{ split (xref .Message) }}
+                        <div class="gt-comment">
+                            {{ mdToHtml (xrefMd .Message) }}
+                        </div>
                     </p>
                 {{ end }}
             {{ end }}

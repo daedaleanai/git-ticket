@@ -23,6 +23,9 @@ import (
 	"github.com/daedaleanai/git-ticket/query"
 	"github.com/daedaleanai/git-ticket/repository"
 	"github.com/daedaleanai/git-ticket/util/timestamp"
+	"github.com/yuin/goldmark"
+	gmextension "github.com/yuin/goldmark/extension"
+	gmhtml "github.com/yuin/goldmark/renderer/html"
 )
 
 type XrefRule struct {
@@ -367,6 +370,16 @@ func determineWorkflowStatuses(workflows map[*bug.Workflow]struct{}) []bug.Statu
 	return statuses
 }
 
+var md = goldmark.New(
+	goldmark.WithExtensions(gmextension.GFM),
+	goldmark.WithRendererOptions(
+		gmhtml.WithWriter(gmhtml.DefaultWriter),
+		gmhtml.WithHardWraps(),
+	),
+)
+
+type markdown string
+
 var templateHelpers = template.FuncMap{
 	"ccbStateColor": func(s bug.CcbState) string {
 		switch s {
@@ -465,5 +478,27 @@ var templateHelpers = template.FuncMap{
 			}
 			return s
 		}))
+	},
+	"xrefMd": func(s string) markdown {
+		return markdown(webUiConfig.Xref.FullPattern.ReplaceAllStringFunc(s, func(s string) string {
+			for _, rule := range webUiConfig.Xref.Rules {
+				if match := rule.Pattern.FindStringSubmatch(s); match != nil {
+					link := &bytes.Buffer{}
+					if err := rule.Link.Execute(link, match); err != nil {
+						panic(err)
+					}
+					return fmt.Sprintf("[%s](%s)", match[0], link.String())
+				}
+			}
+			return s
+		}))
+	},
+	"mdToHtml": func(s markdown) template.HTML {
+		w := bytes.Buffer{}
+		err := md.Convert([]byte(s), &w)
+		if err != nil {
+			panic(err)
+		}
+		return template.HTML(w.Bytes())
 	},
 }
