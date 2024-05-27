@@ -2,9 +2,10 @@ package cache
 
 import (
 	"fmt"
-	review2 "github.com/daedaleanai/git-ticket/bug/review"
 	"sync"
 	"time"
+
+	review2 "github.com/daedaleanai/git-ticket/bug/review"
 
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/entity"
@@ -102,18 +103,18 @@ func (c *BugCache) AddCommentRaw(author *IdentityCache, unixTime int64, message 
 	return op, c.notifyUpdated()
 }
 
-func (c *BugCache) ChangeLabels(added []string, removed []string) ([]bug.LabelChangeResult, *bug.LabelChangeOperation, error) {
+func (c *BugCache) ChangeLabels(added []string, removed []string, allowDeprecated bool) ([]bug.LabelChangeResult, *bug.LabelChangeOperation, error) {
 	author, err := c.repoCache.GetUserIdentity()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return c.ChangeLabelsRaw(author, time.Now().Unix(), added, removed, nil)
+	return c.ChangeLabelsRaw(author, time.Now().Unix(), added, removed, allowDeprecated, nil)
 }
 
-func (c *BugCache) ChangeLabelsRaw(author *IdentityCache, unixTime int64, added []string, removed []string, metadata map[string]string) ([]bug.LabelChangeResult, *bug.LabelChangeOperation, error) {
+func (c *BugCache) ChangeLabelsRaw(author *IdentityCache, unixTime int64, added []string, removed []string, allowDeprecated bool, metadata map[string]string) ([]bug.LabelChangeResult, *bug.LabelChangeOperation, error) {
 	c.mu.Lock()
-	changes, op, err := bug.ChangeLabels(c.bug, author.Identity, unixTime, added, removed)
+	changes, op, err := bug.ChangeLabels(c.bug, author.Identity, unixTime, added, removed, allowDeprecated)
 	if err != nil {
 		c.mu.Unlock()
 		return changes, nil, err

@@ -308,7 +308,8 @@ func (ls *labelSelect) saveAndReturn(g *gocui.Gui, v *gocui.View) error {
 		}
 	}
 
-	if _, _, err := ls.bug.ChangeLabels(newLabels, rmLabels); err != nil {
+	// TODO: add a way to set deprecated labels here?
+	if _, _, err := ls.bug.ChangeLabels(newLabels, rmLabels, false); err != nil {
 		ui.msgPopup.Activate(msgPopupErrorTitle, err.Error())
 	}
 

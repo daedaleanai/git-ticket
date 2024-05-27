@@ -7,6 +7,8 @@ import (
 	_select "github.com/daedaleanai/git-ticket/commands/select"
 )
 
+var allowDeprecatedLabels bool
+
 func newLabelAddCommand() *cobra.Command {
 	env := newEnv()
 
@@ -20,6 +22,7 @@ func newLabelAddCommand() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().BoolVarP(&allowDeprecatedLabels, "allow-deprecated", "-f", false, "When given, deprecated labels can be added to a ticket")
 	return cmd
 }
 
@@ -38,7 +41,7 @@ func runLabelAdd(env *Env, args []string) error {
 
 	added := args
 
-	changes, _, err := b.ChangeLabels(added, nil)
+	changes, _, err := b.ChangeLabels(added, nil, allowDeprecatedLabels)
 
 	for _, change := range changes {
 		env.out.Println(change)
