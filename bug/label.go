@@ -2,10 +2,14 @@ package bug
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"image/color"
+	"os"
 	"strings"
 
+	"github.com/daedaleanai/git-ticket/config"
+	"github.com/daedaleanai/git-ticket/repository"
 	"github.com/daedaleanai/git-ticket/util/text"
 
 	fcolor "github.com/fatih/color"
@@ -105,4 +109,216 @@ func (l Label) IsChecklist() bool {
 
 func (l Label) IsWorkflow() bool {
 	return strings.HasPrefix(string(l), "workflow:")
+}
+
+type simpleLabelConfig struct {
+	Name               string
+	Deprecated         bool
+	DeprecationMessage string
+}
+
+type compoundlabelConfig struct {
+	Prefix             string
+	Inner              []labelConfigInterface
+	Deprecated         bool
+	DeprecationMessage string
+}
+
+type labelConfigInterface interface {
+	Labels() []simpleLabelConfig
+}
+
+type serializedLabelConfig struct {
+	Labels []labelConfigInterface
+}
+
+type LabelConfig struct {
+	Deprecated         bool
+	DeprecationMessage string
+}
+
+type LabelConfigMap map[Label]LabelConfig
+
+func (l *compoundlabelConfig) Labels() []simpleLabelConfig {
+	labels := []simpleLabelConfig{}
+	for _, labelConfig := range l.Inner {
+		innerLabels := labelConfig.Labels()
+		for _, innerLabel := range innerLabels {
+			if l.Deprecated {
+				innerLabel.Deprecated = true
+				innerLabel.DeprecationMessage = l.DeprecationMessage
+			}
+			innerLabel.Name = l.Prefix + ":" + innerLabel.Name
+			labels = append(labels, innerLabel)
+		}
+	}
+	return labels
+}
+
+func (l *simpleLabelConfig) Labels() []simpleLabelConfig {
+	return []simpleLabelConfig{*l}
+}
+
+func UnmarshallLabelConfigInterface(data []byte) (labelConfigInterface, error) {
+	// Try to unmarshall as a regular string
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err == nil {
+		return &simpleLabelConfig{Name: s}, nil
+	}
+
+	// If it is a struct we need to figure out if it is simple or compound
+	var raw map[string]json.RawMessage
+	err = json.Unmarshal(data, &raw)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to unmarshall labelConfigInterface. The byte array is not a string or object: %s", err)
+	}
+
+	if _, ok := raw["prefix"]; ok {
+		var compound compoundlabelConfig
+		err = json.Unmarshal(data, &compound)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to unmarshall compound label config: %s", err)
+		}
+		return &compound, nil
+	}
+
+	if _, ok := raw["name"]; ok {
+		var simple simpleLabelConfig
+		err = json.Unmarshal(data, &simple)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to unmarshall simple label config: %s", err)
+		}
+		return &simple, nil
+	}
+
+	return nil, fmt.Errorf("Unable to unmarshall label config: %s", string(data))
+}
+
+func (op *serializedLabelConfig) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Labels []json.RawMessage
+	}
+
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+
+	op.Labels = []labelConfigInterface{}
+	for _, message := range raw.Labels {
+		config, err := UnmarshallLabelConfigInterface(message)
+		if err != nil {
+			return err
+		}
+		op.Labels = append(op.Labels, config)
+	}
+
+	return nil
+}
+
+func (op *compoundlabelConfig) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Prefix             string
+		Labels             []json.RawMessage
+		Deprecated         bool
+		DeprecationMessage string
+	}
+
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+
+	op.Prefix = raw.Prefix
+	op.Deprecated = raw.Deprecated
+	op.DeprecationMessage = raw.DeprecationMessage
+	op.Inner = []labelConfigInterface{}
+	for _, message := range raw.Labels {
+		config, err := UnmarshallLabelConfigInterface(message)
+		if err != nil {
+			return err
+		}
+		op.Inner = append(op.Inner, config)
+	}
+
+	return nil
+}
+
+var configuredLabels LabelConfigMap = nil
+
+func parseConfiguredLabels(data []byte) (*LabelConfigMap, error) {
+	serializedConfig := serializedLabelConfig{}
+	err := json.Unmarshal(data, &serializedConfig)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load ccb: %q", err)
+	}
+
+	configLabelMap := make(LabelConfigMap)
+	for _, labelConfig := range serializedConfig.Labels {
+		for _, label := range labelConfig.Labels() {
+			if _, ok := configLabelMap[Label(label.Name)]; ok {
+				return nil, fmt.Errorf("Duplicated rule for label %s in configuration", label.Name)
+			}
+
+			configLabelMap[Label(label.Name)] =
+				LabelConfig{
+					Deprecated:         label.Deprecated,
+					DeprecationMessage: label.DeprecationMessage,
+				}
+		}
+	}
+
+	return &configLabelMap, nil
+}
+
+// readConfiguredLabels attempts to read the labels out of the current repository and store it in configuredLabels
+func readConfiguredLabels() error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("unable to get the current working directory: %q", err)
+	}
+
+	repo, err := repository.NewGitRepo(cwd, []repository.ClockLoader{ClockLoader})
+	if err == repository.ErrNotARepo {
+		return fmt.Errorf("must be run from within a git repo")
+	}
+
+	labelData, err := config.GetConfig(repo, "labels")
+	if err != nil {
+		return fmt.Errorf("unable to read label config: %q", err)
+	}
+
+	configLabelMap, err := parseConfiguredLabels(labelData)
+	if err != nil {
+		return err
+	}
+
+	// Store the labels
+	configuredLabels = *configLabelMap
+	return nil
+}
+
+// IsKnownLabel returns true if the given label belongs to the list of known (configured) labels.
+// It may return an error if reading the list of known labels fails
+func GetLabelConfig(label Label) (*LabelConfig, error) {
+	if configuredLabels == nil {
+		if err := readConfiguredLabels(); err != nil {
+			return nil, err
+		}
+	}
+	if config, ok := configuredLabels[label]; !ok {
+		return &config, nil
+	}
+	return nil, nil
+}
+
+// ListLabels returns the map of configured labels
+func ListLabels() (LabelConfigMap, error) {
+	if configuredLabels == nil {
+		if err := readConfiguredLabels(); err != nil {
+			return nil, err
+		}
+	}
+	return configuredLabels, nil
 }
