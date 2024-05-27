@@ -176,5 +176,18 @@ func init() {
 				{start: RejectedStatus, end: ProposedStatus},
 			},
 		},
+		{label: "workflow:exp",
+			initialState: ProposedStatus,
+			transitions: []Transition{
+				{start: ProposedStatus, end: InProgressStatus},
+				{start: ProposedStatus, end: RejectedStatus},
+				{start: InProgressStatus, end: InReviewStatus},
+				{start: InProgressStatus, end: RejectedStatus},
+				{start: InReviewStatus, end: MergedStatus},
+				{start: InReviewStatus, end: InProgressStatus},
+				{start: InReviewStatus, end: RejectedStatus},
+				{start: RejectedStatus, end: ProposedStatus},
+			},
+		},
 	}
 }
