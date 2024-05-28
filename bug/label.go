@@ -125,9 +125,13 @@ type compoundlabelConfig struct {
 }
 
 type labelConfigInterface interface {
+	// Returns an array of simpleLabelConfig's by recursively expanding all compoundlabelConfig's.
 	Labels() []simpleLabelConfig
 }
 
+// This type is internal and used for the internal store of the labels.
+// for convenience it is converted to a LabelConfigMap for consumption within
+// the rest of the git-ticket code.
 type serializedLabelConfig struct {
 	Labels []labelConfigInterface `json:"labels"`
 }
@@ -159,6 +163,7 @@ func (l *simpleLabelConfig) Labels() []simpleLabelConfig {
 	return []simpleLabelConfig{*l}
 }
 
+// UnmarshallLabelConfigInterface unmarshalls the given data as a labelConfigInterface.
 func UnmarshallLabelConfigInterface(data []byte) (labelConfigInterface, error) {
 	// Try to unmarshall as a regular string
 	var s string
@@ -266,6 +271,7 @@ func (c *compoundlabelConfig) UnmarshalJSON(data []byte) error {
 var configuredLabels LabelConfigMap = nil
 var labelStore *serializedLabelConfig = nil
 
+// parseConfiguredLabels parses the JSON configuration and creates a map of known labels from it
 func parseConfiguredLabels(data []byte) (*LabelConfigMap, *serializedLabelConfig, error) {
 	serializedConfig := serializedLabelConfig{}
 	err := json.Unmarshal(data, &serializedConfig)
@@ -344,6 +350,9 @@ func ListLabels() (LabelConfigMap, error) {
 	return configuredLabels, nil
 }
 
+// AppendLabelToConfiguration appends a given label to the label store, turning it into a valid label.
+// Note that this function does not persistently store it in the configuration.
+// Obtain the serialized label configuration and the key in the configuration using LabelStoreData.
 func AppendLabelToConfiguration(label Label) error {
 	parts := strings.Split(string(label), ":")
 
@@ -413,6 +422,7 @@ func AppendLabelToConfiguration(label Label) error {
 	return nil
 }
 
+// LabelStoreData retrieves the serialized JSON form of the label store, along with the key in the configuration store.
 func LabelStoreData() (string, []byte, error) {
 	serialized, err := json.MarshalIndent(*labelStore, "", "  ")
 	if err != nil {
