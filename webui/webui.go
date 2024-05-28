@@ -24,7 +24,6 @@ import (
 	"github.com/daedaleanai/git-ticket/repository"
 	"github.com/daedaleanai/git-ticket/util/timestamp"
 	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/ast"
 	gmast "github.com/yuin/goldmark/ast"
 	gmextension "github.com/yuin/goldmark/extension"
 	gmparser "github.com/yuin/goldmark/parser"
@@ -379,7 +378,7 @@ type xrefTransformer struct {
 }
 
 // Applies the xrefs over the given child text node. Returns the next node that should be handled.
-func (t xrefTransformer) applyXrefs(n ast.Node, child *ast.Text, text string) ast.Node {
+func (t xrefTransformer) applyXrefs(n gmast.Node, child *gmast.Text, text string) gmast.Node {
 	segmentStart := child.Segment.Start
 	segmentStop := child.Segment.Stop
 
@@ -454,7 +453,7 @@ func (t xrefTransformer) Transform(doc *gmast.Document, reader gmtext.Reader, pc
 			}
 
 			txt := string(child.Text(reader.Source()))
-			childText := child.(*ast.Text)
+			childText := child.(*gmast.Text)
 
 			child = t.applyXrefs(n, childText, txt)
 		}
