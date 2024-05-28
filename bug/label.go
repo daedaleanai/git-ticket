@@ -319,7 +319,8 @@ func readConfiguredLabels() error {
 	return nil
 }
 
-// IsKnownLabel returns true if the given label belongs to the list of known (configured) labels.
+// GetLabelConfig returns the configuration of the given label.
+// It may return nil if the label does not exist.
 // It may return an error if reading the list of known labels fails
 func GetLabelConfig(label Label) (*LabelConfig, error) {
 	if configuredLabels == nil {

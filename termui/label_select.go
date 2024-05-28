@@ -33,10 +33,14 @@ func newLabelSelect() *labelSelect {
 	return &labelSelect{}
 }
 
-func (ls *labelSelect) SetBug(cache *cache.RepoCache, bug *cache.BugCache) {
+func (ls *labelSelect) SetBug(cache *cache.RepoCache, bug *cache.BugCache) error {
 	ls.cache = cache
 	ls.bug = bug
-	ls.labels = cache.ValidLabels()
+	labels, err := cache.ValidLabels()
+	if err != nil {
+		return err
+	}
+	ls.labels = labels
 
 	// Find which labels are currently applied to the bug
 	bugLabels := bug.Snapshot().Labels
@@ -58,6 +62,7 @@ func (ls *labelSelect) SetBug(cache *cache.RepoCache, bug *cache.BugCache) {
 	}
 
 	ls.scroll = 0
+	return nil
 }
 
 func (ls *labelSelect) keybindings(g *gocui.Gui) error {

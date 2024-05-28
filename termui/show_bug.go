@@ -616,7 +616,10 @@ func (sb *showBug) edit(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (sb *showBug) editLabels(g *gocui.Gui, snap *bug.Snapshot) error {
-	ui.labelSelect.SetBug(sb.cache, sb.bug)
+	err := ui.labelSelect.SetBug(sb.cache, sb.bug)
+	if err != nil {
+		return err
+	}
 	return ui.activateWindow(ui.labelSelect)
 }
 

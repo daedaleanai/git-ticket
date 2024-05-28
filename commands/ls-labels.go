@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -24,7 +26,10 @@ Note: in the future, a proper label policy could be implemented where valid labe
 }
 
 func runLsLabel(env *Env) error {
-	labels := env.backend.ValidLabels()
+	labels, err := env.backend.ValidLabels()
+	if err != nil {
+		return fmt.Errorf("Error reading the list of valid labels: %s", err)
+	}
 
 	for _, l := range labels {
 		env.out.Println(l)
