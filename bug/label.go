@@ -18,7 +18,6 @@ import (
 type Label string
 
 type LabelConfig struct {
-	Deprecated         bool
 	DeprecationMessage string
 }
 
@@ -125,14 +124,12 @@ type labelConfigInterface interface {
 
 type simpleLabelConfig struct {
 	Name               string `json:"name"`
-	Deprecated         bool   `json:"deprecated"`
 	DeprecationMessage string `json:"deprecationMessage"`
 }
 
 type compoundLabelConfig struct {
 	Prefix             string                 `json:"prefix"`
 	Inner              []labelConfigInterface `json:"labels"`
-	Deprecated         bool                   `json:"deprecated"`
 	DeprecationMessage string                 `json:"deprecationMessage"`
 }
 
@@ -148,8 +145,7 @@ func (l *compoundLabelConfig) Labels() []simpleLabelConfig {
 	for _, labelConfig := range l.Inner {
 		innerLabels := labelConfig.Labels()
 		for _, innerLabel := range innerLabels {
-			if l.Deprecated {
-				innerLabel.Deprecated = true
+			if l.DeprecationMessage != "" {
 				innerLabel.DeprecationMessage = l.DeprecationMessage
 			}
 			innerLabel.Name = l.Prefix + ":" + innerLabel.Name
@@ -201,17 +197,15 @@ func unmarshallLabelConfigInterface(data []byte) (labelConfigInterface, error) {
 }
 
 func (simple simpleLabelConfig) MarshalJSON() ([]byte, error) {
-	if !simple.Deprecated && simple.DeprecationMessage == "" {
+	if simple.DeprecationMessage == "" {
 		return json.Marshal(simple.Name)
 	}
 
 	raw := struct {
 		Name               string `json:"name"`
-		Deprecated         bool   `json:"deprecated"`
 		DeprecationMessage string `json:"deprecationMessage"`
 	}{
 		Name:               simple.Name,
-		Deprecated:         simple.Deprecated,
 		DeprecationMessage: simple.DeprecationMessage,
 	}
 
@@ -244,7 +238,6 @@ func (c *compoundLabelConfig) UnmarshalJSON(data []byte) error {
 	var raw struct {
 		Prefix             string
 		Labels             []json.RawMessage
-		Deprecated         bool
 		DeprecationMessage string
 	}
 
@@ -254,7 +247,6 @@ func (c *compoundLabelConfig) UnmarshalJSON(data []byte) error {
 	}
 
 	c.Prefix = raw.Prefix
-	c.Deprecated = raw.Deprecated
 	c.DeprecationMessage = raw.DeprecationMessage
 	c.Inner = []labelConfigInterface{}
 	for _, message := range raw.Labels {
@@ -288,7 +280,6 @@ func parseConfiguredLabels(data []byte) (*LabelConfigMap, *serializedLabelConfig
 
 			configLabelMap[Label(label.Name)] =
 				LabelConfig{
-					Deprecated:         label.Deprecated,
 					DeprecationMessage: label.DeprecationMessage,
 				}
 		}

@@ -235,7 +235,7 @@ func ChangeLabels(b Interface, author identity.Interface, unixTime int64, add, r
 			if labelConfig, known := configuredLabels[label]; !known {
 				results = append(results, LabelChangeResult{Label: label, Status: LabelChangeUnknownLabel})
 				continue
-			} else if labelConfig.Deprecated && !allowDeprecated {
+			} else if (labelConfig.DeprecationMessage != "") && !allowDeprecated {
 				results = append(results, LabelChangeResult{Label: label, Status: LabelChangeDeprecatedLabel, AdditionalInfo: labelConfig.DeprecationMessage})
 				continue
 			}
