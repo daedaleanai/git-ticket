@@ -195,7 +195,25 @@ func UnmarshallLabelConfigInterface(data []byte) (labelConfigInterface, error) {
 	return nil, fmt.Errorf("Unable to unmarshall label config: %s", string(data))
 }
 
-func (op *serializedLabelConfig) UnmarshalJSON(data []byte) error {
+func (simple simpleLabelConfig) MarshalJSON() ([]byte, error) {
+	if !simple.Deprecated && simple.DeprecationMessage == "" {
+		return json.Marshal(simple.Name)
+	}
+
+	raw := struct {
+		Name               string `json:"name"`
+		Deprecated         bool   `json:"deprecated"`
+		DeprecationMessage string `json:"deprecationMessage"`
+	}{
+		Name:               simple.Name,
+		Deprecated:         simple.Deprecated,
+		DeprecationMessage: simple.DeprecationMessage,
+	}
+
+	return json.Marshal(raw)
+}
+
+func (c *serializedLabelConfig) UnmarshalJSON(data []byte) error {
 	var raw struct {
 		Labels []json.RawMessage
 	}
@@ -205,19 +223,19 @@ func (op *serializedLabelConfig) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	op.Labels = []labelConfigInterface{}
+	c.Labels = []labelConfigInterface{}
 	for _, message := range raw.Labels {
 		config, err := UnmarshallLabelConfigInterface(message)
 		if err != nil {
 			return err
 		}
-		op.Labels = append(op.Labels, config)
+		c.Labels = append(c.Labels, config)
 	}
 
 	return nil
 }
 
-func (op *compoundlabelConfig) UnmarshalJSON(data []byte) error {
+func (c *compoundlabelConfig) UnmarshalJSON(data []byte) error {
 	var raw struct {
 		Prefix             string
 		Labels             []json.RawMessage
@@ -230,16 +248,16 @@ func (op *compoundlabelConfig) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	op.Prefix = raw.Prefix
-	op.Deprecated = raw.Deprecated
-	op.DeprecationMessage = raw.DeprecationMessage
-	op.Inner = []labelConfigInterface{}
+	c.Prefix = raw.Prefix
+	c.Deprecated = raw.Deprecated
+	c.DeprecationMessage = raw.DeprecationMessage
+	c.Inner = []labelConfigInterface{}
 	for _, message := range raw.Labels {
 		config, err := UnmarshallLabelConfigInterface(message)
 		if err != nil {
 			return err
 		}
-		op.Inner = append(op.Inner, config)
+		c.Inner = append(c.Inner, config)
 	}
 
 	return nil
@@ -252,7 +270,7 @@ func parseConfiguredLabels(data []byte) (*LabelConfigMap, *serializedLabelConfig
 	serializedConfig := serializedLabelConfig{}
 	err := json.Unmarshal(data, &serializedConfig)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to load ccb: %q", err)
+		return nil, nil, fmt.Errorf("unable to unmarshall labels: %q", err)
 	}
 
 	configLabelMap := make(LabelConfigMap)
@@ -395,7 +413,7 @@ func AppendLabelToConfiguration(label Label) error {
 }
 
 func LabelStoreData() (string, []byte, error) {
-	serialized, err := json.Marshal(*labelStore)
+	serialized, err := json.MarshalIndent(*labelStore, "", "  ")
 	if err != nil {
 		return "", nil, err
 	}

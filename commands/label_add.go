@@ -40,6 +40,7 @@ func runLabelAdd(env *Env, args []string) error {
 			if err != nil {
 				return err
 			}
+			fmt.Println("Created label ", label)
 		}
 
 		// save configuration persistently
