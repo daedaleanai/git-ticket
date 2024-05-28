@@ -112,16 +112,16 @@ func (l Label) IsWorkflow() bool {
 }
 
 type simpleLabelConfig struct {
-	Name               string
-	Deprecated         bool
-	DeprecationMessage string
+	Name               string `json:"name"`
+	Deprecated         bool   `json:"deprecated"`
+	DeprecationMessage string `json:"deprecationMessage"`
 }
 
 type compoundlabelConfig struct {
-	Prefix             string
-	Inner              []labelConfigInterface
-	Deprecated         bool
-	DeprecationMessage string
+	Prefix             string                 `json:"prefix"`
+	Inner              []labelConfigInterface `json:"labels"`
+	Deprecated         bool                   `json:"deprecated"`
+	DeprecationMessage string                 `json:"deprecationMessage"`
 }
 
 type labelConfigInterface interface {
@@ -129,7 +129,7 @@ type labelConfigInterface interface {
 }
 
 type serializedLabelConfig struct {
-	Labels []labelConfigInterface
+	Labels []labelConfigInterface `json:"labels"`
 }
 
 type LabelConfig struct {
@@ -246,19 +246,20 @@ func (op *compoundlabelConfig) UnmarshalJSON(data []byte) error {
 }
 
 var configuredLabels LabelConfigMap = nil
+var labelStore *serializedLabelConfig = nil
 
-func parseConfiguredLabels(data []byte) (*LabelConfigMap, error) {
+func parseConfiguredLabels(data []byte) (*LabelConfigMap, *serializedLabelConfig, error) {
 	serializedConfig := serializedLabelConfig{}
 	err := json.Unmarshal(data, &serializedConfig)
 	if err != nil {
-		return nil, fmt.Errorf("unable to load ccb: %q", err)
+		return nil, nil, fmt.Errorf("unable to load ccb: %q", err)
 	}
 
 	configLabelMap := make(LabelConfigMap)
 	for _, labelConfig := range serializedConfig.Labels {
 		for _, label := range labelConfig.Labels() {
 			if _, ok := configLabelMap[Label(label.Name)]; ok {
-				return nil, fmt.Errorf("Duplicated rule for label %s in configuration", label.Name)
+				return nil, nil, fmt.Errorf("Duplicated rule for label %s in configuration", label.Name)
 			}
 
 			configLabelMap[Label(label.Name)] =
@@ -269,7 +270,7 @@ func parseConfiguredLabels(data []byte) (*LabelConfigMap, error) {
 		}
 	}
 
-	return &configLabelMap, nil
+	return &configLabelMap, &serializedConfig, nil
 }
 
 // readConfiguredLabels attempts to read the labels out of the current repository and store it in configuredLabels
@@ -289,13 +290,14 @@ func readConfiguredLabels() error {
 		return fmt.Errorf("unable to read label config: %q", err)
 	}
 
-	configLabelMap, err := parseConfiguredLabels(labelData)
+	configLabelMap, serializedConfig, err := parseConfiguredLabels(labelData)
 	if err != nil {
 		return err
 	}
 
 	// Store the labels
 	configuredLabels = *configLabelMap
+	labelStore = serializedConfig
 	return nil
 }
 
@@ -321,4 +323,81 @@ func ListLabels() (LabelConfigMap, error) {
 		}
 	}
 	return configuredLabels, nil
+}
+
+func AppendLabelToConfiguration(label Label) error {
+	parts := strings.Split(string(label), ":")
+
+	if label.IsWorkflow() {
+		return fmt.Errorf("Workflow labels are not part of the configuration. Modify git-ticket source code at bug/workflow.go instead.")
+	}
+
+	if label.IsChecklist() {
+		return fmt.Errorf("Checklist labels are not part of the configuration. Use `git ticket config set checklists` instead.")
+	}
+
+	if configuredLabels == nil {
+		if err := readConfiguredLabels(); err != nil {
+			return err
+		}
+	}
+
+	curPrefixLevel := &labelStore.Labels
+	prefixes := parts[:len(parts)-1]
+	for i, curPrefix := range prefixes {
+		var targetCompoundPrefix *compoundlabelConfig = nil
+		for _, knownLabelConfig := range *curPrefixLevel {
+			knownPrefixConfig, ok := knownLabelConfig.(*compoundlabelConfig)
+			if !ok {
+				simpleLabel := knownLabelConfig.(*simpleLabelConfig)
+				if simpleLabel.Name == curPrefix {
+					conflictingName := strings.Join(prefixes[:i+1], ":")
+					return fmt.Errorf("A label with name %s is already allocated", conflictingName)
+				}
+				continue
+			}
+
+			if knownPrefixConfig.Prefix == curPrefix {
+				targetCompoundPrefix = knownPrefixConfig
+				break
+			}
+		}
+
+		if targetCompoundPrefix == nil {
+			// Create the label config for the given prefix
+			targetCompoundPrefix = &compoundlabelConfig{Prefix: curPrefix}
+			*curPrefixLevel = append(*curPrefixLevel, targetCompoundPrefix)
+		}
+
+		curPrefixLevel = &targetCompoundPrefix.Inner
+	}
+
+	lastName := parts[len(parts)-1]
+	for _, curItem := range *curPrefixLevel {
+		if simple, ok := curItem.(*simpleLabelConfig); ok && simple.Name == lastName {
+			conflictingName := strings.Join(parts, ":")
+			return fmt.Errorf("A label with name %s is already allocated", conflictingName)
+		}
+
+		if compound, ok := curItem.(*compoundlabelConfig); ok && compound.Prefix == lastName {
+			conflictingName := strings.Join(parts, ":")
+			return fmt.Errorf("A label with name %s is already allocated", conflictingName)
+		}
+	}
+
+	// At this point we know the label is not allocated and can allocate it
+	*curPrefixLevel = append(*curPrefixLevel, &simpleLabelConfig{Name: lastName})
+
+	// Finally add it to the config label map
+	configuredLabels[label] = LabelConfig{}
+
+	return nil
+}
+
+func LabelStoreData() (string, []byte, error) {
+	serialized, err := json.Marshal(*labelStore)
+	if err != nil {
+		return "", nil, err
+	}
+	return "labels", serialized, nil
 }

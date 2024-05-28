@@ -37,7 +37,6 @@ func TestLabelRGBAEqual(t *testing.T) {
 }
 
 func TestLabelConfigUnmarshall(t *testing.T) {
-	serializedConfig := serializedLabelConfig{}
 	labelConfigJson := `
 {
   "labels": [
@@ -68,7 +67,7 @@ func TestLabelConfigUnmarshall(t *testing.T) {
 }
 `
 
-	err := json.Unmarshal([]byte(labelConfigJson), &serializedConfig)
+	_, serializedConfig, err := parseConfiguredLabels([]byte(labelConfigJson))
 	if err != nil {
 		t.Fatal("Unable to unmarshall label configuration: ", err)
 	}
@@ -145,7 +144,7 @@ func TestLabelConfigPlainMap(t *testing.T) {
 }
 `
 
-	configMap, err := parseConfiguredLabels([]byte(labelConfigJson))
+	configMap, _, err := parseConfiguredLabels([]byte(labelConfigJson))
 	if err != nil {
 		t.Fatal("Unable to unmarshall label configuration: ", err)
 	}
@@ -157,4 +156,40 @@ func TestLabelConfigPlainMap(t *testing.T) {
 	assert.Contains(t, *configMap, Label("impact:dep"))
 	assert.Contains(t, *configMap, Label("impact:another:one"))
 	assert.Contains(t, *configMap, Label("impact:another:two"))
+}
+
+func TestLabelConfigSerialize(t *testing.T) {
+	labelStore := serializedLabelConfig{
+		Labels: []labelConfigInterface{
+			&simpleLabelConfig{Name: "simple-label"},
+			&simpleLabelConfig{Name: "simple-label-but-deprecated", Deprecated: true, DeprecationMessage: "I'm sure there is a reason"},
+			&compoundlabelConfig{
+				Prefix: "impact",
+				Inner: []labelConfigInterface{
+					&simpleLabelConfig{Name: "vyper-sdd"},
+					&simpleLabelConfig{Name: "dep", Deprecated: true, DeprecationMessage: "There's no reason"},
+					&compoundlabelConfig{
+						Prefix: "another",
+						Inner: []labelConfigInterface{
+							&simpleLabelConfig{Name: "one"},
+							&simpleLabelConfig{Name: "two"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	serialized, err := json.Marshal(labelStore)
+	if err != nil {
+		t.Fatal("Unable to marshall label configuration: ", err)
+	}
+
+	var deserialized serializedLabelConfig
+	err = json.Unmarshal(serialized, &deserialized)
+	if err != nil {
+		t.Fatal("Unable to unmarshall label configuration: ", err)
+	}
+
+	assert.Equal(t, labelStore, deserialized)
 }
