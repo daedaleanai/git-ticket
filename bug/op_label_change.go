@@ -384,7 +384,7 @@ func (l LabelChangeResult) String() string {
 	case LabelChangeUnauthorizedChecklistChange:
 		return fmt.Sprintf("unauthorized checklist removal operation: %s", l.Label)
 	case LabelChangeUnknownLabel:
-		return fmt.Sprintf("label %s is not part of the configured set (edit configuration with `gt config set labels`)", l.Label)
+		return fmt.Sprintf("label %s is not part of the configured set (use the `--create` flag or edit configuration with `git ticket config set labels`)", l.Label)
 	case LabelChangeDeprecatedLabel:
 		return fmt.Sprintf("label %s is deprecated. Use --allow-deprecated to override. Deprecation reason: %s", l.Label, l.AdditionalInfo)
 	default:

@@ -85,8 +85,8 @@ func TestLabelConfigUnmarshall(t *testing.T) {
 	assert.Equal(t, item1.Deprecated, true)
 	assert.Equal(t, item1.DeprecationMessage, "I'm sure there is a reason")
 
-	assert.IsType(t, &compoundlabelConfig{}, serializedConfig.Labels[2])
-	item2 := serializedConfig.Labels[2].(*compoundlabelConfig)
+	assert.IsType(t, &compoundLabelConfig{}, serializedConfig.Labels[2])
+	item2 := serializedConfig.Labels[2].(*compoundLabelConfig)
 	assert.Equal(t, item2.Prefix, "impact")
 	assert.Equal(t, item2.Deprecated, false)
 	assert.Equal(t, item2.DeprecationMessage, "")
@@ -105,8 +105,8 @@ func TestLabelConfigUnmarshall(t *testing.T) {
 	assert.Equal(t, innerItem1.Deprecated, true)
 	assert.Equal(t, innerItem1.DeprecationMessage, "There's no reason")
 
-	assert.IsType(t, &compoundlabelConfig{}, item2.Inner[2])
-	innerItem2 := item2.Inner[2].(*compoundlabelConfig)
+	assert.IsType(t, &compoundLabelConfig{}, item2.Inner[2])
+	innerItem2 := item2.Inner[2].(*compoundLabelConfig)
 	assert.Equal(t, innerItem2.Prefix, "another")
 	assert.Len(t, innerItem2.Inner, 0)
 	assert.Equal(t, innerItem2.Deprecated, false)
@@ -163,12 +163,12 @@ func TestLabelConfigSerialize(t *testing.T) {
 		Labels: []labelConfigInterface{
 			&simpleLabelConfig{Name: "simple-label"},
 			&simpleLabelConfig{Name: "simple-label-but-deprecated", Deprecated: true, DeprecationMessage: "I'm sure there is a reason"},
-			&compoundlabelConfig{
+			&compoundLabelConfig{
 				Prefix: "impact",
 				Inner: []labelConfigInterface{
 					&simpleLabelConfig{Name: "vyper-sdd"},
 					&simpleLabelConfig{Name: "dep", Deprecated: true, DeprecationMessage: "There's no reason"},
-					&compoundlabelConfig{
+					&compoundLabelConfig{
 						Prefix: "another",
 						Inner: []labelConfigInterface{
 							&simpleLabelConfig{Name: "one"},

@@ -17,6 +17,13 @@ import (
 
 type Label string
 
+type LabelConfig struct {
+	Deprecated         bool
+	DeprecationMessage string
+}
+
+type LabelConfigMap map[Label]LabelConfig
+
 func (l Label) String() string {
 	return string(l)
 }
@@ -111,22 +118,22 @@ func (l Label) IsWorkflow() bool {
 	return strings.HasPrefix(string(l), "workflow:")
 }
 
+type labelConfigInterface interface {
+	// Returns an array of simpleLabelConfig's by recursively expanding all compoundlabelConfig's.
+	Labels() []simpleLabelConfig
+}
+
 type simpleLabelConfig struct {
 	Name               string `json:"name"`
 	Deprecated         bool   `json:"deprecated"`
 	DeprecationMessage string `json:"deprecationMessage"`
 }
 
-type compoundlabelConfig struct {
+type compoundLabelConfig struct {
 	Prefix             string                 `json:"prefix"`
 	Inner              []labelConfigInterface `json:"labels"`
 	Deprecated         bool                   `json:"deprecated"`
 	DeprecationMessage string                 `json:"deprecationMessage"`
-}
-
-type labelConfigInterface interface {
-	// Returns an array of simpleLabelConfig's by recursively expanding all compoundlabelConfig's.
-	Labels() []simpleLabelConfig
 }
 
 // This type is internal and used for the internal store of the labels.
@@ -136,14 +143,7 @@ type serializedLabelConfig struct {
 	Labels []labelConfigInterface `json:"labels"`
 }
 
-type LabelConfig struct {
-	Deprecated         bool
-	DeprecationMessage string
-}
-
-type LabelConfigMap map[Label]LabelConfig
-
-func (l *compoundlabelConfig) Labels() []simpleLabelConfig {
+func (l *compoundLabelConfig) Labels() []simpleLabelConfig {
 	labels := []simpleLabelConfig{}
 	for _, labelConfig := range l.Inner {
 		innerLabels := labelConfig.Labels()
@@ -163,8 +163,8 @@ func (l *simpleLabelConfig) Labels() []simpleLabelConfig {
 	return []simpleLabelConfig{*l}
 }
 
-// UnmarshallLabelConfigInterface unmarshalls the given data as a labelConfigInterface.
-func UnmarshallLabelConfigInterface(data []byte) (labelConfigInterface, error) {
+// unmarshallLabelConfigInterface unmarshalls the given data as a labelConfigInterface.
+func unmarshallLabelConfigInterface(data []byte) (labelConfigInterface, error) {
 	// Try to unmarshall as a regular string
 	var s string
 	err := json.Unmarshal(data, &s)
@@ -180,7 +180,7 @@ func UnmarshallLabelConfigInterface(data []byte) (labelConfigInterface, error) {
 	}
 
 	if _, ok := raw["prefix"]; ok {
-		var compound compoundlabelConfig
+		var compound compoundLabelConfig
 		err = json.Unmarshal(data, &compound)
 		if err != nil {
 			return nil, fmt.Errorf("Unable to unmarshall compound label config: %s", err)
@@ -230,7 +230,7 @@ func (c *serializedLabelConfig) UnmarshalJSON(data []byte) error {
 
 	c.Labels = []labelConfigInterface{}
 	for _, message := range raw.Labels {
-		config, err := UnmarshallLabelConfigInterface(message)
+		config, err := unmarshallLabelConfigInterface(message)
 		if err != nil {
 			return err
 		}
@@ -240,7 +240,7 @@ func (c *serializedLabelConfig) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (c *compoundlabelConfig) UnmarshalJSON(data []byte) error {
+func (c *compoundLabelConfig) UnmarshalJSON(data []byte) error {
 	var raw struct {
 		Prefix             string
 		Labels             []json.RawMessage
@@ -258,7 +258,7 @@ func (c *compoundlabelConfig) UnmarshalJSON(data []byte) error {
 	c.DeprecationMessage = raw.DeprecationMessage
 	c.Inner = []labelConfigInterface{}
 	for _, message := range raw.Labels {
-		config, err := UnmarshallLabelConfigInterface(message)
+		config, err := unmarshallLabelConfigInterface(message)
 		if err != nil {
 			return err
 		}
@@ -326,8 +326,8 @@ func readConfiguredLabels() error {
 }
 
 // GetLabelConfig returns the configuration of the given label.
-// It may return nil if the label does not exist.
-// It may return an error if reading the list of known labels fails
+// It will return nil if the label does not exist.
+// It will return an error if reading the list of known labels fails
 func GetLabelConfig(label Label) (*LabelConfig, error) {
 	if configuredLabels == nil {
 		if err := readConfiguredLabels(); err != nil {
@@ -373,9 +373,9 @@ func AppendLabelToConfiguration(label Label) error {
 	curPrefixLevel := &labelStore.Labels
 	prefixes := parts[:len(parts)-1]
 	for i, curPrefix := range prefixes {
-		var targetCompoundPrefix *compoundlabelConfig = nil
+		var targetCompoundPrefix *compoundLabelConfig = nil
 		for _, knownLabelConfig := range *curPrefixLevel {
-			knownPrefixConfig, ok := knownLabelConfig.(*compoundlabelConfig)
+			knownPrefixConfig, ok := knownLabelConfig.(*compoundLabelConfig)
 			if !ok {
 				simpleLabel := knownLabelConfig.(*simpleLabelConfig)
 				if simpleLabel.Name == curPrefix {
@@ -393,7 +393,7 @@ func AppendLabelToConfiguration(label Label) error {
 
 		if targetCompoundPrefix == nil {
 			// Create the label config for the given prefix
-			targetCompoundPrefix = &compoundlabelConfig{Prefix: curPrefix}
+			targetCompoundPrefix = &compoundLabelConfig{Prefix: curPrefix}
 			*curPrefixLevel = append(*curPrefixLevel, targetCompoundPrefix)
 		}
 
@@ -407,7 +407,7 @@ func AppendLabelToConfiguration(label Label) error {
 			return fmt.Errorf("A label with name %s is already allocated", conflictingName)
 		}
 
-		if compound, ok := curItem.(*compoundlabelConfig); ok && compound.Prefix == lastName {
+		if compound, ok := curItem.(*compoundLabelConfig); ok && compound.Prefix == lastName {
 			conflictingName := strings.Join(parts, ":")
 			return fmt.Errorf("A label with name %s is already allocated", conflictingName)
 		}
