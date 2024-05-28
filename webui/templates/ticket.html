@@ -111,7 +111,7 @@
                     <p>
                         <b>{{ identityToName .Author }} | {{ formatTimestamp .UnixTime }} {{ if .Edited }}(edited){{ end }}</b></br>
                         <div class="gt-comment">
-                            {{ mdToHtml (xrefMd .Message) }}
+                            {{ mdToHtml .Message }}
                         </div>
                     </p>
                 {{ end }}

@@ -67,6 +67,8 @@ div.gt-comment h5 {
 div.gt-comment table {
     border-collapse: collapse;
     border-style: hidden;
+    margin-top: 1.0rem;
+    margin-bottom: 1.0rem;
 }
 
 div.gt-comment td, th {

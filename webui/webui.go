@@ -377,8 +377,6 @@ var md = goldmark.New(
 	),
 )
 
-type markdown string
-
 func applyXrefs(s string, handleMatch func(match []string, link string) string) string {
 	for _, rule := range webUiConfig.Xref.Rules {
 		if match := rule.Pattern.FindStringSubmatch(s); match != nil {
@@ -484,16 +482,15 @@ var templateHelpers = template.FuncMap{
 			})
 		}))
 	},
-	"xrefMd": func(s string) markdown {
-		return markdown(webUiConfig.Xref.FullPattern.ReplaceAllStringFunc(s, func(s string) string {
+	"mdToHtml": func(s string) template.HTML {
+		withXref := webUiConfig.Xref.FullPattern.ReplaceAllStringFunc(s, func(s string) string {
 			return applyXrefs(s, func(match []string, link string) string {
 				return fmt.Sprintf("[%s](%s)", match[0], link)
 			})
-		}))
-	},
-	"mdToHtml": func(s markdown) template.HTML {
+		})
+
 		w := bytes.Buffer{}
-		err := md.Convert([]byte(s), &w)
+		err := md.Convert([]byte(withXref), &w)
 		if err != nil {
 			panic(err)
 		}
