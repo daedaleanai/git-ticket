@@ -24,8 +24,13 @@ import (
 	"github.com/daedaleanai/git-ticket/repository"
 	"github.com/daedaleanai/git-ticket/util/timestamp"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	gmast "github.com/yuin/goldmark/ast"
 	gmextension "github.com/yuin/goldmark/extension"
+	gmparser "github.com/yuin/goldmark/parser"
 	gmhtml "github.com/yuin/goldmark/renderer/html"
+	gmtext "github.com/yuin/goldmark/text"
+	gmutil "github.com/yuin/goldmark/util"
 )
 
 type XrefRule struct {
@@ -370,11 +375,102 @@ func determineWorkflowStatuses(workflows map[*bug.Workflow]struct{}) []bug.Statu
 	return statuses
 }
 
+type xrefTransformer struct {
+}
+
+// Applies the xrefs over the given child text node. Returns the next node that should be handled.
+func (t xrefTransformer) applyXrefs(n ast.Node, child *ast.Text, text string) ast.Node {
+	segmentStart := child.Segment.Start
+	segmentStop := child.Segment.Stop
+
+	for _, rule := range webUiConfig.Xref.Rules {
+		if match := rule.Pattern.FindStringSubmatchIndex(text); match != nil {
+			stringMatches := []string{}
+			for i := 0; i < len(match); i += 2 {
+				stringMatches = append(stringMatches, text[match[i]:match[i+1]])
+			}
+
+			globalMatchStart := match[0]
+			globalMatchStop := match[1]
+
+			link := &bytes.Buffer{}
+			if err := rule.Link.Execute(link, stringMatches); err != nil {
+				panic(err)
+			}
+
+			gmLink := gmast.NewLink()
+			gmLink.Destination = []byte(link.Bytes())
+			gmLinkText := gmast.NewText()
+			gmLinkText.Segment = gmtext.Segment{
+				Start: segmentStart + globalMatchStart,
+				Stop:  segmentStart + globalMatchStop,
+			}
+
+			gmLink.AppendChild(gmLink, gmLinkText)
+
+			if globalMatchStart != 0 {
+				child.Segment = child.Segment.WithStop(segmentStart + globalMatchStart)
+				n.InsertAfter(n, child, gmLink)
+			} else {
+				n.ReplaceChild(n, child, gmLink)
+			}
+
+			if globalMatchStop != (segmentStop - segmentStart) {
+				leftoverText := gmast.NewText()
+				leftoverText.Segment = gmtext.Segment{
+					Start: segmentStart + globalMatchStop,
+					Stop:  segmentStop,
+				}
+				n.InsertAfter(n, gmLink, leftoverText)
+			}
+
+			// We are only interested in content after the link
+			return gmLink.NextSibling()
+		}
+	}
+	return child.NextSibling()
+}
+
+func (t xrefTransformer) Transform(doc *gmast.Document, reader gmtext.Reader, pc gmparser.Context) {
+	_ = gmast.Walk(doc, func(n gmast.Node, entering bool) (gmast.WalkStatus, error) {
+		kind := n.Kind()
+		if kind == gmast.KindFencedCodeBlock || kind == gmast.KindImage || kind == gmast.KindCodeSpan || kind == gmast.KindLink || kind == gmast.KindAutoLink {
+			// Do not apply xrefs under these
+			return gmast.WalkSkipChildren, nil
+		}
+
+		// We apply the transformation when entering a node (before walking its children). It does not really make a difference
+		// for this transformation, though.
+		if !entering {
+			return gmast.WalkContinue, nil
+		}
+
+		// Processing the children here instead of in the walk allows us to control the next sibling
+		// and skip any nodes that we just added.
+		for child := n.FirstChild(); child != nil; {
+			if child.Kind() != gmast.KindText {
+				child = child.NextSibling()
+				continue
+			}
+
+			txt := string(child.Text(reader.Source()))
+			childText := child.(*ast.Text)
+
+			child = t.applyXrefs(n, childText, txt)
+		}
+
+		return gmast.WalkContinue, nil
+	})
+}
+
 var md = goldmark.New(
 	goldmark.WithExtensions(gmextension.GFM),
 	goldmark.WithRendererOptions(
 		gmhtml.WithWriter(gmhtml.DefaultWriter),
 	),
+	goldmark.WithParserOptions(gmparser.WithASTTransformers(gmutil.PrioritizedValue{
+		Value: xrefTransformer{},
+	})),
 )
 
 func applyXrefs(s string, handleMatch func(match []string, link string) string) string {
@@ -483,14 +579,8 @@ var templateHelpers = template.FuncMap{
 		}))
 	},
 	"mdToHtml": func(s string) template.HTML {
-		withXref := webUiConfig.Xref.FullPattern.ReplaceAllStringFunc(s, func(s string) string {
-			return applyXrefs(s, func(match []string, link string) string {
-				return fmt.Sprintf("[%s](%s)", match[0], link)
-			})
-		})
-
 		w := bytes.Buffer{}
-		err := md.Convert([]byte(withXref), &w)
+		err := md.Convert([]byte(s), &w)
 		if err != nil {
 			panic(err)
 		}
