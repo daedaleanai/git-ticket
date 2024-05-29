@@ -20,6 +20,7 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.6.1
 	github.com/thought-machine/gonduit v0.2.1-0.20200511073941-6b84c545a505
+	github.com/yuin/goldmark v1.7.1
 	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073
 	golang.org/x/text v0.3.3
 	gopkg.in/yaml.v2 v2.2.4
