@@ -38,7 +38,7 @@ func runLabelRm(env *Env, args []string) error {
 
 	removed := args
 
-	changes, _, err := b.ChangeLabels(nil, removed)
+	changes, _, err := b.ChangeLabels(nil, removed, false)
 
 	for _, change := range changes {
 		env.out.Println(change)

@@ -181,7 +181,7 @@ func (l LabelChangeTimelineItem) String() string {
 func (l *LabelChangeTimelineItem) IsAuthored() {}
 
 // ChangeLabels is a convenience function to apply the operation
-func ChangeLabels(b Interface, author identity.Interface, unixTime int64, add, remove []string) ([]LabelChangeResult, *LabelChangeOperation, error) {
+func ChangeLabels(b Interface, author identity.Interface, unixTime int64, add, remove []string, allowDeprecated bool) ([]LabelChangeResult, *LabelChangeOperation, error) {
 	var added, removed []Label
 	var results []LabelChangeResult
 	var newWorkflow *Workflow
@@ -221,6 +221,22 @@ func ChangeLabels(b Interface, author identity.Interface, unixTime int64, add, r
 		if label.IsChecklist() {
 			if _, err := GetChecklist(Label(str)); err != nil {
 				results = append(results, LabelChangeResult{Label: label, Status: LabelChangeInvalidChecklist})
+				continue
+			}
+		}
+
+		// For any other labels, validate it against the configured set of labels
+		if !label.IsChecklist() && !label.IsWorkflow() {
+			configuredLabels, err := ListLabels()
+			if err != nil {
+				return nil, nil, err
+			}
+
+			if labelConfig, known := configuredLabels[label]; !known {
+				results = append(results, LabelChangeResult{Label: label, Status: LabelChangeUnknownLabel})
+				continue
+			} else if (labelConfig.DeprecationMessage != "") && !allowDeprecated {
+				results = append(results, LabelChangeResult{Label: label, Status: LabelChangeDeprecatedLabel, AdditionalInfo: labelConfig.DeprecationMessage})
 				continue
 			}
 		}
@@ -339,11 +355,14 @@ const (
 	LabelChangeInvalidWorkflow
 	LabelChangeInvalidChecklist
 	LabelChangeUnauthorizedChecklistChange
+	LabelChangeUnknownLabel
+	LabelChangeDeprecatedLabel
 )
 
 type LabelChangeResult struct {
-	Label  Label
-	Status LabelChangeStatus
+	Label          Label
+	Status         LabelChangeStatus
+	AdditionalInfo string
 }
 
 func (l LabelChangeResult) String() string {
@@ -364,6 +383,10 @@ func (l LabelChangeResult) String() string {
 		return fmt.Sprintf("invalid checklist operation %s", l.Label)
 	case LabelChangeUnauthorizedChecklistChange:
 		return fmt.Sprintf("unauthorized checklist removal operation: %s", l.Label)
+	case LabelChangeUnknownLabel:
+		return fmt.Sprintf("label %s is not part of the configured set (use the `--create` flag or edit configuration with `git ticket config set labels`)", l.Label)
+	case LabelChangeDeprecatedLabel:
+		return fmt.Sprintf("label %s is deprecated. Use --allow-deprecated to override. Deprecation reason: %s", l.Label, l.AdditionalInfo)
 	default:
 		panic(fmt.Sprintf("unknown label change status %v", l.Status))
 	}
