@@ -92,6 +92,7 @@ _git_bug() {
 	cmd.AddCommand(newValidateCommand())
 	cmd.AddCommand(newVersionCommand())
 	cmd.AddCommand(newWebUICommand())
+	cmd.AddCommand(newMigrateCommand())
 
 	return cmd
 }
