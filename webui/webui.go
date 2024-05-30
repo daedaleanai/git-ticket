@@ -497,7 +497,7 @@ var templateHelpers = template.FuncMap{
 		}
 	},
 	"checklist": func(s bug.Label) string {
-		return strings.TrimPrefix(string(s), "checklist:")
+		return strings.TrimPrefix(string(s), bug.ChecklistPrefix)
 	},
 	"checklistStateColor": func(s bug.ChecklistState) string {
 		switch s {
@@ -534,11 +534,13 @@ var templateHelpers = template.FuncMap{
 			return "bg-secondary"
 		}
 	},
-	"splitTitle": func(s string) [2]string {
-		if match := regexp.MustCompile(`^\[([a-zA-Z0-9-]+)\] (.*)$`).FindStringSubmatch(s); match != nil {
-			return [2]string{match[1], match[2]}
+	"getRepo": func(ticket *cache.BugExcerpt) string {
+		for _, label := range ticket.Labels {
+			if label.IsRepo() {
+				return strings.TrimPrefix(string(label), bug.RepoPrefix)
+			}
 		}
-		return [2]string{"<none>", s}
+		return "<none>"
 	},
 	"ticketStatusColor": func(s bug.Status) string {
 		switch s {
