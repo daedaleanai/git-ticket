@@ -250,14 +250,18 @@ func lsDefaultFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 	var titleWidth int
 	var fullTerm bool = true
 
+	// Adjust the minimum term width for the minimum width of the terminal that displays the full output
+	const minTermWidth = 90
+
 	const statusWidth = 10
+	const repoWidth = 12
 	const authorWidth = 15
 	const assigneeWidth = 15
 	const commentCountWidth = 4
 
-	if termWidth >= 80 {
-		const paddingWidth = 8 // speech bubble (2) + spaces
-		titleWidth = termWidth - (entity.HumanIdLength + statusWidth + authorWidth + assigneeWidth + commentCountWidth + paddingWidth)
+	if termWidth >= minTermWidth {
+		const paddingWidth = 9 // speech bubble (2) + spaces
+		titleWidth = termWidth - (entity.HumanIdLength + statusWidth + repoWidth + authorWidth + assigneeWidth + commentCountWidth + paddingWidth)
 	} else {
 		fullTerm = false
 		const paddingWidth = 2 // spaces
@@ -305,10 +309,19 @@ func lsDefaultFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 			comments = strings.Repeat(" ", commentCountWidth-1) + "∞ 💬"
 		}
 
+		const kRepoPrefix string = "repo:"
+		repo := ""
+		for _, l := range b.Labels {
+			if strings.HasPrefix(string(l), kRepoPrefix) {
+				repo = strings.TrimPrefix(string(l), kRepoPrefix)
+			}
+		}
+
 		if fullTerm {
-			env.out.Printf("%s %s %-*s %s %s %s\n",
+			env.out.Printf("%s %s %s %-*s %s %s %s\n",
 				colors.Cyan(b.Id.Human()),
 				termtext.LeftPadMaxLine(colors.Yellow(b.Status), statusWidth, 0),
+				termtext.LeftPadMaxLine(colors.Green(repo), repoWidth, 0),
 				titleWidth,
 				titleFmt+labelsFmt,
 				colors.Magenta(authorFmt),
