@@ -109,12 +109,20 @@ func (t Term256) Unescape() string {
 	return "\x1b[0m"
 }
 
+const ChecklistPrefix string = "checklist:"
+const WorkflowPrefix string = "workflow:"
+const RepoPrefix string = "repo:"
+
 func (l Label) IsChecklist() bool {
-	return strings.HasPrefix(string(l), "checklist:")
+	return strings.HasPrefix(string(l), ChecklistPrefix)
 }
 
 func (l Label) IsWorkflow() bool {
-	return strings.HasPrefix(string(l), "workflow:")
+	return strings.HasPrefix(string(l), WorkflowPrefix)
+}
+
+func (l Label) IsRepo() bool {
+	return strings.HasPrefix(string(l), RepoPrefix)
 }
 
 type labelConfigInterface interface {
