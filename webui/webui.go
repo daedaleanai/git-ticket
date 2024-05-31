@@ -219,7 +219,7 @@ func withRepoCache(repo repository.ClockedRepo, handler HandlerWithRepoCache) fu
 	}
 }
 
-func Run(repo repository.ClockedRepo, port int) error {
+func Run(repo repository.ClockedRepo, host string, port int) error {
 	if err := loadConfig(repo); err != nil {
 		return err
 	}
@@ -230,8 +230,8 @@ func Run(repo repository.ClockedRepo, port int) error {
 	http.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
 	http.HandleFunc("/api/submit-comment", withRepoCache(repo, handleApiSubmitComment))
 
-	fmt.Printf("Running web-ui at http://localhost:%d\n", port)
-	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	fmt.Printf("Running web-ui at http://%s:%d\n", host, port)
+	return http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), nil)
 }
 
 func loadConfig(repo repository.ClockedRepo) error {
