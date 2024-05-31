@@ -17,6 +17,7 @@ var GitExactTag string
 
 // Global flags
 var RebuildCache bool
+var ChangeDir string
 
 func NewRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -30,7 +31,7 @@ the same git remote you are already using to collaborate with other people.
 
 `,
 
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			root := cmd.Root()
 
 			if GitExactTag == "undefined" {
@@ -40,6 +41,11 @@ the same git remote you are already using to collaborate with other people.
 			if GitExactTag == "" {
 				root.Version = fmt.Sprintf("%s-dev-%.10s", root.Version, GitCommit)
 			}
+
+			if ChangeDir != "" {
+				return os.Chdir(ChangeDir)
+			}
+			return nil
 		},
 
 		// For the root command, force the execution of the PreRun
@@ -64,6 +70,7 @@ _git_bug() {
 	}
 
 	cmd.PersistentFlags().BoolVarP(&RebuildCache, "rebuild-cache", "", false, "force the cache to be rebuilt")
+	cmd.PersistentFlags().StringVarP(&ChangeDir, "change-dir", "", "", "Changes directory before running git-ticket")
 
 	cmd.AddCommand(newAddCommand())
 	cmd.AddCommand(newAssignCommand())
