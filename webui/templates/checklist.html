@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>git-ticket | {{ slice .Ticket.Id 0 7 }} | {{ checklist .ChecklistLabel }}</title>
+    <link href="/static/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH">
+    <link href="/static/checklist.css" rel="stylesheet">
+    <script src="/static/checklist.js"></script>
+</head>
+
+<body>
+    <div class="card">
+        <div class="card-header text-center">
+            <h5 class="card-title">{{ .Ticket.Title }} | <b>{{ checklist .ChecklistLabel }}</b></h5>
+        </div>
+        <div class="card-body">
+            <ul class="nav nav-tabs">
+            {{ range $idx, $v := .Checklists  }}
+                {{ $reviewerName := identityToName $v.Ident }}
+                <li class="nav-item">
+                    <button class="nav-link {{ if (eq $idx 0) }} active {{ end }}" id="tab-{{ $idx }}" aria-current="page" onclick="selectReviewer({{ $idx }})">{{ $reviewerName }}</a>
+                </li>
+            {{ end }}
+            </ul>
+
+            {{ range $idx, $v := .Checklists  }}
+            {{ $checklist := $v.Checklist }}
+            <div id="checklist-{{ $idx }}" class="checklist" {{ if (ne $idx 0) }}style="display: none"{{ end }}>
+                {{ range $secIdx, $v := $checklist.Sections }}
+                <h5 class="checklist-header">{{ $v.Title }}</h5>
+                <table class="table checklist-table">
+                    {{ range $qIdx, $v := $v.Questions }}
+                    <tr>
+                        <td>{{ $v.Question }}</td>
+                        <td><span class="badge {{ checklistFieldStateColor $v.State }} checklist-state" id="checklist-{{ $idx }}-sec-{{ $secIdx }}-question-{{ $qIdx }}">{{ $v.State }}</span></td>
+                    </tr>
+                    {{ end }}
+                </table>
+                {{ end }}
+            </div>
+            {{ end }}
+        </div>
+    </div>
+</body>
+
+</html>

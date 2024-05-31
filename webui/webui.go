@@ -147,6 +147,59 @@ func handleTicket(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 	return templates.ExecuteTemplate(w, "ticket.html", ticket.Snapshot())
 }
 
+func handleChecklist(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
+	id := r.URL.Query().Get("id")
+
+	checklist := bug.Label(r.URL.Query().Get("checklist"))
+	if !checklist.IsChecklist() {
+		return fmt.Errorf("requested checklist %s is not a checklist", checklist)
+	}
+
+	ticket, err := repo.ResolveBugPrefix(id)
+	if err != nil {
+		return fmt.Errorf("unable to find ticket %s: %w", id, err)
+	}
+
+	snap := ticket.Snapshot()
+	// only display checklists which are currently associated with the ticket
+	clMap, present := snap.Checklists[checklist]
+	if !present {
+		return fmt.Errorf("Checklist %s is not part of ticket %s", checklist, id)
+	}
+
+	type checklistItem struct {
+		Ident     identity.Interface
+		Checklist bug.ChecklistSnapshot
+	}
+
+	clList := []checklistItem{}
+	for k, v := range clMap {
+		id, err := repo.ResolveIdentity(k)
+		if err != nil {
+			return err
+		}
+		clList = append(clList, checklistItem{
+			Ident:     id.Identity,
+			Checklist: v,
+		})
+	}
+
+	// Sort them so that they appear in consistent order
+	sort.Slice(clList, func(i, j int) bool {
+		return clList[i].Ident.Id() < clList[j].Ident.Id()
+	})
+
+	return templates.ExecuteTemplate(w, "checklist.html", struct {
+		Ticket         *bug.Snapshot
+		ChecklistLabel bug.Label
+		Checklists     []checklistItem
+	}{
+		Ticket:         snap,
+		ChecklistLabel: checklist,
+		Checklists:     clList,
+	})
+}
+
 func handleApiSetStatus(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 	action := ApiActionSetStatus{}
 	if err := json.NewDecoder(r.Body).Decode(&action); err != nil {
@@ -227,6 +280,7 @@ func Run(repo repository.ClockedRepo, host string, port int) error {
 	http.Handle("/static/", http.FileServer(http.FS(staticFs)))
 	http.HandleFunc("/", withRepoCache(repo, handleIndex))
 	http.HandleFunc("/ticket/", withRepoCache(repo, handleTicket))
+	http.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
 	http.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
 	http.HandleFunc("/api/submit-comment", withRepoCache(repo, handleApiSubmitComment))
 
@@ -586,5 +640,19 @@ var templateHelpers = template.FuncMap{
 			panic(err)
 		}
 		return template.HTML(w.Bytes())
+	},
+	"checklistFieldStateColor": func(s bug.ChecklistState) string {
+		switch s {
+		case bug.Passed:
+			return "bg-success"
+		case bug.Failed:
+			return "bg-danger"
+		case bug.NotApplicable:
+			return "bg-secondary"
+		case bug.TBD:
+			return "bg-warning"
+		default:
+			return "bg-danger"
+		}
 	},
 }
