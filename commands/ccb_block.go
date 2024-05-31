@@ -22,6 +22,9 @@ func newCcbBlockCommand() *cobra.Command {
 		},
 	}
 
+	flags := cmd.Flags()
+	flags.BoolVarP(&forceCcbChange, "force", "f", false, "Forces the CCB operation, even if the ticket is not in a state that can directly transition to the blocked status. With great power comes great responsibility")
+
 	return cmd
 }
 
@@ -76,7 +79,7 @@ func runCcbBlock(env *Env, args []string) error {
 		return fmt.Errorf("Could not find associated workflow for ticket %v", b.Id())
 	}
 
-	if !nextStatusMatchesRequestedBlock(b.Snapshot().Status, status, workflow) {
+	if !nextStatusMatchesRequestedBlock(b.Snapshot().Status, status, workflow) && !forceCcbChange {
 		// Prevent accidental block of states, when the ticket is not in a state that transitions to the
 		// requested state
 		return fmt.Errorf("Requested CCB block for ticket status %s, but ticket is in status %s, which cannot directly transition to %s", status, b.Snapshot().Status, status)
