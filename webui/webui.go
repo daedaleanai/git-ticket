@@ -567,7 +567,7 @@ var templateHelpers = template.FuncMap{
 	"workflow": func(s *bug.Snapshot) string {
 		for _, l := range s.Labels {
 			if l.IsWorkflow() {
-				return strings.TrimPrefix(l.String(), "workflow:")
+				return strings.TrimPrefix(l.String(), bug.WorkflowPrefix)
 			}
 		}
 		return ""
