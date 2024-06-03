@@ -280,7 +280,7 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 	// Reviews
 	var reviewStates []string
 	for _, review := range snapshot.Reviews {
-		reviewStates = append(reviewStates, fmt.Sprintf("%s (%s)", review.Id(), review.LatestOverallStatus()))
+		reviewStates = append(reviewStates, fmt.Sprintf("%s (%s)", review.ReviewUrl(), review.LatestOverallStatus()))
 	}
 	sort.Strings(reviewStates)
 	env.out.Printf("reviews: %s\n", strings.Join(reviewStates, ", "))

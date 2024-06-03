@@ -156,14 +156,20 @@ type GiteaInfo struct {
 	Commits []GiteaCommit
 }
 
-// Id returns Phabricator revision id
+// Id returns Gitea revision id
 func (g *GiteaInfo) Id() string {
+	return fmt.Sprintf("%s/%s#%d", g.Owner, g.Repository, g.PullId)
+}
+
+// Id returns Gitea revision URL, if known. Otherwise it returns the review URL
+func (g *GiteaInfo) ReviewUrl() string {
 	giteaUrl, _, _ := repository.GetGiteaConfig()
 	if giteaUrl != "" {
 		return fmt.Sprintf("%s/%s/%s/pulls/%d", giteaUrl, g.Owner, g.Repository, g.PullId)
-	} else {
-		return fmt.Sprintf("%s/%s#%d", g.Owner, g.Repository, g.PullId)
 	}
+
+	// Fallback to the ID if URL is unknown
+	return g.Id()
 }
 
 // Title returns Phabricator revision title
