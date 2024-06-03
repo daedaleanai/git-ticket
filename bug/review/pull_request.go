@@ -36,6 +36,7 @@ type IdentityResolver interface {
 type PullRequest interface {
 	Id() string
 	Title() string
+	ReviewUrl() string
 
 	History() []TimelineEvent
 

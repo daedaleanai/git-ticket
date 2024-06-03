@@ -8,8 +8,8 @@ import (
 	"github.com/thought-machine/gonduit/core"
 )
 
-// getPhabConfig returns the Phabricator URL and API token from the repository config
-func getPhabConfig() (string, string, error) {
+// GetPhabConfig returns the Phabricator URL and API token from the repository config
+func GetPhabConfig() (string, string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", "", fmt.Errorf("unable to get the current working directory: %q", err)
@@ -45,7 +45,7 @@ click on <Generate API Token>, and then paste the token into this command
 // within a git repo which has the Phabricator URL and conduit API token set
 // in the git config.
 func GetPhabClient() (*gonduit.Conn, error) {
-	phabUrl, apiToken, err := getPhabConfig()
+	phabUrl, apiToken, err := GetPhabConfig()
 	if err != nil {
 		return nil, err
 	}
