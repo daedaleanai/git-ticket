@@ -253,6 +253,28 @@ func ValidateCcb(snap *Snapshot, next Status) error {
 	return nil
 }
 
+// ValidateAllCcb returns an error if the snapshot does not have CCB set and approved for all CCB status (Except rejected)
+func ValidateAllCcb(snap *Snapshot, next Status) error {
+	var ccbAssigned int
+	// Loop through the entire CCB list, each entry represents an approval: a ticket status plus
+	// a CCB member who should approve it
+	for _, approval := range snap.Ccb {
+		if approval.Status == next {
+			// This approval is needed for the requested 'next' status
+			ccbAssigned++
+		}
+
+		if approval.Status != RejectedStatus && approval.State != ApprovedCcbState {
+			return fmt.Errorf("not all CCB have approved ticket status %s", approval.Status)
+		}
+	}
+	// Check at least one approval is associated with the requested status
+	if ccbAssigned == 0 {
+		return fmt.Errorf("no CCB assigned to ticket status %s", next)
+	}
+	return nil
+}
+
 // ValidateChecklistsCompleted returns an error if at least one of the checklists attached to the snapshot
 // has not been completed
 func ValidateChecklistsCompleted(snap *Snapshot, next Status) error {

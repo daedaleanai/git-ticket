@@ -141,7 +141,7 @@ func init() {
 					validationHook: []ValidationFunc{ValidateCcb}, actionHook: []ActionFunc{ClearAllCcbApprovals}},
 				{start: ReviewedStatus, end: InProgressStatus},
 				{start: ReviewedStatus, end: AcceptedStatus,
-					validationHook: []ValidationFunc{ValidateCcb,
+					validationHook: []ValidationFunc{ValidateAllCcb,
 						ValidateChecklistsCompleted}},
 				{start: ReviewedStatus, end: RejectedStatus,
 					validationHook: []ValidationFunc{ValidateCcb}, actionHook: []ActionFunc{ClearAllCcbApprovals}},

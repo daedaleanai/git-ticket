@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var forceCcbChange bool = false
+
 func newCcbApproveCommand() *cobra.Command {
 	env := newEnv()
 
@@ -21,6 +23,9 @@ func newCcbApproveCommand() *cobra.Command {
 			return runCcbApprove(env, args)
 		},
 	}
+
+	flags := cmd.Flags()
+	flags.BoolVarP(&forceCcbChange, "force", "f", false, "Forces the CCB operation, even if the ticket is not in a state that can directly transition to the accepted status. With great power comes great responsibility")
 
 	return cmd
 }
@@ -76,7 +81,7 @@ func runCcbApprove(env *Env, args []string) error {
 		return fmt.Errorf("Could not find associated workflow for ticket %v", b.Id())
 	}
 
-	if !nextStatusMatchesRequestedApproval(b.Snapshot().Status, status, workflow) {
+	if !nextStatusMatchesRequestedApproval(b.Snapshot().Status, status, workflow) && !forceCcbChange {
 		// Prevent accidental approval of states, when the ticket is not in a state that transitions to the
 		// requested state
 		return fmt.Errorf("Requested CCB approval for ticket status %s, but ticket is in status %s, which cannot directly transition to %s", status, b.Snapshot().Status, status)
@@ -91,15 +96,18 @@ func runCcbApprove(env *Env, args []string) error {
 
 	fmt.Printf("Approving ticket %s\n", b.Id().Human())
 
-	// Attempt to transition to the approved state, but warn if there are more approvals required.
-	if err := bug.ValidateCcb(b.Snapshot(), status); err == nil {
-		_, err = b.SetStatus(status)
-		if err != nil {
-			return err
+	// Only apply transition if the status is reachable
+	if nextStatusMatchesRequestedApproval(b.Snapshot().Status, status, workflow) {
+		// Attempt to transition to the approved state, but warn if there are more approvals required.
+		if err := bug.ValidateCcb(b.Snapshot(), status); err == nil {
+			_, err = b.SetStatus(status)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Set status to %s\n", status)
+		} else {
+			fmt.Printf("Warning: did not transition the ticket to %s: %v\n", status, err)
 		}
-		fmt.Printf("Set status to %s\n", status)
-	} else {
-		fmt.Printf("Warning: did not transition the ticket to %s: %v\n", status, err)
 	}
 
 	return b.Commit()
