@@ -1,9 +1,41 @@
+html, body {
+    height: 100%;
+    margin: 0;
+}
+
+::-webkit-scrollbar {
+    display: none;
+}
+
 .card {
-    width: 800px;
     margin: 32px auto;
+    width: 800px;
+    display: flex;
+    flex-flow: column;
+    height: calc(100% - 64px);
+}
+
+.card-body {
+    height: inherit;
+    margin: 0em;
+}
+
+#checklist-container{
+    height: inherit;
+    margin: 0em;
+    overflow: auto;
 }
 
 .checklist-header {
     margin-top: 24px;
     margin-bottom: 24px;
+}
+
+#alert {
+    display: none;
+    position: absolute;
+    z-index: 1;
+    top: 32px;
+    right: 32px;
+    width: 600px;
 }
