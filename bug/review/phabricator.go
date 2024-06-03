@@ -152,6 +152,16 @@ func (r *PhabReviewInfo) Id() string {
 	return r.RevisionId
 }
 
+func (r *PhabReviewInfo) ReviewUrl() string {
+	phabUrl, _, _ := repository.GetPhabConfig()
+	if phabUrl != "" {
+		return fmt.Sprintf("%s/%s", phabUrl, r.RevisionId)
+	}
+
+	// Fallback to the ID if URL is unknown
+	return r.Id()
+}
+
 // Title returns Phabricator revision title
 func (r *PhabReviewInfo) Title() string {
 	return r.RevisionTitle
