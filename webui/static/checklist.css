@@ -20,6 +20,10 @@ html, body {
     margin: 0em;
 }
 
+.question-state {
+    text-align: right;
+}
+
 #checklist-container{
     height: inherit;
     margin: 0em;

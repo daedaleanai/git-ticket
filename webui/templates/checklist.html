@@ -34,7 +34,7 @@
                     {{ range $qIdx, $v := $v.Questions }}
                     <tr>
                         <td>{{ $v.Question }}</td>
-                        <td><span class="badge {{ checklistFieldStateColor $v.State }} checklist-state" data-usr-id="{{ $idx }}" data-section-id="{{ $secIdx }}" data-question-id="{{ $qIdx }}">{{ $v.State }}</span></td>
+                        <td class="question-state"><span class="badge {{ checklistFieldStateColor $v.State }}" data-usr-id="{{ $idx }}" data-section-id="{{ $secIdx }}" data-question-id="{{ $qIdx }}">{{ $v.State }}</span></td>
                         <div id="comment-{{ $idx }}-sec-{{ $secIdx }}-question-{{ $qIdx }}" style="display: none">{{ $v.Comment }}</div>
                     </tr>
                     {{ end }}
