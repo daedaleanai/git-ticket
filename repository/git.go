@@ -9,6 +9,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 
 	goGit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -47,6 +48,21 @@ func (repo *GitRepo) GlobalConfig() Config {
 	return newGitConfig(repo, true)
 }
 
+var gitTimes []time.Duration
+
+func TimingOutput() {
+	calls := len(gitTimes)
+	if calls > 0 {
+		var totalTime time.Duration
+		for _, t := range gitTimes {
+			totalTime += t
+		}
+
+		fmt.Printf("git calls: %d, total execution: %v, average execution: %vns\n",
+			calls, totalTime, totalTime.Nanoseconds()/int64(calls))
+	}
+}
+
 // Run the given git command with the given I/O reader/writers, returning an error if it fails.
 func (repo *GitRepo) runGitCommandWithIO(stdin io.Reader, stdout, stderr io.Writer, args ...string) error {
 	// make sure that the working directory for the command
@@ -64,7 +80,10 @@ func (repo *GitRepo) runGitCommandWithIO(stdin io.Reader, stdout, stderr io.Writ
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
-	return cmd.Run()
+	start := time.Now()
+	err := cmd.Run()
+	gitTimes = append(gitTimes, time.Since(start))
+	return err
 }
 
 // Run the given git command and return its stdout, or an error if the command fails.

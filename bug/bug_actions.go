@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"time"
 
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/repository"
@@ -132,14 +133,19 @@ func MergeAll(repo repository.ClockedRepo, remote string) <-chan entity.MergeRes
 				continue
 			}
 
+			start := time.Now()
 			id := entity.Id(path.Base(remoteRef))
 
+			action_start := time.Now()
 			if err := id.Validate(); err != nil {
 				out <- entity.NewMergeInvalidStatus(id, errors.Wrap(err, "invalid ref").Error())
 				continue
 			}
+			fmt.Printf("bug_actions.MergeAll::update-validate took %v\n", time.Since(action_start))
 
+			action_start = time.Now()
 			remoteBug, err := readBug(repo, remoteRef)
+			fmt.Printf("bug_actions.MergeAll::update-read-bug-remote took %v\n", time.Since(action_start))
 
 			if err != nil {
 				out <- entity.NewMergeInvalidStatus(id, errors.Wrap(err, "remote bug is not readable").Error())
@@ -147,13 +153,17 @@ func MergeAll(repo repository.ClockedRepo, remote string) <-chan entity.MergeRes
 			}
 
 			// Check for error in remote data
+			action_start = time.Now()
 			if err := remoteBug.Validate(); err != nil {
 				out <- entity.NewMergeInvalidStatus(id, errors.Wrap(err, "remote bug is invalid").Error())
 				continue
 			}
+			fmt.Printf("bug_actions.MergeAll::update-remote-validate took %v\n", time.Since(action_start))
 
 			localRef := bugsRefPattern + remoteBug.Id().String()
+			action_start = time.Now()
 			localExist, err := repo.RefExist(localRef)
+			fmt.Printf("bug_actions.MergeAll::update-ref-exists took %v\n", time.Since(action_start))
 
 			if err != nil {
 				out <- entity.NewMergeError(err, id)
@@ -173,14 +183,18 @@ func MergeAll(repo repository.ClockedRepo, remote string) <-chan entity.MergeRes
 				continue
 			}
 
+			action_start = time.Now()
 			localBug, err := readBug(repo, localRef)
+			fmt.Printf("bug_actions.MergeAll::update-read-bug-local took %v\n", time.Since(action_start))
 
 			if err != nil {
 				out <- entity.NewMergeError(errors.Wrap(err, "local bug is not readable"), id)
 				return
 			}
 
+			action_start = time.Now()
 			updated, err := localBug.Merge(repo, remoteBug)
+			fmt.Printf("bug_actions.MergeAll::update-merge took %v\n", time.Since(action_start))
 
 			if err != nil {
 				out <- entity.NewMergeInvalidStatus(id, errors.Wrap(err, "merge failed").Error())
@@ -192,6 +206,7 @@ func MergeAll(repo repository.ClockedRepo, remote string) <-chan entity.MergeRes
 			} else {
 				out <- entity.NewMergeStatus(entity.MergeStatusNothing, id, localBug)
 			}
+			fmt.Printf("bug_actions.MergeAll::update took %v\n", time.Since(start))
 		}
 	}()
 

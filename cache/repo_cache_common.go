@@ -119,11 +119,13 @@ func (c *RepoCache) MergeAll(remote string) <-chan entity.MergeResult {
 
 			switch result.Status {
 			case entity.MergeStatusNew, entity.MergeStatusUpdated:
+				start := time.Now()
 				b := result.Entity.(*bug.Bug)
 				snap := b.Compile()
 				c.muBug.Lock()
 				c.bugExcerpts[result.Id] = NewBugExcerpt(b, &snap)
 				c.muBug.Unlock()
+				fmt.Printf("repo_cache_common.MergeAll::cache_update took %v\n", time.Since(start))
 			}
 		}
 

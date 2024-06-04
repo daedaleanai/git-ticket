@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/daedaleanai/git-ticket/repository"
 )
 
 const rootCommandName = "git-ticket"
@@ -105,6 +107,7 @@ _git_bug() {
 }
 
 func Execute() {
+	defer repository.TimingOutput()
 	if err := NewRootCommand().Execute(); err != nil {
 		os.Exit(1)
 	}
