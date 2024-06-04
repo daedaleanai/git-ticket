@@ -37,12 +37,12 @@
 
                 <tr>
                     <td><b>Author</b></td>
-                    <td><a href="/?q=author:&quot;{{ identityToName .Author }}&quot;">{{ identityToName .Author }}</td>
+                    <td><a href="/?q=author:&quot;{{ identityToName .Author }}&quot;">{{ identityToName .Author }}</a></td>
                     </tr>
 
                 <tr>
                     <td><b>Assignee</b></td>
-                    <td><a href="/?q=assignee:&quot;{{ identityToName .Assignee }}&quot;">{{ identityToName .Assignee }}</td>
+                    <td><a href="/?q=assignee:&quot;{{ identityToName .Assignee }}&quot;">{{ identityToName .Assignee }}</a></td>
                 </tr>
 
                 <tr>
@@ -71,8 +71,12 @@
                 <tr>
                     <td><b>Checklists</b></td>
                     <td>
-                    {{ range $k, $v := .GetChecklistCompoundStates }}
-                        <span class="badge {{ checklistStateColor $v }}">{{ checklist $k }}</span>
+                    {{ range $k, $v := .GetChecklistCompoundStates  }}
+                        <span class="badge {{ checklistStateColor $v }}">
+                            {{ if ne $v 0 }}<a href="/checklist?id={{ $.Id }}&checklist={{ $k }}">{{end}}
+                                {{ checklist $k }}
+                            {{ if ne $v 0 }}</a>{{ end }}
+                        </span>
                     {{ end }}
                     </td>
                 <tr>

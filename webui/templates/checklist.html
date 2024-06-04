@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>git-ticket | {{ slice .Ticket.Id 0 7 }} | {{ checklist .ChecklistLabel }}</title>
+    <link href="/static/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH">
+    <link href="/static/checklist.css" rel="stylesheet">
+    <script src="/static/checklist.js"></script>
+</head>
+
+<body>
+    <div id="alert" class="alert alert-secondary" role="alert"></div>
+    <div class="card">
+        <div class="card-header text-center">
+            <h5 class="card-title">{{ slice .Ticket.Id 0 7 }} | {{ .Ticket.Title }} | <b>{{ checklist .ChecklistLabel }}</b></h5>
+        </div>
+        <div class="card-body">
+            <ul class="nav nav-tabs">
+            {{ range $idx, $v := .Checklists  }}
+                {{ $reviewerName := identityToName $v.Ident }}
+                <li class="nav-item">
+                    <button class="nav-link {{ if (eq $idx 0) }} active {{ end }}" id="tab-{{ $idx }}" aria-current="page" onclick="selectReviewer({{ $idx }})">{{ $reviewerName }}</a>
+                </li>
+            {{ end }}
+            </ul>
+
+            <div id="checklist-container">
+            {{ range $idx, $v := .Checklists  }}
+            {{ $checklist := $v.Checklist }}
+                <div id="checklist-{{ $idx }}" class="checklist" {{ if (ne $idx 0) }}style="display: none"{{ end }}>
+                {{ range $secIdx, $v := $checklist.Sections }}
+                    <h5 class="checklist-header"><b>{{ $v.Title }}</b></h5>
+                    <table class="table checklist-table">
+                    {{ range $qIdx, $v := $v.Questions }}
+                        <tr>
+                            <td>{{ $v.Question }}</td>
+                            <td class="question-state"><span class="badge {{ checklistFieldStateColor $v.State }} checklist-state" data-usr-id="{{ $idx }}" data-section-id="{{ $secIdx }}" data-question-id="{{ $qIdx }}">{{ $v.State }}</span></td>
+                            <div id="comment-{{ $idx }}-sec-{{ $secIdx }}-question-{{ $qIdx }}" style="display: none">{{ $v.Comment }}</div>
+                        </tr>
+                    {{ end }}
+                    </table>
+                {{ end }}
+                </div>
+            {{ end }}
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
