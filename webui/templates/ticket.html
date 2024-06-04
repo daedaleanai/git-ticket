@@ -71,10 +71,9 @@
                 <tr>
                     <td><b>Checklists</b></td>
                     <td>
-                    {{ $outer := . }}
                     {{ range $k, $v := .GetChecklistCompoundStates  }}
                         <span class="badge {{ checklistStateColor $v }}">
-                            {{ if ne $v 0 }}<a href="/checklist?id={{ $outer.Id }}&checklist={{ $k }}">{{end}}
+                            {{ if ne $v 0 }}<a href="/checklist?id={{ $.Id }}&checklist={{ $k }}">{{end}}
                                 {{ checklist $k }}
                             {{ if ne $v 0 }}</a>{{ end }}
                         </span>
