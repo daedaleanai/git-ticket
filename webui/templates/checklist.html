@@ -12,7 +12,7 @@
     <div id="alert" class="alert alert-secondary" role="alert"></div>
     <div class="card">
         <div class="card-header text-center">
-            <h5 class="card-title">{{ .Ticket.Title }} | <b>{{ checklist .ChecklistLabel }}</b></h5>
+            <h5 class="card-title">{{ slice .Ticket.Id 0 7 }} | {{ .Ticket.Title }} | <b>{{ checklist .ChecklistLabel }}</b></h5>
         </div>
         <div class="card-body">
             <ul class="nav nav-tabs">
