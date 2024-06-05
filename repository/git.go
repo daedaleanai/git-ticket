@@ -11,8 +11,10 @@ import (
 	"sync"
 
 	goGit "github.com/go-git/go-git/v5"
+	goGitConfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/revlist"
 	"github.com/pkg/errors"
 
 	"github.com/daedaleanai/git-ticket/util/lamport"
@@ -244,23 +246,46 @@ func (repo *GitRepo) GetRemotes() (map[string]string, error) {
 
 // FetchRefs fetch git refs from a remote
 func (repo *GitRepo) FetchRefs(remote, refSpec string) (string, error) {
-	stdout, err := repo.runGitCommand("fetch", remote, refSpec)
+	err := repo.repo.Fetch(&goGit.FetchOptions{
+		RemoteName: remote,
+		RefSpecs: []goGitConfig.RefSpec{
+			goGitConfig.RefSpec(refSpec),
+		},
+	})
 
-	if err != nil {
-		return stdout, fmt.Errorf("failed to fetch from the remote '%s': %v", remote, err)
+	if err == goGit.NoErrAlreadyUpToDate {
+		return "", nil
 	}
-
-	return stdout, err
+	return "", err
 }
 
 // PushRefs push git refs to a remote
 func (repo *GitRepo) PushRefs(remote string, refSpec string) (string, error) {
-	stdout, stderr, err := repo.runGitCommandRaw(nil, "push", remote, refSpec)
-
-	if err != nil {
-		return stdout + stderr, fmt.Errorf("failed to push to the remote '%s': %v", remote, stderr)
+	ref := fmt.Sprintf("%s:%s", refSpec, refSpec)
+	err := repo.repo.Push(&goGit.PushOptions{
+		RemoteName: remote,
+		RefSpecs:   []goGitConfig.RefSpec{goGitConfig.RefSpec(ref)},
+	})
+	if err == goGit.NoErrAlreadyUpToDate {
+		return "", nil
 	}
-	return stdout + stderr, nil
+	return "", err
+}
+
+// PushAllRefs push all git refs to a remote
+func (repo *GitRepo) PushAllRefs(remote string, refSpecs []string) (string, error) {
+	rs := []goGitConfig.RefSpec{}
+	for _, ref := range refSpecs {
+		rs = append(rs, goGitConfig.RefSpec(fmt.Sprintf("%s:%s", ref, ref)))
+	}
+	err := repo.repo.Push(&goGit.PushOptions{
+		RemoteName: remote,
+		RefSpecs:   rs,
+	})
+	if err == goGit.NoErrAlreadyUpToDate {
+		return "", nil
+	}
+	return "", err
 }
 
 // StoreData will store arbitrary data and return the corresponding hash
@@ -274,16 +299,24 @@ func (repo *GitRepo) StoreData(data []byte) (Hash, error) {
 
 // ReadData will attempt to read arbitrary data from the given hash
 func (repo *GitRepo) ReadData(hash Hash) ([]byte, error) {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-
-	err := repo.runGitCommandWithIO(nil, &stdout, &stderr, "cat-file", "-p", string(hash))
-
+	blob, err := repo.repo.BlobObject(plumbing.NewHash(string(hash)))
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
-	return stdout.Bytes(), nil
+	reader, err := blob.Reader()
+	if err != nil {
+		return nil, err
+	}
+
+	buf := make([]byte, blob.Size)
+	n, err := reader.Read(buf)
+	if err != nil {
+		return nil, err
+	} else if n != int(blob.Size) {
+		return nil, fmt.Errorf("Only read %d bytes out of %d bytes of blob %s", n, blob.Size, hash)
+	}
+	return buf, nil
 }
 
 // StoreTree will store a mapping key-->Hash as a Git tree
@@ -397,42 +430,66 @@ func (repo *GitRepo) ResolveRef(ref string) (Hash, error) {
 
 // ListCommits will return the list of commit hashes of a ref, in chronological order
 func (repo *GitRepo) ListCommits(ref string) ([]Hash, error) {
-	stdout, err := repo.runGitCommand("rev-list", "--first-parent", "--reverse", ref)
-
+	r, err := repo.repo.Reference(plumbing.ReferenceName(ref), true)
 	if err != nil {
 		return nil, err
 	}
 
-	split := strings.Split(stdout, "\n")
-
-	casted := make([]Hash, len(split))
-	for i, line := range split {
-		casted[i] = Hash(line)
+	curCommit, err := repo.repo.CommitObject(r.Hash())
+	if err != nil {
+		return nil, err
 	}
 
-	return casted, nil
+	revHashes := []Hash{}
+	for {
+		revHashes = append(revHashes, Hash(curCommit.Hash.String()))
+		parent, err := curCommit.Parent(0)
+		if err == object.ErrParentNotFound {
+			break
+		}
+		curCommit = parent
+	}
 
+	// reverse the order of the array to show older elements first
+	for i, j := 0, len(revHashes)-1; i < len(revHashes)/2; i, j = i+1, j-1 {
+		revHashes[j], revHashes[i] = revHashes[i], revHashes[j]
+	}
+
+	return revHashes, nil
 }
 
 // CommitsBetween will return the commits reachable from 'mainRef' which are not reachable from 'excludeRef'
 func (repo *GitRepo) CommitsBetween(excludeRef, mainRef string) ([]Hash, error) {
-	stdout, err := repo.runGitCommand("rev-list", "^"+excludeRef, mainRef)
+	exclude, err := repo.repo.Reference(plumbing.ReferenceName(excludeRef), true)
 	if err != nil {
 		return nil, err
 	}
-	if stdout == "" {
-		// Return a nil slice if no commits are between the two references
+	main, err := repo.repo.Reference(plumbing.ReferenceName(mainRef), true)
+	if err != nil {
+		return nil, err
+	}
+
+	excludeObjs, err := revlist.Objects(repo.repo.Storer, []plumbing.Hash{exclude.Hash()}, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	objs, err := revlist.Objects(repo.repo.Storer, []plumbing.Hash{main.Hash()}, excludeObjs)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(objs) == 0 {
 		return nil, nil
 	}
 
-	split := strings.Split(stdout, "\n")
-
-	casted := make([]Hash, len(split))
-	for i, line := range split {
-		casted[i] = Hash(line)
+	hashes := []Hash{}
+	for _, obj := range objs {
+		if _, err := repo.CommitObject(obj); err == nil {
+			hashes = append(hashes, Hash(obj.String()))
+		}
 	}
-
-	return casted, nil
+	return hashes, nil
 }
 
 // LastCommit will return the latest commit hash of a ref
@@ -447,13 +504,51 @@ func (repo *GitRepo) LastCommit(ref string) (Hash, error) {
 
 // ReadTree will return the list of entries in a Git tree
 func (repo *GitRepo) ReadTree(hash Hash) ([]TreeEntry, error) {
-	stdout, err := repo.runGitCommand("ls-tree", string(hash))
-
+	obj, err := repo.repo.Object(plumbing.AnyObject, plumbing.NewHash(string(hash)))
 	if err != nil {
 		return nil, err
 	}
 
-	return readTreeEntries(stdout)
+	var tree *object.Tree
+	if commit, ok := obj.(*object.Commit); ok {
+		tree, err = commit.Tree()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if t, ok := obj.(*object.Tree); ok {
+		tree = t
+	}
+
+	if tree == nil {
+		return nil, fmt.Errorf("Invalid object type: %s", obj.Type())
+	}
+
+	translateObjType := func(t plumbing.ObjectType) ObjectType {
+		switch t {
+		case plumbing.BlobObject:
+			return Blob
+		case plumbing.TreeObject:
+			return Tree
+		default:
+			return Unknown
+		}
+	}
+
+	entries := []TreeEntry{}
+	for _, e := range tree.Entries {
+		o, err := repo.repo.Object(plumbing.AnyObject, e.Hash)
+		if err != nil {
+			return nil, err
+		}
+
+		entries = append(entries, TreeEntry{
+			Name:       e.Name,
+			Hash:       Hash(e.Hash.String()),
+			ObjectType: translateObjType(o.Type()),
+		})
+	}
+	return entries, nil
 }
 
 // FindCommonAncestor will return the last common ancestor of two chain of commit

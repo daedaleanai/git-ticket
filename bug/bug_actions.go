@@ -28,35 +28,40 @@ func Push(repo repository.Repo, remote string, out io.Writer) error {
 		return err
 	}
 
-	pushed := 0
-
+	refSpecs := []string{}
 	for _, localRef := range localRefs {
 		hashes, err := repo.CommitsBetween(remoteRefSpec+path.Base(localRef), localRef)
 		if err == nil && hashes == nil {
 			continue
 		}
 
-		fmt.Fprintf(out, "Pushing ticket: %s\n", path.Base(localRef))
-		stdout, err := repo.PushRefs(remote, localRef)
+		refSpecs = append(refSpecs, localRef)
+	}
+
+	if len(refSpecs) > 0 {
+		fmt.Fprintf(out, "Pushing tickets:\n")
+		for _, localRef := range refSpecs {
+			fmt.Fprintf(out, "%s\n", localRef)
+		}
+
+		stdout, err := repo.PushAllRefs(remote, refSpecs)
 		fmt.Fprintln(out, stdout)
 		if err != nil {
 			return err
 		}
 
-		// Need to update the remote ref manually because push doesn't do it automatically
-		// for bug references
-		err = repo.UpdateRef(remoteRefSpec+path.Base(localRef), repository.Hash(localRef))
-		if err != nil {
-			return err
+		fmt.Fprintln(out, "Updating local references")
+		for _, localRef := range refSpecs {
+			// Need to update the remote ref manually because push doesn't do it automatically
+			// for bug references
+			err = repo.UpdateRef(remoteRefSpec+path.Base(localRef), repository.Hash(localRef))
+			if err != nil {
+				return err
+			}
 		}
-
-		pushed++
-	}
-
-	if pushed == 0 {
-		fmt.Fprintln(out, "Everything up-to-date")
-	} else {
 		fmt.Fprintln(out, "Everything sync'd with remote")
+	} else {
+		fmt.Fprintln(out, "Everything up-to-date")
 	}
 
 	return nil
@@ -104,11 +109,11 @@ func Pull(repo repository.ClockedRepo, remote string) error {
 
 // MergeAll will merge all the available remote bug:
 //
-// - If the remote has new commit, the local bug is updated to match the same history
-//   (fast-forward update)
-// - if the local bug has new commits but the remote don't, nothing is changed
-// - if both local and remote bug have new commits (that is, we have a concurrent edition),
-//   new local commits are rewritten at the head of the remote history (that is, a rebase)
+//   - If the remote has new commit, the local bug is updated to match the same history
+//     (fast-forward update)
+//   - if the local bug has new commits but the remote don't, nothing is changed
+//   - if both local and remote bug have new commits (that is, we have a concurrent edition),
+//     new local commits are rewritten at the head of the remote history (that is, a rebase)
 func MergeAll(repo repository.ClockedRepo, remote string) <-chan entity.MergeResult {
 	out := make(chan entity.MergeResult)
 

@@ -59,6 +59,9 @@ type Repo interface {
 	// PushRefs push git refs to a remote
 	PushRefs(remote string, refSpec string) (string, error)
 
+	// PushAllRefs push all git refs to a remote
+	PushAllRefs(remote string, refSpec []string) (string, error)
+
 	// StoreData will store arbitrary data and return the corresponding hash
 	StoreData(data []byte) (Hash, error)
 
