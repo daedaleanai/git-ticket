@@ -11,9 +11,11 @@ import (
 	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/spf13/cobra"
 
+	"github.com/charmbracelet/glamour"
 	"github.com/daedaleanai/git-ticket/bug"
 	_select "github.com/daedaleanai/git-ticket/commands/select"
 	"github.com/daedaleanai/git-ticket/util/colors"
+	"github.com/daedaleanai/git-ticket/util/text"
 )
 
 type showOptions struct {
@@ -310,6 +312,21 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 		strings.Join(participants, ", "),
 	)
 
+	termWidth, _, err := text.GetTermDim()
+	if err != nil {
+		return err
+	}
+
+	r, err := glamour.NewTermRenderer(
+		// detect background color and pick either the default dark or light theme
+		glamour.WithAutoStyle(),
+		// wrap output at specific width (default is 80)
+		glamour.WithWordWrap(termWidth),
+	)
+	if err != nil {
+		return err
+	}
+
 	// Comments
 	indent := "  "
 
@@ -329,12 +346,16 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 
 		var message string
 		if comment.Message == "" {
-			message = colors.GreyBold("No description provided.")
+			message = colors.GreyBold("No description provided.") + "\n\n"
 		} else {
-			message = comment.Message
+			out, err := r.Render(comment.Message)
+			if err != nil {
+				out = fmt.Sprintf("%s\n\n", comment.Message)
+			}
+			message = out
 		}
 
-		env.out.Printf("%s\n\n%s\n\n\n", colors.WhiteBold(header), message)
+		env.out.Printf("%s\n\n%s\n", colors.WhiteBold(header), message)
 	}
 
 	return nil
