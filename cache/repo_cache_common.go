@@ -66,22 +66,7 @@ func (c *RepoCache) StoreData(data []byte) (repository.Hash, error) {
 // Fetch retrieve updates from a remote
 // This does not change the local bugs or identities state
 func (c *RepoCache) Fetch(remote string) (string, error) {
-	stdout1, err := identity.Fetch(c.repo, remote)
-	if err != nil {
-		return stdout1, err
-	}
-
-	stdout2, err := bug.Fetch(c.repo, remote)
-	if err != nil {
-		return stdout2, err
-	}
-
-	stdout3, err := config.Fetch(c.repo, remote)
-	if err != nil {
-		return stdout3, err
-	}
-
-	return stdout1 + stdout2 + stdout3, nil
+	return c.repo.FetchRefs(remote, identity.Namespace, bug.Namespace, config.Namespace)
 }
 
 // MergeAll will merge all the available remote bug and identities
@@ -218,31 +203,8 @@ func (c *RepoCache) UpdateConfigs(remote string) (string, error) {
 }
 
 // Push update a remote with the local changes
-func (c *RepoCache) Push(remote string, out io.Writer) error {
-	fmt.Fprintln(out, "IDENTITIES...")
-	err := identity.Push(c.repo, remote, out)
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintln(out, "TICKETS...")
-	err = bug.Push(c.repo, remote, out)
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintln(out, "CONFIGS...")
-	err = config.Push(c.repo, remote, out)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// PushTicket update a remote with the local changes to a single ticket
-func (c *RepoCache) PushTicket(remote string, ref string, out io.Writer) error {
-	return bug.PushRef(c.repo, remote, ref, out)
+func (c *RepoCache) Push(remote string) (string, error) {
+	return c.repo.PushRefs(remote, bug.Namespace, identity.Namespace, config.Namespace)
 }
 
 // Pull will do a Fetch + MergeAll

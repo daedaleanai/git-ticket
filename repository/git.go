@@ -11,8 +11,9 @@ import (
 	"sync"
 
 	goGit "github.com/go-git/go-git/v5"
-	goGitConfig "github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/revlist"
 	"github.com/pkg/errors"
@@ -244,57 +245,107 @@ func (repo *GitRepo) GetRemotes() (map[string]string, error) {
 	return remotes, nil
 }
 
-// FetchRefs fetch git refs from a remote
-func (repo *GitRepo) FetchRefs(remote, refSpec string) (string, error) {
+// FetchRefs fetch git refs matching a directory prefix to a remote
+// Ex: prefix="foo" will fetch any remote refs matching "refs/foo/*" locally.
+// The equivalent git refspec would be "refs/foo/*:refs/remotes/<remote>/foo/*"
+func (repo *GitRepo) FetchRefs(remote string, prefixes ...string) (string, error) {
+	refSpecs := make([]config.RefSpec, len(prefixes))
+
+	for i, prefix := range prefixes {
+		refSpecs[i] = config.RefSpec(fmt.Sprintf("refs/%s/*:refs/remotes/%s/%s/*", prefix, remote, prefix))
+	}
+
+	buf := bytes.NewBuffer(nil)
+
 	err := repo.repo.Fetch(&goGit.FetchOptions{
 		RemoteName: remote,
-		RefSpecs: []goGitConfig.RefSpec{
-			goGitConfig.RefSpec(refSpec),
-		},
+		RefSpecs:   refSpecs,
+		Progress:   buf,
 	})
-
 	if err == goGit.NoErrAlreadyUpToDate {
-		return "", nil
+		return "already up-to-date", nil
 	}
-	return "", err
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
 }
 
-// PushRefs push git refs to a remote
-func (repo *GitRepo) PushRefs(remote string, refSpec string) (string, error) {
-	ref := fmt.Sprintf("%s:%s", refSpec, refSpec)
-	err := repo.repo.Push(&goGit.PushOptions{
-		RemoteName: remote,
-		RefSpecs:   []goGitConfig.RefSpec{goGitConfig.RefSpec(ref)},
-	})
-	if err == goGit.NoErrAlreadyUpToDate {
-		return "", nil
+// PushRefs push git refs matching a directory prefix to a remote
+// Ex: prefix="foo" will push any local refs matching "refs/foo/*" to the remote.
+// The equivalent git refspec would be "refs/foo/*:refs/foo/*"
+//
+// Additionally, PushRefs will update the local references in refs/remotes/<remote>/foo to match
+// the remote state.
+func (repo *GitRepo) PushRefs(remote string, prefixes ...string) (string, error) {
+	remo, err := repo.repo.Remote(remote)
+	if err != nil {
+		return "", err
 	}
-	return "", err
-}
 
-// PushAllRefs push all git refs to a remote
-func (repo *GitRepo) PushAllRefs(remote string, refSpecs []string) (string, error) {
-	rs := []goGitConfig.RefSpec{}
-	for _, ref := range refSpecs {
-		rs = append(rs, goGitConfig.RefSpec(fmt.Sprintf("%s:%s", ref, ref)))
+	refSpecs := make([]config.RefSpec, len(prefixes))
+
+	for i, prefix := range prefixes {
+		refspec := fmt.Sprintf("refs/%s/*:refs/%s/*", prefix, prefix)
+
+		// to make sure that the push also create the corresponding refs/remotes/<remote>/... references,
+		// we need to have a default fetch refspec configured on the remote, to make our refs "track" the remote ones.
+		// This does not change the config on disk, only on memory.
+		hasCustomFetch := false
+		fetchRefspec := fmt.Sprintf("refs/%s/*:refs/remotes/%s/%s/*", prefix, remote, prefix)
+		for _, r := range remo.Config().Fetch {
+			if string(r) == fetchRefspec {
+				hasCustomFetch = true
+				break
+			}
+		}
+
+		if !hasCustomFetch {
+			remo.Config().Fetch = append(remo.Config().Fetch, config.RefSpec(fetchRefspec))
+		}
+
+		refSpecs[i] = config.RefSpec(refspec)
 	}
-	err := repo.repo.Push(&goGit.PushOptions{
+
+	buf := bytes.NewBuffer(nil)
+
+	err = remo.Push(&goGit.PushOptions{
 		RemoteName: remote,
-		RefSpecs:   rs,
+		RefSpecs:   refSpecs,
+		Progress:   buf,
 	})
 	if err == goGit.NoErrAlreadyUpToDate {
-		return "", nil
+		return "already up-to-date", nil
 	}
-	return "", err
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
 }
 
 // StoreData will store arbitrary data and return the corresponding hash
 func (repo *GitRepo) StoreData(data []byte) (Hash, error) {
-	var stdin = bytes.NewReader(data)
+	obj := repo.repo.Storer.NewEncodedObject()
+	obj.SetType(plumbing.BlobObject)
 
-	stdout, err := repo.runGitCommandWithStdin(stdin, "hash-object", "--stdin", "-w")
+	w, err := obj.Writer()
+	if err != nil {
+		return "", err
+	}
 
-	return Hash(stdout), err
+	_, err = w.Write(data)
+	if err != nil {
+		return "", err
+	}
+
+	h, err := repo.repo.Storer.SetEncodedObject(obj)
+	if err != nil {
+		return "", err
+	}
+
+	return Hash(h.String()), nil
 }
 
 // ReadData will attempt to read arbitrary data from the given hash
@@ -321,15 +372,33 @@ func (repo *GitRepo) ReadData(hash Hash) ([]byte, error) {
 
 // StoreTree will store a mapping key-->Hash as a Git tree
 func (repo *GitRepo) StoreTree(entries []TreeEntry) (Hash, error) {
-	buffer := prepareTreeEntries(entries)
+	var tree object.Tree
 
-	stdout, err := repo.runGitCommandWithStdin(&buffer, "mktree")
+	for _, entry := range entries {
+		mode := filemode.Regular
+		if entry.ObjectType == Tree {
+			mode = filemode.Dir
+		}
 
+		tree.Entries = append(tree.Entries, object.TreeEntry{
+			Name: entry.Name,
+			Mode: mode,
+			Hash: plumbing.NewHash(entry.Hash.String()),
+		})
+	}
+
+	obj := repo.repo.Storer.NewEncodedObject()
+	obj.SetType(plumbing.TreeObject)
+	err := tree.Encode(obj)
 	if err != nil {
 		return "", err
 	}
 
-	return Hash(stdout), nil
+	hash, err := repo.repo.Storer.SetEncodedObject(obj)
+	if err != nil {
+		return "", err
+	}
+	return Hash(hash.String()), nil
 }
 
 // StoreCommit will store a Git commit with the given Git tree

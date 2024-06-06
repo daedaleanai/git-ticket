@@ -2,7 +2,6 @@ package identity
 
 import (
 	"fmt"
-	"io"
 	"path"
 
 	"github.com/daedaleanai/git-ticket/entity"
@@ -10,77 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Fetch retrieve updates from a remote
-// This does not change the local identities state
-func Fetch(repo repository.Repo, remote string) (string, error) {
-	remoteRefSpec := fmt.Sprintf(identityRemoteRefPattern, remote)
-	fetchRefSpec := fmt.Sprintf("%s*:%s*", identityRefPattern, remoteRefSpec)
-
-	return repo.FetchRefs(remote, fetchRefSpec)
-}
-
-// Push update a remote with the local changes
-func Push(repo repository.Repo, remote string, out io.Writer) error {
-	remoteRefSpec := fmt.Sprintf(identityRemoteRefPattern, remote)
-	localRefs, err := repo.ListRefs(identityRefPattern)
-
-	if err != nil {
-		return err
-	}
-
-	pushed := 0
-
-	for _, localRef := range localRefs {
-		hashes, err := repo.CommitsBetween(remoteRefSpec+path.Base(localRef), localRef)
-		if err == nil && hashes == nil {
-			continue
-		}
-
-		fmt.Fprintf(out, "Pushing identity: %s\n", path.Base(localRef))
-		stdout, err := repo.PushRefs(remote, localRef)
-		fmt.Fprintln(out, stdout)
-		if err != nil {
-			return err
-		}
-
-		// Need to update the remote ref manually because push doesn't do it automatically
-		// for identity references
-		err = repo.UpdateRef(remoteRefSpec+path.Base(localRef), repository.Hash(localRef))
-		if err != nil {
-			return err
-		}
-
-		pushed++
-	}
-
-	if pushed == 0 {
-		fmt.Fprintln(out, "Everything up-to-date")
-	} else {
-		fmt.Fprintln(out, "Everything sync'd with remote")
-	}
-
-	return nil
-}
-
-// Pull will do a Fetch + MergeAll
-// This function will return an error if a merge fail
-func Pull(repo repository.ClockedRepo, remote string) error {
-	_, err := Fetch(repo, remote)
-	if err != nil {
-		return err
-	}
-
-	for merge := range MergeAll(repo, remote) {
-		if merge.Err != nil {
-			return merge.Err
-		}
-		if merge.Status == entity.MergeStatusInvalid {
-			return errors.Errorf("merge failure: %s", merge.Reason)
-		}
-	}
-
-	return nil
-}
+const Namespace = "identities"
 
 // MergeAll will merge all the available remote identity
 func MergeAll(repo repository.ClockedRepo, remote string) <-chan entity.MergeResult {

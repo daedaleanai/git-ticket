@@ -78,17 +78,20 @@ func (r *mockRepoForTest) GetRemotes() (map[string]string, error) {
 	}, nil
 }
 
-// PushRefs push git refs to a remote
-func (r *mockRepoForTest) PushRefs(remote string, refSpec string) (string, error) {
+// PushRefs push git refs matching a directory prefix to a remote
+// Ex: prefix="foo" will push any local refs matching "refs/foo/*" to the remote.
+// The equivalent git refspec would be "refs/foo/*:refs/foo/*"
+//
+// Additionally, PushRefs will update the local references in refs/remotes/<remote>/foo to match
+// the remote state.
+func (r *mockRepoForTest) PushRefs(remote string, prefixes ...string) (string, error) {
 	return "", nil
 }
 
-// PushAllRefs push all git refs to a remote
-func (r *mockRepoForTest) PushAllRefs(remote string, refSpec []string) (string, error) {
-	return "", nil
-}
-
-func (r *mockRepoForTest) FetchRefs(remote string, refSpec string) (string, error) {
+// FetchRefs fetch git refs matching a directory prefix to a remote
+// Ex: prefix="foo" will fetch any remote refs matching "refs/foo/*" locally.
+// The equivalent git refspec would be "refs/foo/*:refs/remotes/<remote>/foo/*"
+func (r *mockRepoForTest) FetchRefs(remote string, prefix ...string) (string, error) {
 	return "", nil
 }
 

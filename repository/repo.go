@@ -53,14 +53,18 @@ type Repo interface {
 	RepoConfig
 	RepoCommon
 
-	// FetchRefs fetch git refs from a remote
-	FetchRefs(remote string, refSpec string) (string, error)
+	// FetchRefs fetch git refs matching a directory prefix to a remote
+	// Ex: prefix="foo" will fetch any remote refs matching "refs/foo/*" locally.
+	// The equivalent git refspec would be "refs/foo/*:refs/remotes/<remote>/foo/*"
+	FetchRefs(remote string, prefix ...string) (string, error)
 
-	// PushRefs push git refs to a remote
-	PushRefs(remote string, refSpec string) (string, error)
-
-	// PushAllRefs push all git refs to a remote
-	PushAllRefs(remote string, refSpec []string) (string, error)
+	// PushRefs push git refs matching a directory prefix to a remote
+	// Ex: prefix="foo" will push any local refs matching "refs/foo/*" to the remote.
+	// The equivalent git refspec would be "refs/foo/*:refs/foo/*"
+	//
+	// Additionally, PushRefs will update the local references in refs/remotes/<remote>/foo to match
+	// the remote state.
+	PushRefs(remote string, prefixes ...string) (string, error)
 
 	// StoreData will store arbitrary data and return the corresponding hash
 	StoreData(data []byte) (Hash, error)
