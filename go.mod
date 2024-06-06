@@ -7,6 +7,7 @@ require (
 	github.com/MichaelMure/go-term-text v0.2.9
 	github.com/awesome-gocui/gocui v0.6.1-0.20191115151952-a34ffb055986
 	github.com/blang/semver v3.5.1+incompatible
+	github.com/charmbracelet/glamour v0.7.0
 	github.com/corpix/uarand v0.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fatih/color v1.9.0
@@ -15,7 +16,6 @@ require (
 	github.com/icrowley/fake v0.0.0-20180203215853-4178557ae428
 	github.com/karlseguin/expect v1.0.7 // indirect
 	github.com/manifoldco/promptui v0.7.0
-	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.9.0
