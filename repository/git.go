@@ -7,6 +7,7 @@ import (
 	"io"
 	"os/exec"
 	"path"
+	"sort"
 	"strings"
 	"sync"
 
@@ -371,10 +372,25 @@ func (repo *GitRepo) ReadData(hash Hash) ([]byte, error) {
 }
 
 // StoreTree will store a mapping key-->Hash as a Git tree
-func (repo *GitRepo) StoreTree(entries []TreeEntry) (Hash, error) {
+func (repo *GitRepo) StoreTree(mapping []TreeEntry) (Hash, error) {
 	var tree object.Tree
 
-	for _, entry := range entries {
+	// TODO: can be removed once https://github.com/go-git/go-git/issues/193 is resolved
+	sorted := make([]TreeEntry, len(mapping))
+	copy(sorted, mapping)
+	sort.Slice(sorted, func(i, j int) bool {
+		nameI := sorted[i].Name
+		if sorted[i].ObjectType == Tree {
+			nameI += "/"
+		}
+		nameJ := sorted[j].Name
+		if sorted[j].ObjectType == Tree {
+			nameJ += "/"
+		}
+		return nameI < nameJ
+	})
+
+	for _, entry := range sorted {
 		mode := filemode.Regular
 		if entry.ObjectType == Tree {
 			mode = filemode.Dir

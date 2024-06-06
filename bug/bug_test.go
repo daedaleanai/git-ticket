@@ -150,16 +150,16 @@ func TestBugRemove(t *testing.T) {
 	err = b.Commit(repo)
 	require.NoError(t, err)
 
-	err = Push(repo, "remoteA", io.Discard)
+	err = push(repo, "remoteA", io.Discard)
 	require.NoError(t, err)
 
-	err = Push(repo, "remoteB", io.Discard)
+	err = push(repo, "remoteB", io.Discard)
 	require.NoError(t, err)
 
-	_, err = Fetch(repo, "remoteA")
+	_, err = repo.FetchRefs("remoteA", Namespace)
 	require.NoError(t, err)
 
-	_, err = Fetch(repo, "remoteB")
+	_, err = repo.FetchRefs("remoteB", Namespace)
 	require.NoError(t, err)
 
 	err = RemoveBug(repo, b.Id())
