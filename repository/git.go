@@ -579,12 +579,16 @@ func (repo *GitRepo) CommitsBetween(excludeRef, mainRef string) ([]Hash, error) 
 
 // LastCommit will return the latest commit hash of a ref
 func (repo *GitRepo) LastCommit(ref string) (Hash, error) {
-	stdout, err := repo.runGitCommand("rev-list", "-1", ref)
+	r, err := repo.repo.Reference(plumbing.ReferenceName(ref), true)
 	if err != nil {
 		return "", err
 	}
 
-	return Hash(stdout), nil
+	curCommit, err := repo.repo.CommitObject(r.Hash())
+	if err != nil {
+		return "", err
+	}
+	return Hash(curCommit.Hash.String()), nil
 }
 
 // ReadTree will return the list of entries in a Git tree
