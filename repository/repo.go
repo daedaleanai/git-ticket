@@ -66,6 +66,11 @@ type Repo interface {
 	// the remote state.
 	PushRefs(remote string, prefixes ...string) (string, error)
 
+	// PushSingleRef pushes a given git ref to the remote.
+	// Ex: prefix="bugs/1234" will push any local refs matching "refs/bugs/1234" to the given remote at
+	// "refs/bugs/1234".
+	PushSingleRef(remote string, ref string) (string, error)
+
 	// StoreData will store arbitrary data and return the corresponding hash
 	StoreData(data []byte) (Hash, error)
 

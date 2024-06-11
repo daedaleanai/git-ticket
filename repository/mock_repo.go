@@ -88,6 +88,13 @@ func (r *mockRepoForTest) PushRefs(remote string, prefixes ...string) (string, e
 	return "", nil
 }
 
+// PushSingleRef pushes a given git ref to the remote.
+// Ex: prefix="bugs/1234" will push any local refs matching "refs/bugs/1234" to the given remote at
+// "refs/bugs/1234".
+func (r *mockRepoForTest) PushSingleRef(remote string, ref string) (string, error) {
+	return "", nil
+}
+
 // FetchRefs fetch git refs matching a directory prefix to a remote
 // Ex: prefix="foo" will fetch any remote refs matching "refs/foo/*" locally.
 // The equivalent git refspec would be "refs/foo/*:refs/remotes/<remote>/foo/*"

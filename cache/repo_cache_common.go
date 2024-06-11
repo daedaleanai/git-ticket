@@ -207,6 +207,11 @@ func (c *RepoCache) Push(remote string) (string, error) {
 	return c.repo.PushRefs(remote, bug.Namespace, identity.Namespace, config.Namespace)
 }
 
+// PushTicket updates a remote with the given ticket id
+func (c *RepoCache) PushTicket(remote string, id string) (string, error) {
+	return c.repo.PushSingleRef(remote, fmt.Sprintf("bugs/%s", id))
+}
+
 // Pull will do a Fetch + MergeAll
 // This function will return an error if a merge fail
 func (c *RepoCache) Pull(remote string, out io.Writer) error {

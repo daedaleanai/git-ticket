@@ -319,6 +319,43 @@ func (repo *GitRepo) PushRefs(remote string, prefixes ...string) (string, error)
 	if err == goGit.NoErrAlreadyUpToDate {
 		return "already up-to-date", nil
 	}
+	if err == goGit.ErrForceNeeded {
+		return "", errors.Wrapf(err, "Force push needed, could not fast-forward a reference: ")
+	}
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+// PushSingleRef pushes a given git ref to the remote.
+// Ex: prefix="bugs/1234" will push any local refs matching "refs/bugs/1234" to the given remote at
+// "refs/bugs/1234".
+func (repo *GitRepo) PushSingleRef(remote string, ref string) (string, error) {
+	remo, err := repo.repo.Remote(remote)
+	if err != nil {
+		return "", err
+	}
+
+	refspec := fmt.Sprintf("refs/%s:refs/%s", ref, ref)
+
+	buf := bytes.NewBuffer(nil)
+
+	err = remo.Push(&goGit.PushOptions{
+		RemoteName: remote,
+		RefSpecs:   []config.RefSpec{config.RefSpec(refspec)},
+		Progress:   buf,
+	})
+
+	if err == goGit.NoErrAlreadyUpToDate {
+		return "already up-to-date", nil
+	}
+
+	if err == goGit.ErrForceNeeded {
+		return "", errors.Wrapf(err, "Force push needed, could not fast-forward a reference: ")
+	}
+
 	if err != nil {
 		return "", err
 	}
