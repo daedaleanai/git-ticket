@@ -607,6 +607,8 @@ func (repo *GitRepo) CommitsBetween(excludeRef, mainRef string) ([]Hash, error) 
 
 	hashes := []Hash{}
 	for _, obj := range objs {
+		// Objects may be of other type (blob, tree...), we are only interested in commits,
+		// so filter-out those hashes refering to other object types
 		if _, err := repo.CommitObject(obj); err == nil {
 			hashes = append(hashes, Hash(obj.String()))
 		}
