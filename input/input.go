@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/repository"
@@ -254,10 +255,6 @@ const checklistPreamble = `# %s
 
 `
 
-const checklistBackupFile = ".git-ticket-checklist.backup"
-
-const checklistParseFailMessage = "invalid checklist saved to " + checklistBackupFile
-
 // ChecklistEditorInput will open the default editor in the terminal with a
 // checklist for the user to fill. The file is then processed to extract the
 // comment and status for each question, results are added to checklist.
@@ -282,6 +279,9 @@ func ChecklistEditorInput(repo repository.RepoCommon, checklist bug.Checklist) (
 	if err != nil {
 		return false, err
 	}
+
+	checklistBackupFile := ".git-ticket-checklist." + time.Now().Format("2006-01-02T15:04:05") + ".backup"
+	checklistParseFailMessage := "invalid checklist saved to " + checklistBackupFile
 
 	err = ioutil.WriteFile(checklistBackupFile, []byte(raw), 0644)
 	if err != nil {
