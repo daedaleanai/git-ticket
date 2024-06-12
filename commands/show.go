@@ -11,16 +11,19 @@ import (
 	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/spf13/cobra"
 
+	"github.com/charmbracelet/glamour"
 	"github.com/daedaleanai/git-ticket/bug"
 	_select "github.com/daedaleanai/git-ticket/commands/select"
 	"github.com/daedaleanai/git-ticket/util/colors"
+	"github.com/daedaleanai/git-ticket/util/text"
 )
 
 type showOptions struct {
-	fields   string
-	format   string
-	timeline bool
-	since    string
+	fields      string
+	format      string
+	timeline    bool
+	since       string
+	rawComments bool
 }
 
 func newShowCommand() *cobra.Command {
@@ -48,6 +51,8 @@ func newShowCommand() *cobra.Command {
 		"Select the output formatting style. Valid values are [default,json,org-mode]")
 	flags.StringVarP(&options.since, "since", "s", "",
 		"Limit the timeline to changes since the given date/time. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd")
+	flags.BoolVarP(&options.rawComments, "raw-comments", "R", false,
+		"Display raw comments, without parsing them as markdown")
 
 	return cmd
 }
@@ -188,7 +193,7 @@ func runShow(env *Env, opts showOptions, args []string) error {
 	case "json":
 		return showJsonFormatter(env, snap)
 	case "default":
-		return showDefaultFormatter(env, snap)
+		return showDefaultFormatter(env, snap, opts)
 	default:
 		return fmt.Errorf("unknown format %s", opts.format)
 	}
@@ -233,7 +238,7 @@ func workflowAndLabels(snap *bug.Snapshot) (string, []string) {
 	return workflow, labels
 }
 
-func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
+func showDefaultFormatter(env *Env, snapshot *bug.Snapshot, opts showOptions) error {
 	assigneeName := "UNASSIGNED"
 	if snapshot.Assignee != nil {
 		assigneeName = snapshot.Assignee.DisplayName()
@@ -310,6 +315,21 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 		strings.Join(participants, ", "),
 	)
 
+	termWidth, _, err := text.GetTermDim()
+	if err != nil {
+		return err
+	}
+
+	r, err := glamour.NewTermRenderer(
+		// detect background color and pick either the default dark or light theme
+		glamour.WithAutoStyle(),
+		// wrap output at specific width (default is 80)
+		glamour.WithWordWrap(termWidth),
+	)
+	if err != nil {
+		return err
+	}
+
 	// Comments
 	indent := "  "
 
@@ -329,12 +349,17 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot) error {
 
 		var message string
 		if comment.Message == "" {
-			message = colors.GreyBold("No description provided.")
+			message = colors.GreyBold("No description provided.") + "\n\n"
+		} else if opts.rawComments {
+			message = fmt.Sprintf("%s\n\n", comment.Message)
 		} else {
-			message = comment.Message
+			message, err = r.Render(comment.Message)
+			if err != nil {
+				return err
+			}
 		}
 
-		env.out.Printf("%s\n\n%s\n\n\n", colors.WhiteBold(header), message)
+		env.out.Printf("%s\n\n%s\n", colors.WhiteBold(header), message)
 	}
 
 	return nil
