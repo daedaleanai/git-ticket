@@ -318,12 +318,10 @@ func reviewWithEditor(bug *cache.BugCache, checklist bug.Checklist) error {
 	ui.g.Close()
 	ui.g = nil
 
-	clChange, err := input.ChecklistEditorInput(ui.cache, checklist)
+	clChange, err := input.ChecklistEditorInput(ui.cache, checklist, false)
 	if err != nil {
-		return err
-	}
-
-	if !clChange {
+		ui.msgPopup.Activate("", fmt.Sprintf("checklist not saved, re-execute command to continue editing: %s", err))
+	} else if !clChange {
 		ui.msgPopup.Activate("", "Checklists unchanged")
 	} else {
 		_, err := bug.SetChecklist(checklist)
