@@ -525,8 +525,7 @@ func (bt *bugTable) push(g *gocui.Gui, v *gocui.View) error {
 
 	go func() {
 		// TODO: make the remote configurable
-		out := new(bytes.Buffer)
-		err := bt.repo.Push(defaultRemote, out)
+		out, err := bt.repo.Push(defaultRemote)
 
 		if err != nil {
 			g.Update(func(gui *gocui.Gui) error {
@@ -535,7 +534,7 @@ func (bt *bugTable) push(g *gocui.Gui, v *gocui.View) error {
 			})
 		} else {
 			g.Update(func(gui *gocui.Gui) error {
-				ui.msgPopup.UpdateMessage(out.String())
+				ui.msgPopup.UpdateMessage(out)
 				return nil
 			})
 		}

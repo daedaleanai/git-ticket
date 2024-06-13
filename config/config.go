@@ -2,8 +2,6 @@ package config
 
 import (
 	"fmt"
-	"io"
-	"path"
 
 	"github.com/daedaleanai/git-ticket/repository"
 )
@@ -12,56 +10,17 @@ const configRefPattern = "refs/configs/"
 const configConflictRefPattern = "refs/conflicts/config-%s-%s"
 const configRemoteRefPattern = "refs/remotes/%s/configs/"
 
+const Namespace = "configs"
+
 // Fetch retrieve updates from a remote
 // This does not change the local bugs state
 func Fetch(repo repository.Repo, remote string) (string, error) {
-	remoteRefSpec := fmt.Sprintf(configRemoteRefPattern, remote)
-	fetchRefSpec := fmt.Sprintf("%s*:%s*", configRefPattern, remoteRefSpec)
-
-	return repo.FetchRefs(remote, fetchRefSpec)
+	return repo.FetchRefs(remote, Namespace)
 }
 
 // Push update a remote with all the local changes
-func Push(repo repository.Repo, remote string, out io.Writer) error {
-	remoteRefSpec := fmt.Sprintf(configRemoteRefPattern, remote)
-	localRefs, err := repo.ListRefs(configRefPattern)
-
-	if err != nil {
-		return err
-	}
-
-	pushed := 0
-
-	for _, localRef := range localRefs {
-		hashes, err := repo.CommitsBetween(remoteRefSpec+path.Base(localRef), localRef)
-		if err == nil && hashes == nil {
-			continue
-		}
-
-		fmt.Fprintf(out, "Pushing config: %s\n", path.Base(localRef))
-		stdout, err := repo.PushRefs(remote, localRef)
-		fmt.Fprintln(out, stdout)
-		if err != nil {
-			return err
-		}
-
-		// Need to update the remote ref manually because push doesn't do it automatically
-		// for config references
-		err = repo.UpdateRef(remoteRefSpec+path.Base(localRef), repository.Hash(localRef))
-		if err != nil {
-			return err
-		}
-
-		pushed++
-	}
-
-	if pushed == 0 {
-		fmt.Fprintln(out, "Everything up-to-date")
-	} else {
-		fmt.Fprintln(out, "Everything sync'd with remote")
-	}
-
-	return nil
+func Push(repo repository.Repo, remote string) (string, error) {
+	return repo.PushRefs(remote, Namespace)
 }
 
 // List configurations stored in git

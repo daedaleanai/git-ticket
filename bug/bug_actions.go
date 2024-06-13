@@ -2,7 +2,6 @@ package bug
 
 import (
 	"fmt"
-	"io"
 	"path"
 
 	"github.com/daedaleanai/git-ticket/entity"
@@ -10,105 +9,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Fetch retrieve updates from a remote
-// This does not change the local bugs state
-func Fetch(repo repository.Repo, remote string) (string, error) {
-	remoteRefSpec := fmt.Sprintf(bugsRemoteRefPattern, remote)
-	fetchRefSpec := fmt.Sprintf("%s*:%s*", bugsRefPattern, remoteRefSpec)
-
-	return repo.FetchRefs(remote, fetchRefSpec)
-}
-
-// Push update a remote with all the local changes
-func Push(repo repository.Repo, remote string, out io.Writer) error {
-	remoteRefSpec := fmt.Sprintf(bugsRemoteRefPattern, remote)
-	localRefs, err := repo.ListRefs(bugsRefPattern)
-
-	if err != nil {
-		return err
-	}
-
-	pushed := 0
-
-	for _, localRef := range localRefs {
-		hashes, err := repo.CommitsBetween(remoteRefSpec+path.Base(localRef), localRef)
-		if err == nil && hashes == nil {
-			continue
-		}
-
-		fmt.Fprintf(out, "Pushing ticket: %s\n", path.Base(localRef))
-		stdout, err := repo.PushRefs(remote, localRef)
-		fmt.Fprintln(out, stdout)
-		if err != nil {
-			return err
-		}
-
-		// Need to update the remote ref manually because push doesn't do it automatically
-		// for bug references
-		err = repo.UpdateRef(remoteRefSpec+path.Base(localRef), repository.Hash(localRef))
-		if err != nil {
-			return err
-		}
-
-		pushed++
-	}
-
-	if pushed == 0 {
-		fmt.Fprintln(out, "Everything up-to-date")
-	} else {
-		fmt.Fprintln(out, "Everything sync'd with remote")
-	}
-
-	return nil
-}
-
-// PushRef update a remote with a local change
-func PushRef(repo repository.Repo, remote string, ref string, out io.Writer) error {
-	fmt.Fprintf(out, "Pushing selected ticket: %s\n", ref)
-	stdout, err := repo.PushRefs(remote, bugsRefPattern+ref)
-	fmt.Fprintln(out, stdout)
-	if err != nil {
-		return err
-	}
-
-	remoteRefSpec := fmt.Sprintf(bugsRemoteRefPattern, remote)
-	// Need to update the remote ref manually because push doesn't do it automatically
-	// for bug references
-	err = repo.UpdateRef(remoteRefSpec+ref, repository.Hash(bugsRefPattern+ref))
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Pull will do a Fetch + MergeAll
-// This function will return an error if a merge fail
-func Pull(repo repository.ClockedRepo, remote string) error {
-	_, err := Fetch(repo, remote)
-	if err != nil {
-		return err
-	}
-
-	for merge := range MergeAll(repo, remote) {
-		if merge.Err != nil {
-			return merge.Err
-		}
-		if merge.Status == entity.MergeStatusInvalid {
-			return errors.Errorf("merge failure for ticket %s: %s", merge.Id.Human(), merge.Reason)
-		}
-	}
-
-	return nil
-}
+const Namespace = "bugs"
 
 // MergeAll will merge all the available remote bug:
 //
-// - If the remote has new commit, the local bug is updated to match the same history
-//   (fast-forward update)
-// - if the local bug has new commits but the remote don't, nothing is changed
-// - if both local and remote bug have new commits (that is, we have a concurrent edition),
-//   new local commits are rewritten at the head of the remote history (that is, a rebase)
+//   - If the remote has new commit, the local bug is updated to match the same history
+//     (fast-forward update)
+//   - if the local bug has new commits but the remote don't, nothing is changed
+//   - if both local and remote bug have new commits (that is, we have a concurrent edition),
+//     new local commits are rewritten at the head of the remote history (that is, a rebase)
 func MergeAll(repo repository.ClockedRepo, remote string) <-chan entity.MergeResult {
 	out := make(chan entity.MergeResult)
 

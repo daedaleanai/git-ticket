@@ -7,12 +7,16 @@ import (
 	"io"
 	"os/exec"
 	"path"
+	"sort"
 	"strings"
 	"sync"
 
 	goGit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/revlist"
 	"github.com/pkg/errors"
 
 	"github.com/daedaleanai/git-ticket/util/lamport"
@@ -242,61 +246,212 @@ func (repo *GitRepo) GetRemotes() (map[string]string, error) {
 	return remotes, nil
 }
 
-// FetchRefs fetch git refs from a remote
-func (repo *GitRepo) FetchRefs(remote, refSpec string) (string, error) {
-	stdout, err := repo.runGitCommand("fetch", remote, refSpec)
+// FetchRefs fetch git refs matching a directory prefix to a remote
+// Ex: prefix="foo" will fetch any remote refs matching "refs/foo/*" locally.
+// The equivalent git refspec would be "refs/foo/*:refs/remotes/<remote>/foo/*"
+func (repo *GitRepo) FetchRefs(remote string, prefixes ...string) (string, error) {
+	refSpecs := make([]config.RefSpec, len(prefixes))
 
-	if err != nil {
-		return stdout, fmt.Errorf("failed to fetch from the remote '%s': %v", remote, err)
+	for i, prefix := range prefixes {
+		refSpecs[i] = config.RefSpec(fmt.Sprintf("refs/%s/*:refs/remotes/%s/%s/*", prefix, remote, prefix))
 	}
 
-	return stdout, err
-}
+	buf := bytes.NewBuffer(nil)
 
-// PushRefs push git refs to a remote
-func (repo *GitRepo) PushRefs(remote string, refSpec string) (string, error) {
-	stdout, stderr, err := repo.runGitCommandRaw(nil, "push", remote, refSpec)
-
-	if err != nil {
-		return stdout + stderr, fmt.Errorf("failed to push to the remote '%s': %v", remote, stderr)
+	err := repo.repo.Fetch(&goGit.FetchOptions{
+		RemoteName: remote,
+		RefSpecs:   refSpecs,
+		Progress:   buf,
+	})
+	if err == goGit.NoErrAlreadyUpToDate {
+		return "already up-to-date", nil
 	}
-	return stdout + stderr, nil
-}
-
-// StoreData will store arbitrary data and return the corresponding hash
-func (repo *GitRepo) StoreData(data []byte) (Hash, error) {
-	var stdin = bytes.NewReader(data)
-
-	stdout, err := repo.runGitCommandWithStdin(stdin, "hash-object", "--stdin", "-w")
-
-	return Hash(stdout), err
-}
-
-// ReadData will attempt to read arbitrary data from the given hash
-func (repo *GitRepo) ReadData(hash Hash) ([]byte, error) {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-
-	err := repo.runGitCommandWithIO(nil, &stdout, &stderr, "cat-file", "-p", string(hash))
-
 	if err != nil {
-		return []byte{}, err
+		return "", err
 	}
 
-	return stdout.Bytes(), nil
+	return buf.String(), nil
 }
 
-// StoreTree will store a mapping key-->Hash as a Git tree
-func (repo *GitRepo) StoreTree(entries []TreeEntry) (Hash, error) {
-	buffer := prepareTreeEntries(entries)
+// PushRefs push git refs matching a directory prefix to a remote
+// Ex: prefix="foo" will push any local refs matching "refs/foo/*" to the remote.
+// The equivalent git refspec would be "refs/foo/*:refs/foo/*"
+//
+// Additionally, PushRefs will update the local references in refs/remotes/<remote>/foo to match
+// the remote state.
+func (repo *GitRepo) PushRefs(remote string, prefixes ...string) (string, error) {
+	remo, err := repo.repo.Remote(remote)
+	if err != nil {
+		return "", err
+	}
 
-	stdout, err := repo.runGitCommandWithStdin(&buffer, "mktree")
+	refSpecs := make([]config.RefSpec, len(prefixes))
+
+	for i, prefix := range prefixes {
+		refspec := fmt.Sprintf("refs/%s/*:refs/%s/*", prefix, prefix)
+
+		// to make sure that the push also create the corresponding refs/remotes/<remote>/... references,
+		// we need to have a default fetch refspec configured on the remote, to make our refs "track" the remote ones.
+		// This does not change the config on disk, only on memory.
+		hasCustomFetch := false
+		fetchRefspec := fmt.Sprintf("refs/%s/*:refs/remotes/%s/%s/*", prefix, remote, prefix)
+		for _, r := range remo.Config().Fetch {
+			if string(r) == fetchRefspec {
+				hasCustomFetch = true
+				break
+			}
+		}
+
+		if !hasCustomFetch {
+			remo.Config().Fetch = append(remo.Config().Fetch, config.RefSpec(fetchRefspec))
+		}
+
+		refSpecs[i] = config.RefSpec(refspec)
+	}
+
+	buf := bytes.NewBuffer(nil)
+
+	err = remo.Push(&goGit.PushOptions{
+		RemoteName: remote,
+		RefSpecs:   refSpecs,
+		Progress:   buf,
+	})
+	if err == goGit.NoErrAlreadyUpToDate {
+		return "already up-to-date", nil
+	}
+	if err == goGit.ErrForceNeeded {
+		return "", errors.Wrapf(err, "Force push needed, could not fast-forward a reference: ")
+	}
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+// PushSingleRef pushes a given git ref to the remote.
+// Ex: prefix="bugs/1234" will push any local refs matching "refs/bugs/1234" to the given remote at
+// "refs/bugs/1234".
+func (repo *GitRepo) PushSingleRef(remote string, ref string) (string, error) {
+	remo, err := repo.repo.Remote(remote)
+	if err != nil {
+		return "", err
+	}
+
+	refspec := fmt.Sprintf("refs/%s:refs/%s", ref, ref)
+
+	buf := bytes.NewBuffer(nil)
+
+	err = remo.Push(&goGit.PushOptions{
+		RemoteName: remote,
+		RefSpecs:   []config.RefSpec{config.RefSpec(refspec)},
+		Progress:   buf,
+	})
+
+	if err == goGit.NoErrAlreadyUpToDate {
+		return "already up-to-date", nil
+	}
+
+	if err == goGit.ErrForceNeeded {
+		return "", errors.Wrapf(err, "Force push needed, could not fast-forward a reference: ")
+	}
 
 	if err != nil {
 		return "", err
 	}
 
-	return Hash(stdout), nil
+	return buf.String(), nil
+}
+
+// StoreData will store arbitrary data and return the corresponding hash
+func (repo *GitRepo) StoreData(data []byte) (Hash, error) {
+	obj := repo.repo.Storer.NewEncodedObject()
+	obj.SetType(plumbing.BlobObject)
+
+	w, err := obj.Writer()
+	if err != nil {
+		return "", err
+	}
+
+	_, err = w.Write(data)
+	if err != nil {
+		return "", err
+	}
+
+	h, err := repo.repo.Storer.SetEncodedObject(obj)
+	if err != nil {
+		return "", err
+	}
+
+	return Hash(h.String()), nil
+}
+
+// ReadData will attempt to read arbitrary data from the given hash
+func (repo *GitRepo) ReadData(hash Hash) ([]byte, error) {
+	blob, err := repo.repo.BlobObject(plumbing.NewHash(string(hash)))
+	if err != nil {
+		return nil, err
+	}
+
+	reader, err := blob.Reader()
+	if err != nil {
+		return nil, err
+	}
+
+	buf := make([]byte, blob.Size)
+	n, err := reader.Read(buf)
+	if err != nil {
+		return nil, err
+	} else if n != int(blob.Size) {
+		return nil, fmt.Errorf("Only read %d bytes out of %d bytes of blob %s", n, blob.Size, hash)
+	}
+	return buf, nil
+}
+
+// StoreTree will store a mapping key-->Hash as a Git tree
+func (repo *GitRepo) StoreTree(mapping []TreeEntry) (Hash, error) {
+	var tree object.Tree
+
+	// TODO: can be removed once https://github.com/go-git/go-git/issues/193 is resolved
+	sorted := make([]TreeEntry, len(mapping))
+	copy(sorted, mapping)
+	sort.Slice(sorted, func(i, j int) bool {
+		nameI := sorted[i].Name
+		if sorted[i].ObjectType == Tree {
+			nameI += "/"
+		}
+		nameJ := sorted[j].Name
+		if sorted[j].ObjectType == Tree {
+			nameJ += "/"
+		}
+		return nameI < nameJ
+	})
+
+	for _, entry := range sorted {
+		mode := filemode.Regular
+		if entry.ObjectType == Tree {
+			mode = filemode.Dir
+		}
+
+		tree.Entries = append(tree.Entries, object.TreeEntry{
+			Name: entry.Name,
+			Mode: mode,
+			Hash: plumbing.NewHash(entry.Hash.String()),
+		})
+	}
+
+	obj := repo.repo.Storer.NewEncodedObject()
+	obj.SetType(plumbing.TreeObject)
+	err := tree.Encode(obj)
+	if err != nil {
+		return "", err
+	}
+
+	hash, err := repo.repo.Storer.SetEncodedObject(obj)
+	if err != nil {
+		return "", err
+	}
+	return Hash(hash.String()), nil
 }
 
 // StoreCommit will store a Git commit with the given Git tree
@@ -397,63 +552,131 @@ func (repo *GitRepo) ResolveRef(ref string) (Hash, error) {
 
 // ListCommits will return the list of commit hashes of a ref, in chronological order
 func (repo *GitRepo) ListCommits(ref string) ([]Hash, error) {
-	stdout, err := repo.runGitCommand("rev-list", "--first-parent", "--reverse", ref)
-
+	r, err := repo.repo.Reference(plumbing.ReferenceName(ref), true)
 	if err != nil {
 		return nil, err
 	}
 
-	split := strings.Split(stdout, "\n")
-
-	casted := make([]Hash, len(split))
-	for i, line := range split {
-		casted[i] = Hash(line)
+	curCommit, err := repo.repo.CommitObject(r.Hash())
+	if err != nil {
+		return nil, err
 	}
 
-	return casted, nil
+	revHashes := []Hash{}
+	for {
+		revHashes = append(revHashes, Hash(curCommit.Hash.String()))
+		parent, err := curCommit.Parent(0)
+		if err == object.ErrParentNotFound {
+			break
+		}
+		curCommit = parent
+	}
 
+	// reverse the order of the array to show older elements first
+	for i, j := 0, len(revHashes)-1; i < len(revHashes)/2; i, j = i+1, j-1 {
+		revHashes[j], revHashes[i] = revHashes[i], revHashes[j]
+	}
+
+	return revHashes, nil
 }
 
 // CommitsBetween will return the commits reachable from 'mainRef' which are not reachable from 'excludeRef'
 func (repo *GitRepo) CommitsBetween(excludeRef, mainRef string) ([]Hash, error) {
-	stdout, err := repo.runGitCommand("rev-list", "^"+excludeRef, mainRef)
+	exclude, err := repo.repo.Reference(plumbing.ReferenceName(excludeRef), true)
 	if err != nil {
 		return nil, err
 	}
-	if stdout == "" {
-		// Return a nil slice if no commits are between the two references
+	main, err := repo.repo.Reference(plumbing.ReferenceName(mainRef), true)
+	if err != nil {
+		return nil, err
+	}
+
+	excludeObjs, err := revlist.Objects(repo.repo.Storer, []plumbing.Hash{exclude.Hash()}, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	objs, err := revlist.Objects(repo.repo.Storer, []plumbing.Hash{main.Hash()}, excludeObjs)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(objs) == 0 {
 		return nil, nil
 	}
 
-	split := strings.Split(stdout, "\n")
-
-	casted := make([]Hash, len(split))
-	for i, line := range split {
-		casted[i] = Hash(line)
+	hashes := []Hash{}
+	for _, obj := range objs {
+		// Objects may be of other type (blob, tree...), we are only interested in commits,
+		// so filter-out those hashes refering to other object types
+		if _, err := repo.CommitObject(obj); err == nil {
+			hashes = append(hashes, Hash(obj.String()))
+		}
 	}
-
-	return casted, nil
+	return hashes, nil
 }
 
 // LastCommit will return the latest commit hash of a ref
 func (repo *GitRepo) LastCommit(ref string) (Hash, error) {
-	stdout, err := repo.runGitCommand("rev-list", "-1", ref)
+	r, err := repo.repo.Reference(plumbing.ReferenceName(ref), true)
 	if err != nil {
 		return "", err
 	}
 
-	return Hash(stdout), nil
+	curCommit, err := repo.repo.CommitObject(r.Hash())
+	if err != nil {
+		return "", err
+	}
+	return Hash(curCommit.Hash.String()), nil
 }
 
 // ReadTree will return the list of entries in a Git tree
 func (repo *GitRepo) ReadTree(hash Hash) ([]TreeEntry, error) {
-	stdout, err := repo.runGitCommand("ls-tree", string(hash))
-
+	obj, err := repo.repo.Object(plumbing.AnyObject, plumbing.NewHash(string(hash)))
 	if err != nil {
 		return nil, err
 	}
 
-	return readTreeEntries(stdout)
+	var tree *object.Tree
+	if commit, ok := obj.(*object.Commit); ok {
+		tree, err = commit.Tree()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if t, ok := obj.(*object.Tree); ok {
+		tree = t
+	}
+
+	if tree == nil {
+		return nil, fmt.Errorf("Invalid object type: %s", obj.Type())
+	}
+
+	translateObjType := func(t plumbing.ObjectType) ObjectType {
+		switch t {
+		case plumbing.BlobObject:
+			return Blob
+		case plumbing.TreeObject:
+			return Tree
+		default:
+			return Unknown
+		}
+	}
+
+	entries := []TreeEntry{}
+	for _, e := range tree.Entries {
+		o, err := repo.repo.Object(plumbing.AnyObject, e.Hash)
+		if err != nil {
+			return nil, err
+		}
+
+		entries = append(entries, TreeEntry{
+			Name:       e.Name,
+			Hash:       Hash(e.Hash.String()),
+			ObjectType: translateObjType(o.Type()),
+		})
+	}
+	return entries, nil
 }
 
 // FindCommonAncestor will return the last common ancestor of two chain of commit
