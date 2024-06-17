@@ -2,10 +2,10 @@ package commands
 
 import (
 	"errors"
-
-	"github.com/spf13/cobra"
+	"fmt"
 
 	_select "github.com/daedaleanai/git-ticket/commands/select"
+	"github.com/spf13/cobra"
 )
 
 type pushOptions struct {
@@ -34,7 +34,7 @@ func newPushCommand() *cobra.Command {
 	return cmd
 }
 
-func runPush(env *Env, opts pushOptions, args []string) error {
+func runPush(env *Env, options pushOptions, args []string) error {
 	if len(args) > 1 {
 		return errors.New("Only pushing to one remote at a time is supported")
 	}
@@ -43,22 +43,27 @@ func runPush(env *Env, opts pushOptions, args []string) error {
 	if len(args) == 1 {
 		remote = args[0]
 	}
+	fmt.Println("Pushing to remote", remote)
 
-	if opts.selectedTicket {
+	if options.selectedTicket {
 		bug, _, err := _select.ResolveBug(env.backend, nil)
 		if err != nil {
 			return err
 		}
+		fmt.Println("Pushing ticket ", bug.Id())
 
-		err = env.backend.PushTicket(remote, bug.Id().String(), env.out)
+		out, err := env.backend.PushTicket(remote, bug.Id().String())
 		if err != nil {
 			return err
 		}
+		env.out.Print(out)
+
 	} else {
-		err := env.backend.Push(remote, env.out)
+		out, err := env.backend.Push(remote)
 		if err != nil {
 			return err
 		}
+		env.out.Print(out)
 	}
 
 	return nil

@@ -5,12 +5,60 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/repository"
 )
+
+func pullIdent(repo repository.ClockedRepo, remote string) error {
+	_, err := repo.FetchRefs(remote, identity.Namespace)
+	if err != nil {
+		return err
+	}
+
+	for merge := range identity.MergeAll(repo, remote) {
+		if merge.Err != nil {
+			return merge.Err
+		}
+		if merge.Status == entity.MergeStatusInvalid {
+			return errors.Errorf("merge failure: %s", merge.Reason)
+		}
+	}
+
+	return nil
+}
+
+func pushIdent(repo repository.Repo, remote string, out io.Writer) error {
+	_, err := repo.PushRefs(remote, identity.Namespace)
+	return err
+}
+
+func pull(repo repository.ClockedRepo, remote string) error {
+	_, err := repo.FetchRefs(remote, Namespace)
+	if err != nil {
+		return err
+	}
+
+	for merge := range MergeAll(repo, remote) {
+		if merge.Err != nil {
+			return merge.Err
+		}
+		if merge.Status == entity.MergeStatusInvalid {
+			return errors.Errorf("merge failure for ticket %s: %s", merge.Id.Human(), merge.Reason)
+		}
+	}
+
+	return nil
+}
+
+func push(repo repository.Repo, remote string, out io.Writer) error {
+	_, err := repo.PushRefs(remote, Namespace)
+	return err
+}
 
 func TestPushPull(t *testing.T) {
 	repoA, repoB, remote := repository.SetupReposAndRemote()
@@ -29,16 +77,16 @@ func TestPushPull(t *testing.T) {
 	assert.False(t, bug1.NeedCommit())
 
 	// distribute the identity
-	err = identity.Push(repoA, "origin", io.Discard)
+	err = pushIdent(repoA, "origin", io.Discard)
 	require.NoError(t, err)
-	err = identity.Pull(repoB, "origin")
+	err = pullIdent(repoB, "origin")
 	require.NoError(t, err)
 
 	// A --> remote --> B
-	err = Push(repoA, "origin", io.Discard)
+	err = push(repoA, "origin", io.Discard)
 	require.NoError(t, err)
 
-	err = Pull(repoB, "origin")
+	err = pull(repoB, "origin")
 	require.NoError(t, err)
 
 	bugs := allBugs(t, ReadAllLocalBugs(repoB))
@@ -56,10 +104,10 @@ func TestPushPull(t *testing.T) {
 	err = bug2.Commit(repoB)
 	require.NoError(t, err)
 
-	err = Push(repoB, "origin", io.Discard)
+	err = push(repoB, "origin", io.Discard)
 	require.NoError(t, err)
 
-	err = Pull(repoA, "origin")
+	err = pull(repoA, "origin")
 	require.NoError(t, err)
 
 	bugs = allBugs(t, ReadAllLocalBugs(repoA))
@@ -107,18 +155,18 @@ func _RebaseTheirs(t testing.TB) {
 	assert.False(t, bug1.NeedCommit())
 
 	// distribute the identity
-	err = identity.Push(repoA, "origin", io.Discard)
+	err = pushIdent(repoA, "origin", io.Discard)
 	require.NoError(t, err)
-	err = identity.Pull(repoB, "origin")
+	err = pullIdent(repoB, "origin")
 	require.NoError(t, err)
 
 	// A --> remote
 
-	err = Push(repoA, "origin", io.Discard)
+	err = push(repoA, "origin", io.Discard)
 	require.NoError(t, err)
 
 	// remote --> B
-	err = Pull(repoB, "origin")
+	err = pull(repoB, "origin")
 	require.NoError(t, err)
 
 	bug2, err := ReadLocalBug(repoB, bug1.Id())
@@ -140,11 +188,11 @@ func _RebaseTheirs(t testing.TB) {
 	assert.False(t, bug2.NeedCommit())
 
 	// B --> remote
-	err = Push(repoB, "origin", io.Discard)
+	err = push(repoB, "origin", io.Discard)
 	require.NoError(t, err)
 
 	// remote --> A
-	err = Pull(repoA, "origin")
+	err = pull(repoA, "origin")
 	require.NoError(t, err)
 
 	bugs := allBugs(t, ReadAllLocalBugs(repoB))
@@ -186,17 +234,17 @@ func _RebaseOurs(t testing.TB) {
 	require.NoError(t, err)
 
 	// distribute the identity
-	err = identity.Push(repoA, "origin", io.Discard)
+	err = pushIdent(repoA, "origin", io.Discard)
 	require.NoError(t, err)
-	err = identity.Pull(repoB, "origin")
+	err = pullIdent(repoB, "origin")
 	require.NoError(t, err)
 
 	// A --> remote
-	err = Push(repoA, "origin", io.Discard)
+	err = push(repoA, "origin", io.Discard)
 	require.NoError(t, err)
 
 	// remote --> B
-	err = Pull(repoB, "origin")
+	err = pull(repoB, "origin")
 	require.NoError(t, err)
 
 	_, err = AddComment(bug1, reneA, time.Now().Unix(), "message2")
@@ -227,7 +275,7 @@ func _RebaseOurs(t testing.TB) {
 	require.NoError(t, err)
 
 	// remote --> A
-	err = Pull(repoA, "origin")
+	err = pull(repoA, "origin")
 	require.NoError(t, err)
 
 	bugs := allBugs(t, ReadAllLocalBugs(repoA))
@@ -278,17 +326,17 @@ func _RebaseConflict(t testing.TB) {
 	require.NoError(t, err)
 
 	// distribute the identity
-	err = identity.Push(repoA, "origin", io.Discard)
+	err = pushIdent(repoA, "origin", io.Discard)
 	require.NoError(t, err)
-	err = identity.Pull(repoB, "origin")
+	err = pullIdent(repoB, "origin")
 	require.NoError(t, err)
 
 	// A --> remote
-	err = Push(repoA, "origin", io.Discard)
+	err = push(repoA, "origin", io.Discard)
 	require.NoError(t, err)
 
 	// remote --> B
-	err = Pull(repoB, "origin")
+	err = pull(repoB, "origin")
 	require.NoError(t, err)
 
 	_, err = AddComment(bug1, reneA, time.Now().Unix(), "message2")
@@ -352,11 +400,11 @@ func _RebaseConflict(t testing.TB) {
 	require.NoError(t, err)
 
 	// A --> remote
-	err = Push(repoA, "origin", io.Discard)
+	err = push(repoA, "origin", io.Discard)
 	require.NoError(t, err)
 
 	// remote --> B
-	err = Pull(repoB, "origin")
+	err = pull(repoB, "origin")
 	require.NoError(t, err)
 
 	bugs := allBugs(t, ReadAllLocalBugs(repoB))
@@ -373,11 +421,11 @@ func _RebaseConflict(t testing.TB) {
 	}
 
 	// B --> remote
-	err = Push(repoB, "origin", io.Discard)
+	err = push(repoB, "origin", io.Discard)
 	require.NoError(t, err)
 
 	// remote --> A
-	err = Pull(repoA, "origin")
+	err = pull(repoA, "origin")
 	require.NoError(t, err)
 
 	bugs = allBugs(t, ReadAllLocalBugs(repoA))

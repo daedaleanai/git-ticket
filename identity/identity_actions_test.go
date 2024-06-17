@@ -4,10 +4,35 @@ import (
 	"io"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
+	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/repository"
 )
+
+func pull(repo repository.ClockedRepo, remote string) error {
+	_, err := repo.FetchRefs(remote, Namespace)
+	if err != nil {
+		return err
+	}
+
+	for merge := range MergeAll(repo, remote) {
+		if merge.Err != nil {
+			return merge.Err
+		}
+		if merge.Status == entity.MergeStatusInvalid {
+			return errors.Errorf("merge failure for ticket %s: %s", merge.Id.Human(), merge.Reason)
+		}
+	}
+
+	return nil
+}
+
+func push(repo repository.Repo, remote string, out io.Writer) error {
+	_, err := repo.PushRefs(remote, Namespace)
+	return err
+}
 
 func TestPushPull(t *testing.T) {
 	repoA, repoB, remote := repository.SetupReposAndRemote()
@@ -21,10 +46,10 @@ func TestPushPull(t *testing.T) {
 	require.NoError(t, err)
 
 	// A --> remote --> B
-	err = Push(repoA, "origin", io.Discard)
+	err = push(repoA, "origin", io.Discard)
 	require.NoError(t, err)
 
-	err = Pull(repoB, "origin")
+	err = pull(repoB, "origin")
 	require.NoError(t, err)
 
 	identities := allIdentities(t, ReadAllLocalIdentities(repoB))
@@ -38,10 +63,10 @@ func TestPushPull(t *testing.T) {
 	err = identity2.Commit(repoB)
 	require.NoError(t, err)
 
-	err = Push(repoB, "origin", io.Discard)
+	err = push(repoB, "origin", io.Discard)
 	require.NoError(t, err)
 
-	err = Pull(repoA, "origin")
+	err = pull(repoA, "origin")
 	require.NoError(t, err)
 
 	identities = allIdentities(t, ReadAllLocalIdentities(repoA))
@@ -68,10 +93,10 @@ func TestPushPull(t *testing.T) {
 
 	//  A --> remote --> B
 
-	err = Push(repoA, "origin", io.Discard)
+	err = push(repoA, "origin", io.Discard)
 	require.NoError(t, err)
 
-	err = Pull(repoB, "origin")
+	err = pull(repoB, "origin")
 	require.NoError(t, err)
 
 	identities = allIdentities(t, ReadAllLocalIdentities(repoB))
@@ -82,10 +107,10 @@ func TestPushPull(t *testing.T) {
 
 	// B --> remote --> A
 
-	err = Push(repoB, "origin", io.Discard)
+	err = push(repoB, "origin", io.Discard)
 	require.NoError(t, err)
 
-	err = Pull(repoA, "origin")
+	err = pull(repoA, "origin")
 	require.NoError(t, err)
 
 	identities = allIdentities(t, ReadAllLocalIdentities(repoA))
@@ -115,11 +140,11 @@ func TestPushPull(t *testing.T) {
 
 	//  A --> remote --> B
 
-	err = Push(repoA, "origin", io.Discard)
+	err = push(repoA, "origin", io.Discard)
 	require.NoError(t, err)
 
 	// Pulling a non-fast-forward update should fail
-	err = Pull(repoB, "origin")
+	err = pull(repoB, "origin")
 	require.Error(t, err)
 
 	identities = allIdentities(t, ReadAllLocalIdentities(repoB))
@@ -131,10 +156,10 @@ func TestPushPull(t *testing.T) {
 	// B --> remote --> A
 
 	// Pushing a non-fast-forward update should fail
-	err = Push(repoB, "origin", io.Discard)
+	err = push(repoB, "origin", io.Discard)
 	require.Error(t, err)
 
-	err = Pull(repoA, "origin")
+	err = pull(repoA, "origin")
 	require.NoError(t, err)
 
 	identities = allIdentities(t, ReadAllLocalIdentities(repoA))

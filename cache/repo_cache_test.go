@@ -153,7 +153,7 @@ func TestPushPull(t *testing.T) {
 	require.NoError(t, err)
 
 	// distribute the identity
-	err = cacheA.Push("origin", io.Discard)
+	_, err = cacheA.Push("origin")
 	require.NoError(t, err)
 	err = cacheB.Pull("origin", io.Discard)
 	require.NoError(t, err)
@@ -163,7 +163,7 @@ func TestPushPull(t *testing.T) {
 	require.NoError(t, err)
 
 	// A --> remote --> B
-	err = cacheA.Push("origin", io.Discard)
+	_, err = cacheA.Push("origin")
 	require.NoError(t, err)
 
 	err = cacheB.Pull("origin", io.Discard)
@@ -182,7 +182,7 @@ func TestPushPull(t *testing.T) {
 	_, _, err = cacheB.NewBug("bug2", "message", "workflow:eng")
 	require.NoError(t, err)
 
-	err = cacheB.Push("origin", io.Discard)
+	_, err = cacheB.Push("origin")
 	require.NoError(t, err)
 
 	err = cacheA.Pull("origin", io.Discard)
@@ -194,7 +194,7 @@ func TestPushPull(t *testing.T) {
 	configData1 := `{"foo": ["bar1", 2 3], "test", 1.2}`
 	err = cacheA.SetConfig("test1", []byte(configData1))
 	require.NoError(t, err)
-	err = cacheA.Push("origin", io.Discard)
+	_, err = cacheA.Push("origin")
 	require.NoError(t, err)
 
 	err = cacheB.Pull("origin", io.Discard)
@@ -216,7 +216,7 @@ func TestPushPull(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, configData2, string(data))
 
-	err = cacheB.Push("origin", io.Discard)
+	_, err = cacheB.Push("origin")
 	require.NoError(t, err)
 
 	// Conflict
@@ -260,10 +260,10 @@ func TestRemove(t *testing.T) {
 	b1, _, err := repoCache.NewBug("title", "message", "workflow:eng")
 	require.NoError(t, err)
 
-	err = repoCache.Push("remoteA", io.Discard)
+	_, err = repoCache.Push("remoteA")
 	require.NoError(t, err)
 
-	err = repoCache.Push("remoteB", io.Discard)
+	_, err = repoCache.Push("remoteB")
 	require.NoError(t, err)
 
 	_, err = repoCache.Fetch("remoteA")
