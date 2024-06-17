@@ -80,3 +80,7 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+// Note that this dependency is pinned to bring a fix for certificate authorities that the upstream did not accept
+// See https://github.com/daedaleanai/knownhosts/commit/6625e6443005e6949a24c45fb75ab7bc5611910e for details
+replace github.com/skeema/knownhosts v1.2.2 => github.com/daedaleanai/knownhosts v1.2.3-0.20240628131906-a14cea484a41
