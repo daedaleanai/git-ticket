@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/manifoldco/promptui"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/daedaleanai/git-ticket/bug"
@@ -90,9 +91,9 @@ func runReviewChecklist(env *Env, opts reviewChecklistOptions, args []string) er
 
 	// Use the editor to edit the checklist, if it changed then create an update
 	// operation and commit
-	clChange, err := input.ChecklistEditorInput(env.repo, ticketChecklists[bug.Label(selectedChecklistLabel)])
+	clChange, err := input.ChecklistEditorInput(env.repo, ticketChecklists[bug.Label(selectedChecklistLabel)], opts.blank)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "checklist not saved, re-run command to continue editing or use -b flag to start again")
 	}
 
 	if clChange {

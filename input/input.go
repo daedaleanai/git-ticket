@@ -254,29 +254,33 @@ const checklistPreamble = `# %s
 
 `
 
-const checklistBackupFile = ".git-ticket-checklist.backup"
-
-const checklistParseFailMessage = "invalid checklist saved to " + checklistBackupFile
-
 // ChecklistEditorInput will open the default editor in the terminal with a
 // checklist for the user to fill. The file is then processed to extract the
 // comment and status for each question, results are added to checklist.
 // Returns bool indicating if anything changed and any error value.
-func ChecklistEditorInput(repo repository.RepoCommon, checklist bug.Checklist) (bool, error) {
+func ChecklistEditorInput(repo repository.RepoCommon, checklist bug.Checklist, ignoreBackup bool) (bool, error) {
 
-	template := fmt.Sprintf(checklistPreamble, checklist.Title)
+	checklistBackupFile := ".git-ticket." + checklist.Label.String() + ".backup"
 
-	for sn, s := range checklist.Sections {
-		template = template + fmt.Sprintf("#\n#### %s ####\n#\n", s.Title)
-		for qn, q := range s.Questions {
-			template = template + fmt.Sprintf("# %d.%d : %s\n", sn+1, qn+1, q.Question)
-			if len(strings.TrimSpace(q.Comment)) != 0 {
-				template = template + fmt.Sprintf("%s\n", q.Comment)
+	var template string
+
+	// If a backup file already exists then load that instead
+	backupData, err := ioutil.ReadFile(checklistBackupFile)
+	if !ignoreBackup && err == nil {
+		template = string(backupData)
+	} else {
+		template = fmt.Sprintf(checklistPreamble, checklist.Title)
+		for sn, s := range checklist.Sections {
+			template = template + fmt.Sprintf("#\n#### %s ####\n#\n", s.Title)
+			for qn, q := range s.Questions {
+				template = template + fmt.Sprintf("# %d.%d : %s\n", sn+1, qn+1, q.Question)
+				if len(strings.TrimSpace(q.Comment)) != 0 {
+					template = template + fmt.Sprintf("%s\n", q.Comment)
+				}
+				template = template + fmt.Sprintf("[%s]\n\n", q.State.ShortString())
 			}
-			template = template + fmt.Sprintf("[%s]\n\n", q.State.ShortString())
 		}
 	}
-
 	raw, err := launchEditorWithTemplate(repo, checklistFilename, template)
 
 	if err != nil {
@@ -310,24 +314,24 @@ func ChecklistEditorInput(repo repository.RepoCommon, checklist bug.Checklist) (
 				matches := questionSearch.FindStringSubmatch(line)
 				if thisS, err := strconv.Atoi(matches[1]); err != nil || thisS != nextS {
 					// unexpected section number
-					return checklistChanged, fmt.Errorf("checklist parse error (section number), line %d. %s", l, checklistParseFailMessage)
+					return checklistChanged, fmt.Errorf("checklist parse error (section number), line %d", l)
 				}
 				if thisQ, err := strconv.Atoi(matches[2]); err != nil || thisQ != nextQ {
 					// unexpected question number
-					return checklistChanged, fmt.Errorf("checklist parse error (question number), line %d. %s", l, checklistParseFailMessage)
+					return checklistChanged, fmt.Errorf("checklist parse error (question number), line %d", l)
 				}
 				inComment = true
 				commentText = ""
 			} else if nextQ != 1 {
 				// next question line missing
-				return checklistChanged, fmt.Errorf("checklist parse error (question line), line %d. %s", l, checklistParseFailMessage)
+				return checklistChanged, fmt.Errorf("checklist parse error (question line), line %d", l)
 			}
 		} else {
 			if stateSearch.MatchString(line) {
 				newState, err := bug.StateFromString(stateSearch.FindStringSubmatch(line)[1])
 				if err != nil {
 					// something is wrong with the format
-					return checklistChanged, fmt.Errorf("checklist parse error (invalid state), line %d. %s", l, checklistParseFailMessage)
+					return checklistChanged, fmt.Errorf("checklist parse error (invalid state), line %d", l)
 				}
 				// check and save comment
 				strippedCommentText := strings.TrimSuffix(commentText, "\n")
@@ -354,7 +358,7 @@ func ChecklistEditorInput(repo repository.RepoCommon, checklist bug.Checklist) (
 	}
 
 	if nextS != len(checklist.Sections)+1 {
-		return checklistChanged, fmt.Errorf("checklist parse error, section/question count. %s", checklistParseFailMessage)
+		return checklistChanged, fmt.Errorf("checklist parse error, section/question count")
 	}
 
 	os.Remove(checklistBackupFile)
