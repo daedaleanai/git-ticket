@@ -30,7 +30,12 @@ func runCcbList(env *Env, args []string) error {
 	var users []*cache.IdentityExcerpt
 
 	err := env.backend.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
-		for _, id := range c.CcbConfig {
+		members, err := c.CcbConfig.ListCcbMembers()
+		if err != nil {
+			return err
+		}
+
+		for _, id := range members {
 			user, err := env.backend.ResolveIdentityExcerpt(id)
 			if err != nil {
 				return err
