@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/repository"
 	"github.com/pkg/errors"
 )
@@ -258,9 +259,9 @@ const checklistPreamble = `# %s
 // checklist for the user to fill. The file is then processed to extract the
 // comment and status for each question, results are added to checklist.
 // Returns bool indicating if anything changed and any error value.
-func ChecklistEditorInput(repo repository.RepoCommon, checklist bug.Checklist, ignoreBackup bool) (bool, error) {
+func ChecklistEditorInput(repo repository.RepoCommon, checklist config.Checklist, ignoreBackup bool) (bool, error) {
 
-	checklistBackupFile := ".git-ticket." + checklist.Label.String() + ".backup"
+	checklistBackupFile := ".git-ticket." + bug.Label(checklist.Label).String() + ".backup"
 
 	var template string
 

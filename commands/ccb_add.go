@@ -53,7 +53,8 @@ func runCcbAdd(env *Env, args []string) error {
 		return err
 	}
 
-	ok, err := bug.IsCcbMember(userToAdd.Identity)
+	ccbConfig := env.backend.CcbConfig()
+	ok, err := ccbConfig.IsCcbMember(userToAdd.Identity)
 	if err != nil {
 		return err
 	}

@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/daedaleanai/git-ticket/bug"
 	_select "github.com/daedaleanai/git-ticket/commands/select"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/util/colors"
 	"github.com/daedaleanai/git-ticket/util/text"
 )
@@ -269,9 +270,10 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot, opts showOptions) er
 	env.out.Printf("ccb: %s\n", strings.Join(ccbSummary(snapshot), ", "))
 
 	// Checklists
+	checklistConfig := env.backend.ChecklistConfig()
 	var checklistStates []string
 	for clLabel, st := range snapshot.GetChecklistCompoundStates() {
-		cl, err := bug.GetChecklist(clLabel)
+		cl, err := checklistConfig.GetChecklist(config.Label(clLabel))
 
 		if err != nil {
 			return err

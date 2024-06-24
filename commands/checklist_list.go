@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/util/colors"
 )
 
@@ -26,15 +26,11 @@ func newChecklistListCommand() *cobra.Command {
 }
 
 func runChecklistList(env *Env, args []string) error {
-	checklists, err := bug.ListChecklists()
-	if err != nil {
-		return err
-	}
-
-	var checklistsArray []bug.Checklist
+	var checklistsArray []config.Checklist
 
 	var maxLabelWidth int
-	for _, checklist := range checklists {
+	checklistConfig := env.backend.ChecklistConfig()
+	for _, checklist := range checklistConfig {
 		checklistsArray = append(checklistsArray, checklist)
 
 		l := colors.Cyan(string(checklist.Label))

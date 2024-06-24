@@ -7,6 +7,7 @@ import (
 
 	"github.com/daedaleanai/git-ticket/bug"
 	_select "github.com/daedaleanai/git-ticket/commands/select"
+	"github.com/daedaleanai/git-ticket/config"
 )
 
 var allowDeprecatedLabels bool
@@ -33,10 +34,12 @@ func newLabelAddCommand() *cobra.Command {
 func runLabelAdd(env *Env, args []string) error {
 	labels := args
 
+	labelConfig := env.backend.LabelConfig()
+
 	if createLabels {
 		// add labels to the configuration first.
 		for _, label := range labels {
-			err := bug.AppendLabelToConfiguration(bug.Label(label))
+			err := labelConfig.AppendLabelToConfiguration(config.Label(label))
 			if err != nil {
 				return err
 			}
@@ -44,12 +47,7 @@ func runLabelAdd(env *Env, args []string) error {
 		}
 
 		// save configuration persistently
-		labelStoreKey, labelStoreValue, err := bug.LabelStoreData()
-		if err != nil {
-			return fmt.Errorf("Unable to obtain label store data: %s", err)
-		}
-
-		err = env.backend.SetConfig(labelStoreKey, labelStoreValue)
+		err := labelConfig.Store(env.repo)
 		if err != nil {
 			return fmt.Errorf("Unable to store label configuration persistently: %s", err)
 		}

@@ -8,6 +8,7 @@ import (
 	"github.com/icrowley/fake"
 
 	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/repository"
 )
@@ -225,5 +226,6 @@ func labels(b bug.Interface, p identity.Interface, timestamp int64) {
 	// ignore error
 	// if the randomisation produce no changes, no op
 	// is added to the bug
-	_, _, _ = bug.ChangeLabels(b, p, timestamp, added, removed, false)
+	cc := config.ConfigCache{}
+	_, _, _ = bug.ChangeLabels(b, p, &cc, timestamp, added, removed, false)
 }

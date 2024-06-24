@@ -14,6 +14,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 
 	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/repository"
@@ -70,7 +71,8 @@ type RepoCache struct {
 	// the user identity's id, if known
 	userIdentityId entity.Id
 
-	muConfig sync.RWMutex
+	muConfig    sync.RWMutex
+	configCache *config.ConfigCache
 
 	// the cache of commits
 	muCommit sync.RWMutex
@@ -125,7 +127,19 @@ func (c *RepoCache) load() error {
 	if err != nil {
 		return err
 	}
-	return c.loadIdentityCache()
+	err = c.loadIdentityCache()
+	if err != nil {
+		return err
+	}
+
+	c.muConfig.Lock()
+	defer c.muConfig.Unlock()
+	configCache, err := config.LoadConfigCache(c.repo)
+	if err != nil {
+		return err
+	}
+	c.configCache = configCache
+	return nil
 }
 
 // write will serialize on disk all the cache files
@@ -307,4 +321,16 @@ func (c *RepoCache) ResolveRef(ref string) (repository.Hash, error) {
 		return "", err
 	}
 	return repository.Hash(h.String()), nil
+}
+
+func (c *RepoCache) CcbConfig() config.CcbConfig {
+	return c.configCache.CcbConfig
+}
+
+func (c *RepoCache) LabelConfig() config.LabelConfig {
+	return c.configCache.LabelConfig
+}
+
+func (c *RepoCache) ChecklistConfig() config.ChecklistConfig {
+	return c.configCache.ChecklistConfig
 }

@@ -3,7 +3,6 @@ package commands
 import (
 	"sort"
 
-	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
 	"github.com/daedaleanai/git-ticket/util/colors"
 	"github.com/spf13/cobra"
@@ -27,12 +26,8 @@ func newCcbListCommand() *cobra.Command {
 }
 
 func runCcbList(env *Env, args []string) error {
-	ids, err := bug.ListCcbMembers()
-	if err != nil {
-		return err
-	}
-
 	var users []*cache.IdentityExcerpt
+	ids := env.backend.CcbConfig()
 	for _, id := range ids {
 		user, err := env.backend.ResolveIdentityExcerpt(id)
 		if err != nil {

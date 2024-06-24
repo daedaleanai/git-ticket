@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/repository"
 	"github.com/stretchr/testify/assert"
@@ -20,21 +21,21 @@ func TestOperationPackSerialize(t *testing.T) {
 	addCommentOp := NewAddCommentOp(rene, time.Now().Unix(), "message2", nil)
 	setStatusOp := NewSetStatusOp(rene, time.Now().Unix(), MergedStatus)
 	labelChangeOp := NewLabelChangeOperation(rene, time.Now().Unix(), []Label{"added"}, []Label{"removed"})
-	setChecklistOp := NewSetChecklistOp(rene, time.Now().Unix(), Checklist{Label: "123",
+	setChecklistOp := NewSetChecklistOp(rene, time.Now().Unix(), config.Checklist{Label: "123",
 		Title: "123 Checklist",
-		Sections: []ChecklistSection{
-			ChecklistSection{Title: "Section 1",
-				Questions: []ChecklistQuestion{
-					ChecklistQuestion{Question: "1?"},
-					ChecklistQuestion{Question: "2?"},
-					ChecklistQuestion{Question: "3?"},
+		Sections: []config.ChecklistSection{
+			config.ChecklistSection{Title: "Section 1",
+				Questions: []config.ChecklistQuestion{
+					config.ChecklistQuestion{Question: "1?"},
+					config.ChecklistQuestion{Question: "2?"},
+					config.ChecklistQuestion{Question: "3?"},
 				},
 			},
-			ChecklistSection{Title: "Section 2",
-				Questions: []ChecklistQuestion{
-					ChecklistQuestion{Question: "4?"},
-					ChecklistQuestion{Question: "5?"},
-					ChecklistQuestion{Question: "6?"},
+			config.ChecklistSection{Title: "Section 2",
+				Questions: []config.ChecklistQuestion{
+					config.ChecklistQuestion{Question: "4?"},
+					config.ChecklistQuestion{Question: "5?"},
+					config.ChecklistQuestion{Question: "6?"},
 				},
 			},
 		},

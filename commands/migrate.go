@@ -7,6 +7,7 @@ import (
 
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
@@ -57,7 +58,7 @@ func (e skipTicketError) Error() string {
 	return "Skip this ticket"
 }
 
-func promptUnknownRepositoryLabel(repo, id, title string) (string, error) {
+func promptUnknownRepositoryLabel(env *Env, repo, id, title string) (string, error) {
 	fmt.Printf("Unknown repository for ticket %s: %s\n", id, repo)
 	fmt.Printf("Original ticket title: %s\n", title)
 
@@ -81,15 +82,15 @@ func promptUnknownRepositoryLabel(repo, id, title string) (string, error) {
 		return "", kSkipTicketError
 
 	case kSelectRepo:
-		labelsMap, err := bug.ListLabels()
+		labelsMap := env.backend.LabelConfig().FlatMap
 		if err != nil {
 			return "", fmt.Errorf("Unable to list supported labels: %s", err)
 		}
 
 		labels := []bug.Label{}
 		for label := range labelsMap {
-			if strings.HasPrefix(string(label), "repo:") {
-				labels = append(labels, label)
+			if strings.HasPrefix(string(label), bug.RepoPrefix) {
+				labels = append(labels, bug.Label(label))
 			}
 		}
 
@@ -109,11 +110,7 @@ func promptUnknownRepositoryLabel(repo, id, title string) (string, error) {
 }
 
 func runMigrateRepoLabel(env *Env) error {
-	labels, err := bug.ListLabels()
-	if err != nil {
-		return fmt.Errorf("Unable to list supported labels: %s", err)
-	}
-
+	labels := env.backend.LabelConfig().FlatMap
 	skipped := []entity.Id{}
 	for _, ticketId := range env.backend.AllBugsIds() {
 		ticketExcerpt, err := env.backend.ResolveBugExcerpt(ticketId)
@@ -132,8 +129,8 @@ func runMigrateRepoLabel(env *Env) error {
 			}
 			repo = fmt.Sprintf("repo:%s", repo)
 
-			if _, ok := labels[bug.Label(repo)]; !ok {
-				selected, err := promptUnknownRepositoryLabel(repo, ticketId.Human(), title)
+			if _, ok := labels[config.Label(repo)]; !ok {
+				selected, err := promptUnknownRepositoryLabel(env, repo, ticketId.Human(), title)
 				if err == kSkipTicketError {
 					skipped = append(skipped, ticketId)
 					continue

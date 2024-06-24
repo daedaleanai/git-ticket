@@ -553,11 +553,11 @@ var templateHelpers = template.FuncMap{
 	"checklist": func(s bug.Label) string {
 		return strings.TrimPrefix(string(s), bug.ChecklistPrefix)
 	},
-	"checklistStateColor": func(s bug.ChecklistState) string {
+	"checklistStateColor": func(s config.ChecklistState) string {
 		switch s {
-		case bug.Passed:
+		case config.Passed:
 			return "bg-success"
-		case bug.Failed:
+		case config.Failed:
 			return "bg-danger"
 		default:
 			return "bg-secondary"
@@ -641,15 +641,15 @@ var templateHelpers = template.FuncMap{
 		}
 		return template.HTML(w.Bytes())
 	},
-	"checklistFieldStateColor": func(s bug.ChecklistState) string {
+	"checklistFieldStateColor": func(s config.ChecklistState) string {
 		switch s {
-		case bug.Passed:
+		case config.Passed:
 			return "bg-success"
-		case bug.Failed:
+		case config.Failed:
 			return "bg-danger"
-		case bug.NotApplicable:
+		case config.NotApplicable:
 			return "bg-secondary"
-		case bug.TBD:
+		case config.TBD:
 			return "bg-warning"
 		default:
 			return "bg-danger"

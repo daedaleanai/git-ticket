@@ -9,6 +9,7 @@ import (
 	termtext "github.com/MichaelMure/go-term-text"
 	"github.com/pkg/errors"
 
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/util/timestamp"
@@ -181,7 +182,7 @@ func (l LabelChangeTimelineItem) String() string {
 func (l *LabelChangeTimelineItem) IsAuthored() {}
 
 // ChangeLabels is a convenience function to apply the operation
-func ChangeLabels(b Interface, author identity.Interface, unixTime int64, add, remove []string, allowDeprecated bool) ([]LabelChangeResult, *LabelChangeOperation, error) {
+func ChangeLabels(b Interface, author identity.Interface, c *config.ConfigCache, unixTime int64, add, remove []string, allowDeprecated bool) ([]LabelChangeResult, *LabelChangeOperation, error) {
 	var added, removed []Label
 	var results []LabelChangeResult
 	var newWorkflow *Workflow
@@ -219,7 +220,7 @@ func ChangeLabels(b Interface, author identity.Interface, unixTime int64, add, r
 
 		// if it's a checklist, check it exists
 		if label.IsChecklist() {
-			if _, err := GetChecklist(Label(str)); err != nil {
+			if _, err := c.GetChecklist(config.Label(str)); err != nil {
 				results = append(results, LabelChangeResult{Label: label, Status: LabelChangeInvalidChecklist})
 				continue
 			}
@@ -227,12 +228,7 @@ func ChangeLabels(b Interface, author identity.Interface, unixTime int64, add, r
 
 		// For any other labels, validate it against the configured set of labels
 		if !label.IsChecklist() && !label.IsWorkflow() {
-			configuredLabels, err := ListLabels()
-			if err != nil {
-				return nil, nil, err
-			}
-
-			if labelConfig, known := configuredLabels[label]; !known {
+			if labelConfig, err := c.LabelConfig.GetLabelConfig(config.Label(label)); err != nil {
 				results = append(results, LabelChangeResult{Label: label, Status: LabelChangeUnknownLabel})
 				continue
 			} else if (labelConfig.DeprecationMessage != "") && !allowDeprecated {
@@ -268,7 +264,7 @@ func ChangeLabels(b Interface, author identity.Interface, unixTime int64, add, r
 
 		// unless the action is performed by a CCB member, do not allow to remove checklists from a
 		// ticket that has already been vetted
-		isCcbMember, err := IsCcbMember(author)
+		isCcbMember, err := c.CcbConfig.IsCcbMember(author)
 		if err != nil {
 			return nil, nil, err
 		}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/entity"
 )
 
@@ -14,20 +15,20 @@ func TestSnapshot_GetChecklistCompoundStates(t *testing.T) {
 	snapshot := Snapshot{
 		Labels: []Label{"checklist:XYZ"},
 		Checklists: map[Label]map[entity.Id]ChecklistSnapshot{
-			"checklist:XYZ": map[entity.Id]ChecklistSnapshot{
-				"123": ChecklistSnapshot{
-					Checklist: Checklist{
-						Sections: []ChecklistSection{
-							ChecklistSection{
-								Questions: []ChecklistQuestion{
-									ChecklistQuestion{State: Passed},
-									ChecklistQuestion{State: Passed},
+			"checklist:XYZ": {
+				"123": {
+					Checklist: config.Checklist{
+						Sections: []config.ChecklistSection{
+							{
+								Questions: []config.ChecklistQuestion{
+									{State: config.Passed},
+									{State: config.Passed},
 								},
 							},
-							ChecklistSection{
-								Questions: []ChecklistQuestion{
-									ChecklistQuestion{State: Passed},
-									ChecklistQuestion{State: Passed},
+							{
+								Questions: []config.ChecklistQuestion{
+									{State: config.Passed},
+									{State: config.Passed},
 								},
 							},
 						},
@@ -35,18 +36,18 @@ func TestSnapshot_GetChecklistCompoundStates(t *testing.T) {
 					LastEdit: time.Time{},
 				},
 				"456": ChecklistSnapshot{
-					Checklist: Checklist{
-						Sections: []ChecklistSection{
-							ChecklistSection{
-								Questions: []ChecklistQuestion{
-									ChecklistQuestion{State: Passed},
-									ChecklistQuestion{State: Passed},
+					Checklist: config.Checklist{
+						Sections: []config.ChecklistSection{
+							{
+								Questions: []config.ChecklistQuestion{
+									{State: config.Passed},
+									{State: config.Passed},
 								},
 							},
-							ChecklistSection{
-								Questions: []ChecklistQuestion{
-									ChecklistQuestion{State: Passed},
-									ChecklistQuestion{State: Passed},
+							{
+								Questions: []config.ChecklistQuestion{
+									{State: config.Passed},
+									{State: config.Passed},
 								},
 							},
 						},
@@ -57,21 +58,21 @@ func TestSnapshot_GetChecklistCompoundStates(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, snapshot.GetChecklistCompoundStates(), map[Label]ChecklistState{"checklist:XYZ": Passed})
+	assert.Equal(t, snapshot.GetChecklistCompoundStates(), map[Label]config.ChecklistState{"checklist:XYZ": config.Passed})
 
 	// one review has left an answer TBD, should still be overall pass
-	snapshot.Checklists["checklist:XYZ"]["456"].Checklist.Sections[0].Questions[1].State = TBD
-	assert.Equal(t, snapshot.GetChecklistCompoundStates(), map[Label]ChecklistState{"checklist:XYZ": Passed})
+	snapshot.Checklists["checklist:XYZ"]["456"].Checklist.Sections[0].Questions[1].State = config.TBD
+	assert.Equal(t, snapshot.GetChecklistCompoundStates(), map[Label]config.ChecklistState{"checklist:XYZ": config.Passed})
 
 	// both reviewers have left an answer TBD, should be overall TBD
-	snapshot.Checklists["checklist:XYZ"]["123"].Checklist.Sections[1].Questions[1].State = TBD
-	assert.Equal(t, snapshot.GetChecklistCompoundStates(), map[Label]ChecklistState{"checklist:XYZ": TBD})
+	snapshot.Checklists["checklist:XYZ"]["123"].Checklist.Sections[1].Questions[1].State = config.TBD
+	assert.Equal(t, snapshot.GetChecklistCompoundStates(), map[Label]config.ChecklistState{"checklist:XYZ": config.TBD})
 
 	// one review has left an answer failed, should be overall fail
-	snapshot.Checklists["checklist:XYZ"]["456"].Checklist.Sections[0].Questions[1].State = Failed
-	assert.Equal(t, snapshot.GetChecklistCompoundStates(), map[Label]ChecklistState{"checklist:XYZ": Failed})
+	snapshot.Checklists["checklist:XYZ"]["456"].Checklist.Sections[0].Questions[1].State = config.Failed
+	assert.Equal(t, snapshot.GetChecklistCompoundStates(), map[Label]config.ChecklistState{"checklist:XYZ": config.Failed})
 
 	// the default state for an unreviewed checklist is TBD
 	snapshot.Labels = append(snapshot.Labels, "checklist:ABC")
-	assert.Equal(t, snapshot.GetChecklistCompoundStates(), map[Label]ChecklistState{"checklist:XYZ": Failed, "checklist:ABC": TBD})
+	assert.Equal(t, snapshot.GetChecklistCompoundStates(), map[Label]config.ChecklistState{"checklist:XYZ": config.Failed, "checklist:ABC": config.TBD})
 }

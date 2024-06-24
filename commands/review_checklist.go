@@ -52,7 +52,7 @@ func runReviewChecklist(env *Env, opts reviewChecklistOptions, args []string) er
 		return err
 	}
 
-	ticketChecklists, err := b.Snapshot().GetUserChecklists(id.Id(), opts.blank)
+	ticketChecklists, err := b.Snapshot().GetUserChecklists(env.backend.ChecklistConfig(), id.Id(), opts.blank)
 	if err != nil {
 		return err
 	}

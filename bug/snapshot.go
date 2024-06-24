@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/daedaleanai/git-ticket/bug/review"
+	"github.com/daedaleanai/git-ticket/config"
 
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
@@ -149,8 +150,8 @@ func (snap *Snapshot) IsAuthored() {}
 
 // GetUserChecklists returns a map of checklists associated with this snapshot for the given reviewer id,
 // if the blank flag is set then always return a clean set of checklists
-func (snap *Snapshot) GetUserChecklists(reviewer entity.Id, blank bool) (map[Label]Checklist, error) {
-	checklists := make(map[Label]Checklist)
+func (snap *Snapshot) GetUserChecklists(c config.ChecklistConfig, reviewer entity.Id, blank bool) (map[Label]config.Checklist, error) {
+	checklists := make(map[Label]config.Checklist)
 
 	// Only checklists named in the labels list are currently valid
 	for _, l := range snap.Labels {
@@ -159,7 +160,7 @@ func (snap *Snapshot) GetUserChecklists(reviewer entity.Id, blank bool) (map[Lab
 				checklists[l] = snapshotChecklist.Checklist
 			} else {
 				var err error
-				checklists[l], err = GetChecklist(l)
+				checklists[l], err = c.GetChecklist(config.Label(l))
 				if err != nil {
 					return nil, err
 				}
@@ -170,14 +171,14 @@ func (snap *Snapshot) GetUserChecklists(reviewer entity.Id, blank bool) (map[Lab
 }
 
 // GetChecklistCompoundStates returns a map of checklist states mapped to label, associated with this snapshot
-func (snap *Snapshot) GetChecklistCompoundStates() map[Label]ChecklistState {
-	states := make(map[Label]ChecklistState)
+func (snap *Snapshot) GetChecklistCompoundStates() map[Label]config.ChecklistState {
+	states := make(map[Label]config.ChecklistState)
 
 	// Only checklists named in the labels list are currently valid
 	for _, l := range snap.Labels {
 		if l.IsChecklist() {
 			// default state is TBD
-			states[l] = TBD
+			states[l] = config.TBD
 
 			clMap, present := snap.Checklists[l]
 			if present {
@@ -186,13 +187,13 @@ func (snap *Snapshot) GetChecklistCompoundStates() map[Label]ChecklistState {
 				for _, cl := range clMap {
 					clState := cl.CompoundState()
 					switch clState {
-					case Failed:
+					case config.Failed:
 						// someone failed it, it's failed
-						states[l] = Failed
+						states[l] = config.Failed
 						break ReviewsLoop
-					case Passed:
+					case config.Passed:
 						// someone passed it, and no-one failed it yet
-						states[l] = Passed
+						states[l] = config.Passed
 					}
 				}
 			}
@@ -279,7 +280,7 @@ func ValidateAllCcb(snap *Snapshot, next Status) error {
 // has not been completed
 func ValidateChecklistsCompleted(snap *Snapshot, next Status) error {
 	for _, st := range snap.GetChecklistCompoundStates() {
-		if st == TBD {
+		if st == config.TBD {
 			return errors.New("at least one checklist still TBD")
 		}
 	}

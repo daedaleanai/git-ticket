@@ -544,7 +544,7 @@ func (sb *showBug) review(g *gocui.Gui, v *gocui.View) error {
 		return err
 	}
 
-	ticketChecklists, err := sb.bug.Snapshot().GetUserChecklists(id.Id(), false)
+	ticketChecklists, err := sb.bug.Snapshot().GetUserChecklists(sb.cache.ChecklistConfig(), id.Id(), false)
 	if err != nil {
 		return err
 	}

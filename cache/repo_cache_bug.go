@@ -324,12 +324,8 @@ func (c *RepoCache) ValidLabels() ([]bug.Label, error) {
 	set := map[bug.Label]interface{}{}
 
 	// all configured labels
-	labels, err := bug.ListLabels()
-	if err != nil {
-		return nil, err
-	}
-	for label := range labels {
-		set[label] = nil
+	for label := range c.configCache.LabelConfig.FlatMap {
+		set[bug.Label(label)] = nil
 	}
 
 	// all available workflow labels
@@ -338,8 +334,8 @@ func (c *RepoCache) ValidLabels() ([]bug.Label, error) {
 	}
 
 	// all available checklist labels
-	for _, cl := range bug.GetChecklistLabels() {
-		set[cl] = nil
+	for _, cl := range c.configCache.ChecklistConfig.GetChecklistLabels() {
+		set[bug.Label(cl)] = nil
 	}
 
 	result := make([]bug.Label, len(set))
