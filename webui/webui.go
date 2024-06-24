@@ -95,6 +95,27 @@ var (
 	}
 )
 
+func Run(repo repository.ClockedRepo, host string, port int) error {
+	if err := loadConfig(repo); err != nil {
+		return err
+	}
+
+	r := mux.NewRouter()
+	r.Use(errorHandlingMiddleware)
+
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))
+	r.HandleFunc("/", withRepoCache(repo, handleIndex))
+	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", withRepoCache(repo, handleTicket))
+	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/comment/", withRepoCache(repo, handleComment)).Methods(http.MethodPost)
+	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
+	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
+
+	http.Handle("/", r)
+	fmt.Printf("Running web-ui at http://%s:%d\n", host, port)
+
+	return http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), deferWrite(r))
+}
+
 type SideBarData struct {
 	SelectedQuery  string
 	BookmarkGroups []BookmarkGroup
@@ -348,27 +369,6 @@ func withRepoCache(repo repository.ClockedRepo, handler HandlerWithRepoCache) fu
 			return
 		}
 	}
-}
-
-func Run(repo repository.ClockedRepo, host string, port int) error {
-	if err := loadConfig(repo); err != nil {
-		return err
-	}
-
-	r := mux.NewRouter()
-	r.Use(errorHandlingMiddleware)
-
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))
-	r.HandleFunc("/", withRepoCache(repo, handleIndex))
-	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", withRepoCache(repo, handleTicket))
-	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/comment/", withRepoCache(repo, handleComment)).Methods(http.MethodPost)
-	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
-	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
-
-	http.Handle("/", r)
-	fmt.Printf("Running web-ui at http://%s:%d\n", host, port)
-
-	return http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), deferWrite(r))
 }
 
 func deferWrite(next http.Handler) http.Handler {
