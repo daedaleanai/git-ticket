@@ -59,6 +59,40 @@ type WebUiConfig struct {
 	BookmarkGroups []BookmarkGroup
 }
 
+type CreateTicketAction struct {
+	Title      string
+	Message    string
+	Workflow   string
+	AssignedTo *string
+	Ccb        []string
+	Labels     []string
+	Checklists []string
+}
+
+const KeyTitle = "title"
+const KeyWorkflow = "workflow"
+const KeyMessage = "description"
+
+func CreateTicketFromFormData(f url.Values) (*CreateTicketAction, error) {
+	required := [3]string{KeyTitle, KeyWorkflow, KeyMessage}
+
+	for _, v := range required {
+		if !f.Has(v) {
+			return nil, fmt.Errorf("missing required value [%s]", v)
+		}
+	}
+
+	return &CreateTicketAction{
+		Title:      f.Get(KeyTitle),
+		Message:    f.Get(KeyMessage),
+		Workflow:   f.Get(KeyWorkflow),
+		AssignedTo: nil,
+		Ccb:        nil,
+		Labels:     nil,
+		Checklists: nil,
+	}, nil
+}
+
 type SubmitCommentAction struct {
 	Ticket  string
 	Comment string
@@ -190,13 +224,34 @@ func renderTemplate(w http.ResponseWriter, name string, data interface{}) error 
 }
 
 func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
-	vars := mux.Vars(r)
-	id := vars["id"]
+	var ticket *cache.BugCache
+	var err error
 
-	ticket, err := repo.ResolveBugPrefix(id)
+	switch r.Method {
+	case http.MethodPost:
+		if err = r.ParseForm(); err != nil {
+			return fmt.Errorf("failed to parse form data: %w", err)
+		}
 
-	if err != nil {
-		return TicketNotFound(id)
+		var action *CreateTicketAction
+		action, err = CreateTicketFromFormData(r.Form)
+		if err != nil {
+			return fmt.Errorf("failed to create ticket: %w", err)
+		}
+
+		ticket, _, err = repo.NewBug(action.Title, action.Message, action.Workflow)
+		if err != nil {
+			return fmt.Errorf("failed to create ticket: %w", err)
+		}
+	case http.MethodGet:
+		vars := mux.Vars(r)
+		id := vars["id"]
+
+		ticket, err = repo.ResolveBugPrefix(id)
+
+		if err != nil {
+			return TicketNotFound(id)
+		}
 	}
 
 	return renderTemplate(w, "ticket.html", struct {
