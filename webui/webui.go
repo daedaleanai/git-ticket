@@ -73,13 +73,23 @@ const KeyTitle = "title"
 const KeyWorkflow = "workflow"
 const KeyMessage = "description"
 
-func CreateTicketFromFormData(f url.Values) (*CreateTicketAction, error) {
+func CreateTicketFromFormData(f url.Values) (*CreateTicketAction, map[string]*InvalidRequestError) {
 	required := [3]string{KeyTitle, KeyWorkflow, KeyMessage}
+	var errs = make(map[string]*InvalidRequestError)
 
 	for _, v := range required {
 		if !f.Has(v) {
-			return nil, fmt.Errorf("missing required value [%s]", v)
+			errs[v] = &InvalidRequestError{msg: fmt.Sprintf("%s is required", v)}
 		}
+	}
+
+	if f.Has(KeyWorkflow) && !isValidWorkflow(f.Get(KeyWorkflow)) {
+		l := bug.Label(f.Get(KeyWorkflow))
+		errs[KeyWorkflow] = &InvalidRequestError{msg: fmt.Sprintf("%s is not a valid workflow", l.DisplayName())}
+	}
+
+	if len(errs) > 0 {
+		return nil, errs
 	}
 
 	return &CreateTicketAction{
@@ -91,6 +101,17 @@ func CreateTicketFromFormData(f url.Values) (*CreateTicketAction, error) {
 		Labels:     nil,
 		Checklists: nil,
 	}, nil
+}
+
+func isValidWorkflow(s string) bool {
+	for _, l := range bug.GetWorkflowLabels() {
+		label := bug.Label(s)
+		if l == label {
+			return true
+		}
+	}
+
+	return false
 }
 
 type SubmitCommentAction struct {
@@ -139,7 +160,8 @@ func Run(repo repository.ClockedRepo, host string, port int) error {
 
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))
 	r.HandleFunc("/", withRepoCache(repo, handleIndex))
-	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", withRepoCache(repo, handleTicket))
+	r.HandleFunc("/ticket/new/", withRepoCache(repo, handleCreate)).Methods(http.MethodGet, http.MethodPost)
+	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", withRepoCache(repo, handleTicket)).Methods(http.MethodGet)
 	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/comment/", withRepoCache(repo, handleComment)).Methods(http.MethodPost)
 	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
 	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
@@ -223,35 +245,60 @@ func renderTemplate(w http.ResponseWriter, name string, data interface{}) error 
 	return nil
 }
 
-func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
-	var ticket *cache.BugCache
+func handleCreate(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
 	var err error
+	var validationErrors = make(map[string]*InvalidRequestError)
+	var formData url.Values
 
-	switch r.Method {
-	case http.MethodPost:
+	if r.Method == http.MethodPost {
 		if err = r.ParseForm(); err != nil {
 			return fmt.Errorf("failed to parse form data: %w", err)
 		}
 
 		var action *CreateTicketAction
-		action, err = CreateTicketFromFormData(r.Form)
-		if err != nil {
-			return fmt.Errorf("failed to create ticket: %w", err)
-		}
+		formData = r.Form
+		action, validationErrors = CreateTicketFromFormData(formData)
 
-		ticket, _, err = repo.NewBug(action.Title, action.Message, action.Workflow)
-		if err != nil {
-			return fmt.Errorf("failed to create ticket: %w", err)
-		}
-	case http.MethodGet:
-		vars := mux.Vars(r)
-		id := vars["id"]
+		if len(validationErrors) == 0 {
+			ticket, _, err := repo.NewBug(action.Title, action.Message, action.Workflow)
+			if err != nil {
+				return fmt.Errorf("failed to create ticket: %w", err)
+			}
 
-		ticket, err = repo.ResolveBugPrefix(id)
-
-		if err != nil {
-			return TicketNotFound(id)
+			http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticket.Id()), http.StatusSeeOther)
+			return nil
 		}
+	}
+
+	data := struct {
+		SideBar          SideBarData
+		WorkflowLabels   []bug.Label
+		ValidationErrors map[string]*InvalidRequestError
+		FormData         url.Values
+	}{
+		SideBar: SideBarData{
+			BookmarkGroups: webUiConfig.BookmarkGroups,
+			ColorKey:       map[string]string{},
+		},
+		WorkflowLabels:   bug.GetWorkflowLabels(),
+		ValidationErrors: validationErrors,
+		FormData:         formData,
+	}
+
+	return renderTemplate(w, "create.html", data)
+}
+
+func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
+	var ticket *cache.BugCache
+	var err error
+
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	ticket, err = repo.ResolveBugPrefix(id)
+
+	if err != nil {
+		return TicketNotFound(id)
 	}
 
 	return renderTemplate(w, "ticket.html", struct {
