@@ -17,6 +17,10 @@ func (l Label) String() string {
 	return string(l)
 }
 
+func (l Label) DisplayName() string {
+	return strings.TrimPrefix(l.String(), WorkflowPrefix)
+}
+
 // RGBA from a Label computed in a deterministic way
 func (l Label) Color() LabelColor {
 	// colors from: https://material-ui.com/style/color/
