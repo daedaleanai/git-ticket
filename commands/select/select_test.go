@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/daedaleanai/git-ticket/cache"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/repository"
 )
 
@@ -18,6 +19,17 @@ func TestSelect(t *testing.T) {
 
 	repoCache, err := cache.NewRepoCache(repo, false)
 	require.NoError(t, err)
+
+	// add label config
+	repoCache.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		err := c.LabelConfig.AppendLabelToConfiguration(config.Label("repo:test"))
+		require.NoError(t, err)
+
+		err = c.LabelConfig.Store(repo)
+		require.NoError(t, err)
+
+		return nil
+	})
 
 	_, _, err = ResolveBug(repoCache, []string{})
 	require.Equal(t, ErrNoValidId, err)
@@ -34,15 +46,22 @@ func TestSelect(t *testing.T) {
 	rene, err := repoCache.NewIdentity("René Descartes", "rene@descartes.fr", true, true, "")
 	require.NoError(t, err)
 
+	newBugOpts := cache.NewBugOpts{
+		Title:    "title",
+		Message:  "message",
+		Workflow: "workflow:eng",
+		Repo:     "repo:test",
+	}
+
 	for i := 0; i < 10; i++ {
-		_, _, err := repoCache.NewBugRaw(rene, time.Now().Unix(), "title", "message", "workflow:eng", nil, nil)
+		_, _, err := repoCache.NewBugRaw(rene, time.Now().Unix(), newBugOpts, nil, nil)
 		require.NoError(t, err)
 	}
 
 	// and two more for testing
-	b1, _, err := repoCache.NewBugRaw(rene, time.Now().Unix(), "title", "message", "workflow:eng", nil, nil)
+	b1, _, err := repoCache.NewBugRaw(rene, time.Now().Unix(), newBugOpts, nil, nil)
 	require.NoError(t, err)
-	b2, _, err := repoCache.NewBugRaw(rene, time.Now().Unix(), "title", "message", "workflow:eng", nil, nil)
+	b2, _, err := repoCache.NewBugRaw(rene, time.Now().Unix(), newBugOpts, nil, nil)
 	require.NoError(t, err)
 
 	err = Select(repoCache, b1.Id())

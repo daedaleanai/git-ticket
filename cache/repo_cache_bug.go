@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/query"
 	"github.com/daedaleanai/git-ticket/repository"
@@ -354,37 +355,92 @@ func (c *RepoCache) ValidLabels() ([]bug.Label, error) {
 	return result, nil
 }
 
+type NewBugOpts struct {
+	Title    string
+	Message  string
+	Workflow string
+	Repo     string
+	Impact   []string
+}
+
 // NewBug create a new bug
 // The new bug is written in the repository (commit)
-func (c *RepoCache) NewBug(title, message, workflow string) (*BugCache, *bug.CreateOperation, error) {
-	return c.NewBugWithFiles(title, message, workflow, nil)
+func (c *RepoCache) NewBug(opts NewBugOpts) (*BugCache, *bug.CreateOperation, error) {
+	return c.NewBugWithFiles(opts, nil)
 }
 
 // NewBugWithFiles create a new bug with attached files for the message
 // The new bug is written in the repository (commit)
-func (c *RepoCache) NewBugWithFiles(title, message, workflow string, files []repository.Hash) (*BugCache, *bug.CreateOperation, error) {
+func (c *RepoCache) NewBugWithFiles(opts NewBugOpts, files []repository.Hash) (*BugCache, *bug.CreateOperation, error) {
 	author, err := c.GetUserIdentity()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return c.NewBugRaw(author, time.Now().Unix(), title, message, workflow, files, nil)
+	return c.NewBugRaw(author, time.Now().Unix(), opts, files, nil)
+}
+
+func (c *RepoCache) validateNewBugOptions(opts NewBugOpts) ([]bug.Label, error) {
+	var labels []bug.Label
+	err := c.DoWithLockedConfigCache(func(configCache *config.ConfigCache) error {
+		configuredLabels := configCache.LabelConfig.FlatMap
+
+		isInListOfConfiguredLabels := func(l bug.Label) bool {
+			for cur := range configuredLabels {
+				if bug.Label(cur) == l {
+					return true
+				}
+			}
+			return false
+		}
+
+		// Validate workflow
+		workflowLabel := bug.Label(opts.Workflow)
+		if bug.FindWorkflow([]bug.Label{workflowLabel}) == nil {
+			return fmt.Errorf("Invalid workflow: %s", opts.Workflow)
+		}
+		labels = append(labels, workflowLabel)
+
+		// Validate repo
+		repoLabel := bug.Label(opts.Repo)
+		if repoLabel == "" {
+			return fmt.Errorf("Repo label cannot be left empty")
+		}
+
+		if !repoLabel.IsRepo() || !isInListOfConfiguredLabels(repoLabel) {
+			return fmt.Errorf("Invalid repo label: %s", repoLabel)
+		}
+		labels = append(labels, repoLabel)
+
+		// Validate impact labels
+		for _, impact := range opts.Impact {
+			impactLabel := bug.Label(impact)
+			if !impactLabel.IsImpact() || !isInListOfConfiguredLabels(impactLabel) {
+				return fmt.Errorf("Invalid impact label: %s", impactLabel)
+			}
+			labels = append(labels, impactLabel)
+		}
+
+		return nil
+	})
+	return labels, err
 }
 
 // NewBugWithFilesMeta create a new bug with attached files for the message, as
 // well as metadata for the Create operation.
 // The new bug is written in the repository (commit)
-func (c *RepoCache) NewBugRaw(author *IdentityCache, unixTime int64, title, message, workflow string, files []repository.Hash, metadata map[string]string) (*BugCache, *bug.CreateOperation, error) {
-	// validate workflow
-	if bug.FindWorkflow([]bug.Label{bug.Label(workflow)}) == nil {
-		return nil, nil, fmt.Errorf("Invalid workflow: %s", workflow)
-	}
-
-	b, op, err := bug.CreateWithFiles(author.Identity, unixTime, title, message, files)
+func (c *RepoCache) NewBugRaw(author *IdentityCache, unixTime int64, opts NewBugOpts, files []repository.Hash, metadata map[string]string) (*BugCache, *bug.CreateOperation, error) {
+	labels, err := c.validateNewBugOptions(opts)
 	if err != nil {
 		return nil, nil, err
 	}
-	b.Append(bug.NewLabelChangeOperation(author.Identity, unixTime, []bug.Label{bug.Label(workflow)}, []bug.Label{}))
+
+	b, op, err := bug.CreateWithFiles(author.Identity, unixTime, opts.Title, opts.Message, files)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	b.Append(bug.NewLabelChangeOperation(author.Identity, unixTime, labels, []bug.Label{}))
 
 	for key, value := range metadata {
 		op.SetMetadata(key, value)

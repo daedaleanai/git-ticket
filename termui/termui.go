@@ -218,7 +218,7 @@ func newBugWithEditor(repo *cache.RepoCache) error {
 			go func() {
 				selectedWorkflow := <-c
 
-				b, _, err := repo.NewBug(title, message, selectedWorkflow)
+				b, _, err := repo.NewBug(cache.NewBugOpts{Title: title, Message: message, Workflow: selectedWorkflow})
 
 				ui.g.Update(func(g *gocui.Gui) error {
 					if err != nil {

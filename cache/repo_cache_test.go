@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/query"
 	"github.com/daedaleanai/git-ticket/repository"
 )
@@ -34,6 +35,17 @@ func TestCache(t *testing.T) {
 	iden2, err := cache.NewIdentity("René Descartes", "rene@descartes.fr", true, true, "")
 	require.NoError(t, err)
 
+	// add label config
+	cache.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		err := c.LabelConfig.AppendLabelToConfiguration(config.Label("repo:test"))
+		require.NoError(t, err)
+
+		err = c.LabelConfig.Store(cache.repo)
+		require.NoError(t, err)
+
+		return nil
+	})
+
 	// Two identical identities yield a different id
 	require.NotEqual(t, iden1.Id(), iden2.Id())
 
@@ -42,12 +54,17 @@ func TestCache(t *testing.T) {
 	require.Len(t, cache.identitiesExcerpts, 2)
 	require.Len(t, cache.identities, 2)
 
+	newBugOpts := NewBugOpts{
+		Title: "title", Message: "message", Workflow: "workflow:eng",
+		Repo: "repo:test",
+	}
+
 	// Create a bug
-	bug1, _, err := cache.NewBug("title", "message", "workflow:eng")
+	bug1, _, err := cache.NewBug(newBugOpts)
 	require.NoError(t, err)
 
 	// It's possible to create two identical bugs
-	bug2, _, err := cache.NewBug("title", "message", "workflow:eng")
+	bug2, _, err := cache.NewBug(newBugOpts)
 	require.NoError(t, err)
 
 	// two identical bugs yield a different id
@@ -88,8 +105,9 @@ func TestCache(t *testing.T) {
 
 	configs, err := cache.ListConfigs()
 	require.NoError(t, err)
-	require.Len(t, configs, 1)
-	require.Equal(t, "test1", configs[0])
+	require.Len(t, configs, 2)
+	require.Contains(t, configs, "test1")
+	require.Contains(t, configs, "labels")
 
 	data, err := cache.GetConfig("test1")
 	require.NoError(t, err)
@@ -152,6 +170,17 @@ func TestPushPull(t *testing.T) {
 	err = cacheA.SetUserIdentity(reneA)
 	require.NoError(t, err)
 
+	// add label config
+	cacheA.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		err := c.LabelConfig.AppendLabelToConfiguration(config.Label("repo:test"))
+		require.NoError(t, err)
+
+		err = c.LabelConfig.Store(cacheA.repo)
+		require.NoError(t, err)
+
+		return nil
+	})
+
 	// distribute the identity
 	_, err = cacheA.Push("origin")
 	require.NoError(t, err)
@@ -159,7 +188,10 @@ func TestPushPull(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a bug in A
-	_, _, err = cacheA.NewBug("bug1", "message", "workflow:eng")
+	_, _, err = cacheA.NewBug(NewBugOpts{
+		Title: "bug1", Message: "message", Workflow: "workflow:eng",
+		Repo: "repo:test",
+	})
 	require.NoError(t, err)
 
 	// A --> remote --> B
@@ -179,7 +211,10 @@ func TestPushPull(t *testing.T) {
 	require.NoError(t, err)
 
 	// B --> remote --> A
-	_, _, err = cacheB.NewBug("bug2", "message", "workflow:eng")
+	_, _, err = cacheB.NewBug(NewBugOpts{
+		Title: "bug2", Message: "message", Workflow: "workflow:eng",
+		Repo: "repo:test",
+	})
 	require.NoError(t, err)
 
 	_, err = cacheB.Push("origin")
@@ -202,8 +237,9 @@ func TestPushPull(t *testing.T) {
 
 	configs, err := cacheB.ListConfigs()
 	require.NoError(t, err)
-	require.Len(t, configs, 1)
-	require.Equal(t, "test1", configs[0])
+	require.Len(t, configs, 2)
+	require.Contains(t, configs, "test1")
+	require.Contains(t, configs, "labels")
 
 	data, err := cacheB.GetConfig("test1")
 	require.NoError(t, err)
@@ -247,17 +283,33 @@ func TestRemove(t *testing.T) {
 	repoCache, err := NewRepoCache(repo, false)
 	require.NoError(t, err)
 
+	// add label config
+	repoCache.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		err := c.LabelConfig.AppendLabelToConfiguration(config.Label("repo:test"))
+		require.NoError(t, err)
+
+		err = c.LabelConfig.Store(repoCache.repo)
+		require.NoError(t, err)
+
+		return nil
+	})
+
 	rene, err := repoCache.NewIdentity("René Descartes", "rene@descartes.fr", true, true, "")
 	require.NoError(t, err)
 
 	err = repoCache.SetUserIdentity(rene)
 	require.NoError(t, err)
 
-	_, _, err = repoCache.NewBug("title", "message", "workflow:eng")
+	newBugOpts := NewBugOpts{
+		Title: "title", Message: "message", Workflow: "workflow:eng",
+		Repo: "repo:test",
+	}
+
+	_, _, err = repoCache.NewBug(newBugOpts)
 	require.NoError(t, err)
 
 	// and one more for testing
-	b1, _, err := repoCache.NewBug("title", "message", "workflow:eng")
+	b1, _, err := repoCache.NewBug(newBugOpts)
 	require.NoError(t, err)
 
 	_, err = repoCache.Push("remoteA")
@@ -292,20 +344,36 @@ func TestCacheEviction(t *testing.T) {
 	require.Equal(t, 0, repoCache.loadedBugs.Len())
 	require.Equal(t, 0, len(repoCache.bugs))
 
+	// add label config
+	repoCache.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		err := c.LabelConfig.AppendLabelToConfiguration(config.Label("repo:test"))
+		require.NoError(t, err)
+
+		err = c.LabelConfig.Store(repoCache.repo)
+		require.NoError(t, err)
+
+		return nil
+	})
+
 	// Generating some bugs
 	rene, err := repoCache.NewIdentity("René Descartes", "rene@descartes.fr", true, true, "")
 	require.NoError(t, err)
 	err = repoCache.SetUserIdentity(rene)
 	require.NoError(t, err)
 
-	bug1, _, err := repoCache.NewBug("title", "message", "workflow:eng")
+	newBugOpts := NewBugOpts{
+		Title: "title", Message: "message", Workflow: "workflow:eng",
+		Repo: "repo:test",
+	}
+
+	bug1, _, err := repoCache.NewBug(newBugOpts)
 	require.NoError(t, err)
 
 	checkBugPresence(t, repoCache, bug1, true)
 	require.Equal(t, 1, repoCache.loadedBugs.Len())
 	require.Equal(t, 1, len(repoCache.bugs))
 
-	bug2, _, err := repoCache.NewBug("title", "message", "workflow:eng")
+	bug2, _, err := repoCache.NewBug(newBugOpts)
 	require.NoError(t, err)
 
 	checkBugPresence(t, repoCache, bug1, true)
@@ -314,7 +382,7 @@ func TestCacheEviction(t *testing.T) {
 	require.Equal(t, 2, len(repoCache.bugs))
 
 	// Number of bugs should not exceed max size of lruCache, oldest one should be evicted
-	bug3, _, err := repoCache.NewBug("title", "message", "workflow:eng")
+	bug3, _, err := repoCache.NewBug(newBugOpts)
 	require.NoError(t, err)
 
 	require.Equal(t, 2, repoCache.loadedBugs.Len())

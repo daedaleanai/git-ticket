@@ -23,6 +23,9 @@ type LabelConfig struct {
 func LoadLabelConfig(repo repository.ClockedRepo) (*LabelConfig, error) {
 	labelData, err := GetConfig(repo, "labels")
 	if err != nil {
+		if _, ok := err.(*NotFoundError); ok {
+			return &LabelConfig{FlatMap: map[Label]SingleLabelConfig{}}, nil
+		}
 		return nil, fmt.Errorf("unable to read label config: %q", err)
 	}
 
@@ -137,6 +140,35 @@ func (c *LabelConfig) Store(repo repository.ClockedRepo) error {
 		return fmt.Errorf("Unable to store label configuration persistently: %s", err)
 	}
 	return nil
+}
+
+// ListLabelsWithNamespace returns a list of labels with a given namespace
+func (c *LabelConfig) ListLabelsWithNamespace(namespaces ...string) ([]string, error) {
+	labels := c.serialized.Labels
+	for _, namespace := range namespaces {
+		var curLables []labelConfigInterface = nil
+		for _, label := range labels {
+			if complexLabel, ok := label.(*compoundLabelConfig); ok && complexLabel.Prefix == namespace {
+				curLables = complexLabel.Inner
+				break
+			}
+		}
+
+		if curLables == nil {
+			return nil, fmt.Errorf("Unable to find lable namespace: %s", strings.Join(namespaces, ":"))
+		}
+
+		labels = curLables
+	}
+
+	results := []string{}
+	for _, labelConfig := range labels {
+		for _, label := range labelConfig.Labels() {
+			results = append(results, label.Name)
+		}
+	}
+
+	return results, nil
 }
 
 type labelConfigInterface interface {

@@ -199,7 +199,17 @@ func (c *RepoCache) RefreshCache() ([]RefreshResult, error) {
 
 // UpdateConfigs will update all the configs from the remote
 func (c *RepoCache) UpdateConfigs(remote string) (string, error) {
-	return config.UpdateConfigs(c.repo, remote)
+	configs, err := config.UpdateConfigs(c.repo, remote)
+	if err != nil {
+		return configs, err
+	}
+
+	if len(configs) == 0 {
+		return configs, err
+	}
+
+	err = c.loadConfigCache()
+	return configs, err
 }
 
 // Push update a remote with the local changes

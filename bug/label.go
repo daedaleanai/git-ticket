@@ -102,6 +102,7 @@ func (t Term256) Unescape() string {
 const ChecklistPrefix string = "checklist:"
 const WorkflowPrefix string = "workflow:"
 const RepoPrefix string = "repo:"
+const ImpactPrefix string = "impact:"
 
 func (l Label) IsChecklist() bool {
 	return strings.HasPrefix(string(l), ChecklistPrefix)
@@ -113,4 +114,8 @@ func (l Label) IsWorkflow() bool {
 
 func (l Label) IsRepo() bool {
 	return strings.HasPrefix(string(l), RepoPrefix)
+}
+
+func (l Label) IsImpact() bool {
+	return strings.HasPrefix(string(l), ImpactPrefix)
 }

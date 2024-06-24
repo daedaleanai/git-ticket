@@ -16,6 +16,9 @@ type CcbConfig []entity.Id
 func LoadCcbConfig(repo repository.ClockedRepo) (CcbConfig, error) {
 	ccbData, err := GetConfig(repo, "ccb")
 	if err != nil {
+		if _, ok := err.(*NotFoundError); ok {
+			return CcbConfig{}, nil
+		}
 		return nil, fmt.Errorf("unable to read ccb config: %q", err)
 	}
 
