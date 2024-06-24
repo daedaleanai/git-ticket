@@ -104,6 +104,30 @@ const DDLN_SESSION_KEY = "DDLN_GT_SESSION"
 var store = sessions.NewCookieStore([]byte(DDLN_SESSION_KEY))
 var session *sessions.Session
 
+func Run(repo repository.ClockedRepo, host string, port int) error {
+	if err := loadConfig(repo); err != nil {
+		return err
+	}
+
+	r := mux.NewRouter()
+	r.Use(errorHandlingMiddleware)
+
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))
+	r.HandleFunc("/", withRepoCache(repo, handleIndex))
+	r.HandleFunc("/ticket/{ticketId:[0-9a-fA-F]{7,}}/", withSession(withRepoCache(repo, handleTicket)))
+	r.HandleFunc(
+		"/ticket/{ticketId:[0-9a-fA-F]{7,}}/comment/",
+		withSession(withRepoCache(repo, handleComment)),
+	).Methods(http.MethodPost)
+	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
+	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
+
+	http.Handle("/", r)
+	fmt.Printf("Running web-ui at http://%s:%d\n", host, port)
+
+	return http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), deferWrite(r))
+}
+
 type SideBarData struct {
 	SelectedQuery  string
 	BookmarkGroups []BookmarkGroup
@@ -361,30 +385,6 @@ func withRepoCache(repo repository.ClockedRepo, handler HandlerWithRepoCache) fu
 			return
 		}
 	}
-}
-
-func Run(repo repository.ClockedRepo, host string, port int) error {
-	if err := loadConfig(repo); err != nil {
-		return err
-	}
-
-	r := mux.NewRouter()
-	r.Use(errorHandlingMiddleware)
-
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))
-	r.HandleFunc("/", withRepoCache(repo, handleIndex))
-	r.HandleFunc("/ticket/{ticketId:[0-9a-fA-F]{7,}}/", withSession(withRepoCache(repo, handleTicket)))
-	r.HandleFunc(
-		"/ticket/{ticketId:[0-9a-fA-F]{7,}}/comment/",
-		withSession(withRepoCache(repo, handleComment)),
-	).Methods(http.MethodPost)
-	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
-	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
-
-	http.Handle("/", r)
-	fmt.Printf("Running web-ui at http://%s:%d\n", host, port)
-
-	return http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), deferWrite(r))
 }
 
 func deferWrite(next http.Handler) http.Handler {
