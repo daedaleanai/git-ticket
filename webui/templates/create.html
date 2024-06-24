@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>git-ticket | Create new</title>
+  <link href="/static/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH">
+  <link href="/static/index.css" rel="stylesheet">
+  <link href="/static/ticket.css" rel="stylesheet">
+</head>
+
+<body>
+
+<div class="gt-container">
+  {{ template "side_bar.html" $.SideBar }}
+
+  <div class="container">
+    {{ if $.FlashErrors }}
+    <div class="row mt-xxl-2">
+      <div class="col mx-auto p-2 alert alert-danger d-flex align-items-center" role="alert">
+        <ul>
+          {{ range $.FlashErrors }}
+          <li>{{ . }}</li>
+          {{ end }}
+        </ul>
+      </div>
+    </div>
+    {{ end }}
+
+    <div class="row">
+      <div class="col">
+        <form action="/ticket/new/" method="post">
+          <div class="card">
+            <div class="card-header text-center">
+              <h5 class="card-title">New ticket</h5>
+            </div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="title" class="form-label">Title</label>
+                <input
+                  required
+                  type="text"
+                  class="form-control {{ if .ValidationErrors.title }}is-invalid{{ end }}"
+                  name="title"
+                  id="title"
+                  aria-describedby="titleHelp"
+                  value="{{ .FormData.Get "title" }}"
+                >
+                {{ if .ValidationErrors.title }}
+                  <div class="invalid-feedback">{{ .ValidationErrors.title.Error }}</div>
+                {{ end }}
+                <div id="titleHelp" class="form-text visually-hidden">Enter ticket title.</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="workflow" class="form-label">Workflow</label>
+                <select
+                  class="form-control form-select {{ if .ValidationErrors.workflow }}is-invalid{{ end }}"
+                  name="workflow"
+                  id="workflow"
+                  required
+                  aria-describedby="workflowHelp"
+                >
+                  <option value="" selected="selected" disabled>Select workflow</option>
+                  {{ range $.WorkflowLabels }}
+                    <option
+                      value="{{ . }}"
+                      {{ $workflow := $.FormData.Get "workflow" }}
+                      {{ if eq . $workflow }}
+                        selected="selected"
+                      {{ end }}
+                    >{{ .DisplayName }}</option>
+                  {{ end }}
+                </select>
+                {{ if .ValidationErrors.workflow }}
+                  <div class="invalid-feedback">{{ .ValidationErrors.workflow.Error }}</div>
+                {{ end }}
+                <div id="workflowHelp" class="form-text visually-hidden">Select a workflow for this ticket.</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="repo" class="form-label">Repo</label>
+                <select
+                  class="form-control form-select {{ if .ValidationErrors.workflow }}is-invalid{{ end }}"
+                  name="repo"
+                  id="repo"
+                  required
+                  aria-describedby="repoHelp"
+                >
+                  <option value="" selected="selected" disabled>Select repo</option>
+                  {{ range $.RepoLabels }}
+                    <option
+                      value="{{ . }}"
+                      {{ $repo := $.FormData.Get "repo" }}
+                      {{ if eq . $repo }}
+                        selected="selected"
+                      {{ end }}
+                    >{{ . }}</option>
+                  {{ end }}
+                </select>
+                {{ if .ValidationErrors.repo }}
+                  <div class="invalid-feedback">{{ .ValidationErrors.repo.Error }}</div>
+                {{ end }}
+                <div id="repoHelp" class="form-text visually-hidden">Select the repo this ticket applies to.</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea
+                  class="form-control {{ if .ValidationErrors.title }}is-description{{ end }}"
+                  rows="6"
+                  required
+                  name="description"
+                  id="description"
+                  aria-describedby="descriptionHelp"
+                >{{ .FormData.Get "description" }}</textarea>
+                {{ if .ValidationErrors.description }}
+                <div class="invalid-feedback">{{ .ValidationErrors.description.Error }}</div>
+                {{ end }}
+                <div id="descriptionHelp" class="form-text visually-hidden">Enter a description for your ticket.</div>
+              </div>
+
+              <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

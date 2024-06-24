@@ -65,34 +65,58 @@ type CreateTicketAction struct {
 	Title      string
 	Message    string
 	Workflow   string
+	Repo       string
 	AssignedTo *string
 	Ccb        []string
 	Labels     []string
 	Checklists []string
 }
 
-const KeyTitle = "title"
-const KeyWorkflow = "workflow"
-const KeyMessage = "description"
+const keyTitle = "title"
+const keyWorkflow = "workflow"
+const keyRepo = "repo"
+const keyMessage = "description"
 
-func CreateTicketFromFormData(f url.Values) (*CreateTicketAction, error) {
-	required := [3]string{KeyTitle, KeyWorkflow, KeyMessage}
+func CreateTicketFromFormData(f url.Values) (*CreateTicketAction, map[string]*invalidRequestError) {
+	required := [4]string{keyTitle, keyWorkflow, keyRepo, keyMessage}
+	var errs = make(map[string]*invalidRequestError)
 
 	for _, v := range required {
 		if !f.Has(v) {
-			return nil, fmt.Errorf("missing required value [%s]", v)
+			errs[v] = &invalidRequestError{msg: fmt.Sprintf("%s is required", v)}
 		}
 	}
 
+	if f.Has(keyWorkflow) && !isValidWorkflow(f.Get(keyWorkflow)) {
+		l := bug.Label(f.Get(keyWorkflow))
+		errs[keyWorkflow] = &invalidRequestError{msg: fmt.Sprintf("%s is not a valid workflow", l.DisplayName())}
+	}
+
+	if len(errs) > 0 {
+		return nil, errs
+	}
+
 	return &CreateTicketAction{
-		Title:      f.Get(KeyTitle),
-		Message:    f.Get(KeyMessage),
-		Workflow:   f.Get(KeyWorkflow),
+		Title:      f.Get(keyTitle),
+		Message:    f.Get(keyMessage),
+		Workflow:   f.Get(keyWorkflow),
+		Repo:       f.Get(keyRepo),
 		AssignedTo: nil,
 		Ccb:        nil,
 		Labels:     nil,
 		Checklists: nil,
 	}, nil
+}
+
+func isValidWorkflow(s string) bool {
+	for _, l := range bug.GetWorkflowLabels() {
+		label := bug.Label(s)
+		if l == label {
+			return true
+		}
+	}
+
+	return false
 }
 
 type SubmitCommentAction struct {
@@ -133,9 +157,10 @@ var (
 
 // **Note:** we're only using sessions to show flash messages.
 // If we ever use it for auth stuff (which is probably never), this should be an env var.
-const DDLN_SESSION_KEY = "DDLN_GT_SESSION"
+const ddlnSessionKey = "DDLN_GT_SESSION"
+const ddlnContextKeySession = "session"
 
-var store = sessions.NewCookieStore([]byte(DDLN_SESSION_KEY))
+var store = sessions.NewCookieStore([]byte(ddlnSessionKey))
 var session *sessions.Session
 
 func Run(repo repository.ClockedRepo, host string, port int) error {
@@ -148,7 +173,11 @@ func Run(repo repository.ClockedRepo, host string, port int) error {
 
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))
 	r.HandleFunc("/", withRepoCache(repo, handleIndex))
-	r.HandleFunc("/ticket/{ticketId:[0-9a-fA-F]{7,}}/", withSession(withRepoCache(repo, handleTicket)))
+	r.HandleFunc(
+		"/ticket/new/",
+		withSession(withRepoCache(repo, handleCreate)),
+	).Methods(http.MethodGet, http.MethodPost)
+	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", withSession(withRepoCache(repo, handleTicket))).Methods(http.MethodGet)
 	r.HandleFunc(
 		"/ticket/{ticketId:[0-9a-fA-F]{7,}}/comment/",
 		withSession(withRepoCache(repo, handleComment)),
@@ -235,44 +264,82 @@ func renderTemplate(w http.ResponseWriter, name string, data interface{}) error 
 	return nil
 }
 
-func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
-	session := r.Context().Value("session").(*sessions.Session)
+func handleCreate(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
+	session := r.Context().Value(ddlnContextKeySession).(*sessions.Session)
 	defer session.Save(r, w)
 
-	var ticket *cache.BugCache
 	var err error
+	var validationErrors = make(map[string]*invalidRequestError)
+	var formData url.Values
 
-	switch r.Method {
-	case http.MethodPost:
+	if r.Method == http.MethodPost {
 		if err = r.ParseForm(); err != nil {
 			return fmt.Errorf("failed to parse form data: %w", err)
 		}
 
 		var action *CreateTicketAction
-		action, err = CreateTicketFromFormData(r.Form)
-		if err != nil {
-			return fmt.Errorf("failed to create ticket: %w", err)
+		formData = r.Form
+		action, validationErrors = CreateTicketFromFormData(formData)
+
+		if len(validationErrors) == 0 {
+			ticket, _, err := repo.NewBug(cache.NewBugOpts{
+				Title:    action.Title,
+				Message:  action.Message,
+				Workflow: action.Workflow,
+				Repo:     fmt.Sprintf("%s%s", bug.RepoPrefix, action.Repo),
+			})
+			if err != nil {
+				session.AddFlash(fmt.Sprintf("Failed to create ticket: %s", err.Error()))
+			} else {
+				http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticket.Id()), http.StatusSeeOther)
+				return nil
+			}
 		}
+	}
 
-		ticket, _, err = repo.NewBug(cache.NewBugOpts{
-			Title:    action.Title,
-			Message:  action.Message,
-			Workflow: action.Workflow,
-			Repo:     "",
-		})
+	flashes := session.Flashes()
 
-		if err != nil {
-			return fmt.Errorf("failed to create ticket: %w", err)
-		}
-	case http.MethodGet:
-		vars := mux.Vars(r)
-		id := vars["ticketId"]
+	repoLabels, err := repo.ListRepoLabels()
+	if err != nil {
+		return err
+	}
 
-		ticket, err = repo.ResolveBugPrefix(id)
+	data := struct {
+		SideBar          SideBarData
+		WorkflowLabels   []bug.Label
+		RepoLabels       []string
+		ValidationErrors map[string]*invalidRequestError
+		FlashErrors      []interface{}
+		FormData         url.Values
+	}{
+		SideBar: SideBarData{
+			BookmarkGroups: webUiConfig.BookmarkGroups,
+			ColorKey:       map[string]string{},
+		},
+		WorkflowLabels:   bug.GetWorkflowLabels(),
+		ValidationErrors: validationErrors,
+		RepoLabels:       repoLabels,
+		FormData:         formData,
+		FlashErrors:      flashes,
+	}
 
-		if err != nil {
-			return ticketNotFound(id)
-		}
+	return renderTemplate(w, "create.html", data)
+}
+
+func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
+	session := r.Context().Value(ddlnContextKeySession).(*sessions.Session)
+	defer session.Save(r, w)
+
+	var ticket *cache.BugCache
+	var err error
+
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	ticket, err = repo.ResolveBugPrefix(id)
+
+	if err != nil {
+		return ticketNotFound(id)
 	}
 
 	flashes := session.Flashes()
@@ -373,7 +440,7 @@ func handleApiSetStatus(repo *cache.RepoCache, w http.ResponseWriter, r *http.Re
 }
 
 func handleComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
-	session := r.Context().Value("session").(*sessions.Session)
+	session := r.Context().Value(ddlnContextKeySession).(*sessions.Session)
 	defer session.Save(r, w)
 
 	vars := mux.Vars(r)
@@ -471,13 +538,13 @@ func errorHandlingMiddleware(next http.Handler) http.Handler {
 
 func withSession(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, err := store.Get(r, DDLN_SESSION_KEY)
+		session, err := store.Get(r, ddlnSessionKey)
 		if err != nil {
 			http.Error(w, "failed to get session.", http.StatusInternalServerError)
 			return
 		}
 
-		r = r.WithContext(context.WithValue(r.Context(), "session", session))
+		r = r.WithContext(context.WithValue(r.Context(), ddlnContextKeySession, session))
 		handler(w, r)
 	}
 }
