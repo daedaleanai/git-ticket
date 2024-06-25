@@ -10,7 +10,7 @@ import (
 )
 
 type CcbMember struct {
-	Name entity.Id
+	Name string
 	Id   entity.Id
 }
 
@@ -65,16 +65,4 @@ func (c CcbConfig) IsCcbMember(user identity.Interface) (bool, error) {
 		}
 	}
 	return false, nil
-}
-
-// ListCcbMembers returns a list of CCB members
-func (c CcbConfig) ListCcbMembers() ([]entity.Id, error) {
-	members := []entity.Id{}
-	for _, team := range c {
-		for _, member := range team.Members {
-			members = append(members, member.Id)
-		}
-	}
-
-	return members, nil
 }
