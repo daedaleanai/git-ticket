@@ -23,7 +23,7 @@ import (
 	"github.com/daedaleanai/git-ticket/query"
 	"github.com/daedaleanai/git-ticket/repository"
 	"github.com/daedaleanai/git-ticket/util/timestamp"
-	mux "github.com/gorilla/mux"
+	"github.com/gorilla/mux"
 	"github.com/yuin/goldmark"
 	gmast "github.com/yuin/goldmark/ast"
 	gmextension "github.com/yuin/goldmark/extension"
@@ -153,10 +153,12 @@ func handleIndex(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 }
 
 func handleTicket(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
-	id := r.URL.Query().Get("id")
-	ticket, err := repo.ResolveBugPrefix(id)
+	vars := mux.Vars(r)
+	ticketId := vars["ticketId"]
+	ticket, err := repo.ResolveBugPrefix(ticketId)
+
 	if err != nil {
-		return fmt.Errorf("unable to find ticket %s: %w", id, err)
+		return fmt.Errorf("unable to find ticket %s: %w", ticketId, err)
 	}
 
 	return templates.ExecuteTemplate(w, "ticket.html", struct {
@@ -305,7 +307,7 @@ func Run(repo repository.ClockedRepo, host string, port int) error {
 
 	http.Handle("/static/", http.FileServer(http.FS(staticFs)))
 	r.HandleFunc("/", withRepoCache(repo, handleIndex))
-	r.HandleFunc("/ticket/", withRepoCache(repo, handleTicket))
+	r.HandleFunc("/ticket/{ticketId:[0-9a-fA-F]{7,}}/", withRepoCache(repo, handleTicket))
 	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
 	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
 	r.HandleFunc("/api/submit-comment", withRepoCache(repo, handleApiSubmitComment))
