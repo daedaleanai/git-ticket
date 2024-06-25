@@ -17,7 +17,6 @@
             <div class="container">
                 <div class="row">
                     <div class="col">
-                        <div id="alert" class="alert alert-danger" role="alert"></div>
                         <div class="card">
                             <div class="card-header text-center">
                                 <h5 class="card-title">{{ xref $.Ticket.Title }}</h5>
@@ -129,8 +128,17 @@
                                 {{ end }}
                                 {{ end }}
 
-                                <textarea class="form-control" id="comment-form-control-text-area" rows="3"></textarea>
-                                <button type="submit" id="submit-button" class="btn btn-primary mb-3" onclick="submitComment()">Submit comment</button>
+                                <form action="/ticket/{{ $.Ticket.Id }}/comment/" method="post">
+                                    <label for="comment" class="form-label">Add comment</label>
+                                    <textarea
+                                            required
+                                            rows="3"
+                                            class="form-control"
+                                            id="comment"
+                                            name="comment"
+                                    ></textarea>
+                                    <button type="submit" id="submit-button" class="btn btn-primary mb-3">Submit</button>
+                                </form>
                             </div>
                         </div>
                     </div>
