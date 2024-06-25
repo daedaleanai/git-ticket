@@ -153,8 +153,10 @@ func handleIndex(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 }
 
 func handleTicket(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
-	id := r.URL.Query().Get("id")
+	vars := mux.Vars(r)
+	id := vars["id"]
 	ticket, err := repo.ResolveBugPrefix(id)
+
 	if err != nil {
 		return fmt.Errorf("unable to find ticket %s: %w", id, err)
 	}
@@ -305,7 +307,7 @@ func Run(repo repository.ClockedRepo, host string, port int) error {
 
 	http.Handle("/static/", http.FileServer(http.FS(staticFs)))
 	r.HandleFunc("/", withRepoCache(repo, handleIndex))
-	r.HandleFunc("/ticket/", withRepoCache(repo, handleTicket))
+	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", withRepoCache(repo, handleTicket))
 	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
 	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
 	r.HandleFunc("/api/submit-comment", withRepoCache(repo, handleApiSubmitComment))

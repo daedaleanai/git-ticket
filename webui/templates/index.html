@@ -24,7 +24,7 @@
                         <div class="gt-column-body card-body overflow-auto" data-status="{{ . }}">
 
                             {{ range index $.Tickets . }}
-                                <a id="{{ .Id }}" class="gt-ticket" href="ticket?id={{ .Id }}">
+                                <a id="{{ .Id }}" class="gt-ticket" href="ticket/{{ .Id }}/">
                                     <div class="card px-2 py-1 my-2" {{ if index $.Colors .Id }}style="border-left-width: 8px; border-left-color: {{ index $.Colors .Id }};"{{ end }}>
                                         <span><b>{{ getRepo . }}</b> | <b>{{ slice .Id 0 7 }}</b></span>
                                         <span>{{ .Title }}</span>
