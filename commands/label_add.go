@@ -34,22 +34,26 @@ func newLabelAddCommand() *cobra.Command {
 func runLabelAdd(env *Env, args []string) error {
 	labels := args
 
-	labelConfig := env.backend.LabelConfig()
-
 	if createLabels {
-		// add labels to the configuration first.
-		for _, label := range labels {
-			err := labelConfig.AppendLabelToConfiguration(config.Label(label))
-			if err != nil {
-				return err
+		err := env.backend.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+			// add labels to the configuration first.
+			for _, label := range labels {
+				err := c.AppendLabelToConfiguration(config.Label(label))
+				if err != nil {
+					return err
+				}
+				fmt.Println("Created label ", label)
 			}
-			fmt.Println("Created label ", label)
-		}
 
-		// save configuration persistently
-		err := labelConfig.Store(env.repo)
+			// save configuration persistently
+			err := c.Store(env.repo)
+			if err != nil {
+				return fmt.Errorf("Unable to store label configuration persistently: %s", err)
+			}
+			return nil
+		})
 		if err != nil {
-			return fmt.Errorf("Unable to store label configuration persistently: %s", err)
+			return err
 		}
 	}
 

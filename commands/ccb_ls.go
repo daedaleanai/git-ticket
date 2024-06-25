@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/daedaleanai/git-ticket/cache"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/util/colors"
 	"github.com/spf13/cobra"
 )
@@ -27,13 +28,19 @@ func newCcbListCommand() *cobra.Command {
 
 func runCcbList(env *Env, args []string) error {
 	var users []*cache.IdentityExcerpt
-	ids := env.backend.CcbConfig()
-	for _, id := range ids {
-		user, err := env.backend.ResolveIdentityExcerpt(id)
-		if err != nil {
-			return err
+
+	err := env.backend.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		for _, id := range c.CcbConfig {
+			user, err := env.backend.ResolveIdentityExcerpt(id)
+			if err != nil {
+				return err
+			}
+			users = append(users, user)
 		}
-		users = append(users, user)
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	sort.Sort(byDisplayName(users))

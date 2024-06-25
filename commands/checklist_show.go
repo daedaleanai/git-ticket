@@ -26,8 +26,12 @@ func newChecklistShowCommand() *cobra.Command {
 }
 
 func runChecklistShow(env *Env, args []string) error {
-	checklistConfig := env.backend.ChecklistConfig()
-	checklist, err := checklistConfig.GetChecklist(config.Label(args[0]))
+	var checklist config.Checklist
+	err := env.backend.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		inner, err := c.GetChecklist(config.Label(args[0]))
+		checklist = inner
+		return err
+	})
 	if err != nil {
 		return err
 	}

@@ -61,10 +61,10 @@ func parseLabelConfig(data []byte) (*LabelConfig, error) {
 // It will return nil if the label does not exist.
 // It will return an error if reading the list of known labels fails
 func (l *LabelConfig) GetLabelConfig(label Label) (*SingleLabelConfig, error) {
-	if config, ok := l.FlatMap[label]; !ok {
+	if config, ok := l.FlatMap[label]; ok {
 		return &config, nil
 	}
-	return nil, nil
+	return nil, fmt.Errorf("Label %s does not exist", label)
 }
 
 // AppendLabelToConfiguration appends a given label to the label store, turning it into a valid label.

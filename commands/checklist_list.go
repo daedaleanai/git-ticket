@@ -29,15 +29,18 @@ func runChecklistList(env *Env, args []string) error {
 	var checklistsArray []config.Checklist
 
 	var maxLabelWidth int
-	checklistConfig := env.backend.ChecklistConfig()
-	for _, checklist := range checklistConfig {
-		checklistsArray = append(checklistsArray, checklist)
+	env.backend.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		for _, checklist := range c.ChecklistConfig {
+			checklistsArray = append(checklistsArray, checklist)
 
-		l := colors.Cyan(string(checklist.Label))
-		if len(l) > maxLabelWidth {
-			maxLabelWidth = len(l)
+			l := colors.Cyan(string(checklist.Label))
+			if len(l) > maxLabelWidth {
+				maxLabelWidth = len(l)
+			}
 		}
-	}
+		return nil
+	})
+
 	sort.Slice(checklistsArray, func(i, j int) bool {
 		return checklistsArray[i].Label < checklistsArray[j].Label
 	})

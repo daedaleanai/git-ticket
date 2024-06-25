@@ -128,6 +128,7 @@ func NewGitRepo(path string, clockLoaders []ClockLoader) (*GitRepo, error) {
 		if !allExist {
 			err = loader.Witnesser(repo)
 			if err != nil {
+				fmt.Println("Witnesser failed", err)
 				return nil, err
 			}
 		}

@@ -132,13 +132,21 @@ func (c *RepoCache) load() error {
 		return err
 	}
 
+	return c.loadConfigCache()
+}
+
+// loadConfigCache will try to read from the disk the configuration items of the current repository
+func (c *RepoCache) loadConfigCache() error {
 	c.muConfig.Lock()
 	defer c.muConfig.Unlock()
+
 	configCache, err := config.LoadConfigCache(c.repo)
 	if err != nil {
 		return err
 	}
+
 	c.configCache = configCache
+
 	return nil
 }
 
@@ -323,14 +331,9 @@ func (c *RepoCache) ResolveRef(ref string) (repository.Hash, error) {
 	return repository.Hash(h.String()), nil
 }
 
-func (c *RepoCache) CcbConfig() config.CcbConfig {
-	return c.configCache.CcbConfig
-}
+func (c *RepoCache) DoWithLockedConfigCache(action func(config *config.ConfigCache) error) error {
+	c.muConfig.Lock()
+	defer c.muConfig.Unlock()
 
-func (c *RepoCache) LabelConfig() config.LabelConfig {
-	return c.configCache.LabelConfig
-}
-
-func (c *RepoCache) ChecklistConfig() config.ChecklistConfig {
-	return c.configCache.ChecklistConfig
+	return action(c.configCache)
 }

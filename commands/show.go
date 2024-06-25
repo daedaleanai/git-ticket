@@ -270,17 +270,23 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot, opts showOptions) er
 	env.out.Printf("ccb: %s\n", strings.Join(ccbSummary(snapshot), ", "))
 
 	// Checklists
-	checklistConfig := env.backend.ChecklistConfig()
 	var checklistStates []string
-	for clLabel, st := range snapshot.GetChecklistCompoundStates() {
-		cl, err := checklistConfig.GetChecklist(config.Label(clLabel))
+	err := env.backend.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		for clLabel, st := range snapshot.GetChecklistCompoundStates() {
+			cl, err := c.GetChecklist(config.Label(clLabel))
 
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
+
+			checklistStates = append(checklistStates, fmt.Sprintf("%s (%s)", cl.Title, st.ColorString()))
 		}
-
-		checklistStates = append(checklistStates, fmt.Sprintf("%s (%s)", cl.Title, st.ColorString()))
+		return nil
+	})
+	if err != nil {
+		return err
 	}
+
 	sort.Strings(checklistStates)
 	env.out.Printf("checklists: %s\n", strings.Join(checklistStates, ", "))
 
