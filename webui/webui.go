@@ -23,6 +23,7 @@ import (
 	"github.com/daedaleanai/git-ticket/query"
 	"github.com/daedaleanai/git-ticket/repository"
 	"github.com/daedaleanai/git-ticket/util/timestamp"
+	mux "github.com/gorilla/mux"
 	"github.com/yuin/goldmark"
 	gmast "github.com/yuin/goldmark/ast"
 	gmextension "github.com/yuin/goldmark/extension"
@@ -300,14 +301,18 @@ func Run(repo repository.ClockedRepo, host string, port int) error {
 		return err
 	}
 
+	r := mux.NewRouter()
+
 	http.Handle("/static/", http.FileServer(http.FS(staticFs)))
-	http.HandleFunc("/", withRepoCache(repo, handleIndex))
-	http.HandleFunc("/ticket/", withRepoCache(repo, handleTicket))
-	http.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
-	http.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
-	http.HandleFunc("/api/submit-comment", withRepoCache(repo, handleApiSubmitComment))
+	r.HandleFunc("/", withRepoCache(repo, handleIndex))
+	r.HandleFunc("/ticket/", withRepoCache(repo, handleTicket))
+	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
+	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
+	r.HandleFunc("/api/submit-comment", withRepoCache(repo, handleApiSubmitComment))
+	http.Handle("/", r)
 
 	fmt.Printf("Running web-ui at http://%s:%d\n", host, port)
+
 	return http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), nil)
 }
 

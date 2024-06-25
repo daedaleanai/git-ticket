@@ -11,6 +11,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fatih/color v1.9.0
 	github.com/go-git/go-git/v5 v5.12.1-0.20240629213349-b00c68ab7140
+	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/icrowley/fake v0.0.0-20180203215853-4178557ae428
 	github.com/manifoldco/promptui v0.7.0
