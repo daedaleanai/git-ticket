@@ -3,44 +3,46 @@
 
 <head>
     <title>git-ticket</title>
-    <link href="/static/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH">
+    <link href="/static/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH">
     <link href="/static/index.css" rel="stylesheet">
     <script src="/static/index.js"></script>
 </head>
 <body>
-    <div id="alert" class="alert" role="alert"></div>
-    <div class="gt-container">
-        {{ template "side_bar.html" $.SideBar }}
+<div id="alert" class="alert" role="alert"></div>
+<div class="gt-container">
+    {{ template "side_bar.html" $.SideBar }}
 
-        <div class="gt-content">
-            <div class="gt-buffer"></div>
+    <div class="gt-content">
+        <div class="gt-buffer"></div>
 
-            {{ range $.Statuses }}
-                <div class="gt-column">
-                    <div class="card h-100">
-                        <div class="card-header text-center">
-                            <h6 class="card-title my-2">{{ . }}</h6>
-                        </div>
-                        <div class="gt-column-body card-body overflow-auto" data-status="{{ . }}">
-
-                            {{ range index $.Tickets . }}
-                                <a id="{{ .Id }}" class="gt-ticket" href="ticket/{{ .Id }}/">
-                                    <div class="card px-2 py-1 my-2" {{ if index $.Colors .Id }}style="border-left-width: 8px; border-left-color: {{ index $.Colors .Id }};"{{ end }}>
-                                        <span><b>{{ getRepo . }}</b> | <b>{{ slice .Id 0 7 }}</b></span>
-                                        <span>{{ .Title }}</span>
-                                    </div>
-                                </a>
-                            {{ end }}
-
-                        </div>
-                    </div>
+        {{ range $.Statuses }}
+        <div class="gt-column">
+            <div class="card h-100">
+                <div class="card-header text-center">
+                    <h6 class="card-title my-2">{{ . }}</h6>
                 </div>
-            {{ end }}
+                <div class="gt-column-body card-body overflow-auto" data-status="{{ . }}">
 
-            <div class="gt-buffer"></div>
+                    {{ range index $.Tickets . }}
+                    <a id="{{ .Id }}" class="gt-ticket" href="ticket/{{ .Id }}/">
+                        <div class="card px-2 py-1 my-2" {{ if index $.Colors .Id
+                             }}style="border-left-width: 8px; border-left-color: {{ index $.Colors .Id }};" {{ end }}>
+                            <span><b>{{ getRepo . }}</b> | <b>{{ slice .Id 0 7 }}</b></span>
+                            <span>{{ .Title }}</span>
+                        </div>
+                    </a>
+                    {{ end }}
+
+                </div>
+            </div>
         </div>
+        {{ end }}
+
+        <div class="gt-buffer"></div>
     </div>
-    <div id="drag-drop-placeholder" class="card"></div>
+</div>
+<div id="drag-drop-placeholder" class="card"></div>
 </body>
 
 </html>
