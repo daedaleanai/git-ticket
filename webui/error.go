@@ -2,7 +2,6 @@ package webui
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 )
 
@@ -34,16 +33,13 @@ func errorIntoResponse(e error, w http.ResponseWriter) {
 	switch e.(type) {
 	default:
 		w.WriteHeader(500)
-		w.Write([]byte("An unknown error occurred"))
-		log.Println(fmt.Sprintf("Internal server error: %s", e.Error()))
+		w.Write([]byte("An unknown error occurred: "))
 	case *invalidRequestError:
 		w.WriteHeader(400)
 		w.Write([]byte("Invalid request: "))
-		w.Write([]byte(e.Error()))
 	case *notFoundError:
 		w.WriteHeader(404)
 		w.Write([]byte("Resource not found: "))
-		w.Write([]byte(e.Error()))
 	}
-
+	w.Write([]byte(e.Error()))
 }

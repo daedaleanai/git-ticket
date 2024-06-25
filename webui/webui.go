@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"strings"
@@ -58,14 +59,22 @@ type WebUiConfig struct {
 	BookmarkGroups []BookmarkGroup
 }
 
+type SubmitCommentAction struct {
+	Ticket  string
+	Comment string
+}
+
+func SubmitCommentFromFormData(ticketId string, f url.Values) (*SubmitCommentAction, error) {
+	if !f.Has("comment") {
+		return nil, &invalidRequestError{msg: "missing required field [comment]"}
+	}
+
+	return &SubmitCommentAction{ticketId, f.Get("comment")}, nil
+}
+
 type ApiActionSetStatus struct {
 	Ticket string
 	Status string
-}
-
-type ApiActionSubmitComment struct {
-	Ticket  string
-	Comment string
 }
 
 type HandlerWithRepoCache = func(*cache.RepoCache, http.ResponseWriter, *http.Request) error
@@ -131,7 +140,7 @@ func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) 
 
 	ticketStatuses := determineWorkflowStatuses(workflows)
 
-	return templates.ExecuteTemplate(w, "index.html", struct {
+	return renderTemplate(w, "index.html", struct {
 		Statuses []bug.Status
 		Tickets  map[bug.Status][]*cache.BugExcerpt
 		Colors   map[entity.Id]string
@@ -148,6 +157,17 @@ func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+func renderTemplate(w http.ResponseWriter, name string, data interface{}) error {
+	buf := &bytes.Buffer{}
+
+	if err := templates.ExecuteTemplate(buf, name, data); err != nil {
+		return err
+	}
+
+	w.Write(buf.Bytes())
+	return nil
+}
+
 func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
 	vars := mux.Vars(r)
 	ticketId := vars["ticketId"]
@@ -158,7 +178,7 @@ func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request)
 		return ticketNotFound(ticketId)
 	}
 
-	return templates.ExecuteTemplate(w, "ticket.html", struct {
+	return renderTemplate(w, "ticket.html", struct {
 		SideBar SideBarData
 		Ticket  *bug.Snapshot
 	}{
@@ -212,7 +232,7 @@ func handleChecklist(repo *cache.RepoCache, w http.ResponseWriter, r *http.Reque
 		return clList[i].Ident.Id() < clList[j].Ident.Id()
 	})
 
-	return templates.ExecuteTemplate(w, "checklist.html", struct {
+	return renderTemplate(w, "checklist.html", struct {
 		Ticket         *bug.Snapshot
 		ChecklistLabel bug.Label
 		Checklists     []checklistItem
@@ -251,10 +271,15 @@ func handleApiSetStatus(repo *cache.RepoCache, w http.ResponseWriter, r *http.Re
 	return nil
 }
 
-func handleApiSubmitComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
-	action := ApiActionSubmitComment{}
-	if err := json.NewDecoder(r.Body).Decode(&action); err != nil {
+func handleComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
+	vars := mux.Vars(r)
+	if err := r.ParseForm(); err != nil {
 		return &malformedRequestError{prev: err}
+	}
+
+	action, err := SubmitCommentFromFormData(vars["ticketId"], r.Form)
+	if err != nil {
+		return err
 	}
 
 	ticket, err := repo.ResolveBug(entity.Id(action.Ticket))
@@ -271,8 +296,30 @@ func handleApiSubmitComment(repo *cache.RepoCache, w http.ResponseWriter, r *htt
 		return fmt.Errorf("failed to commit changes: %w", err)
 	}
 
-	fmt.Fprintln(w, "Success.")
+	http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticket.Id()), http.StatusSeeOther)
+
 	return nil
+}
+
+type deferredResponseWriter struct {
+	http.ResponseWriter
+	buf *bytes.Buffer
+}
+
+func (w *deferredResponseWriter) Write(data []byte) (int, error) {
+	w.buf.Write(data)
+	return len(data), nil
+}
+
+func (w *deferredResponseWriter) Flush() (int, error) {
+	return w.ResponseWriter.Write(w.buf.Bytes())
+}
+
+func newDeferredResponseWriter(w http.ResponseWriter) *deferredResponseWriter {
+	return &deferredResponseWriter{
+		w,
+		bytes.NewBuffer([]byte{}),
+	}
 }
 
 func withRepoCache(repo repository.ClockedRepo, handler HandlerWithRepoCache) func(http.ResponseWriter, *http.Request) {
@@ -302,14 +349,23 @@ func Run(repo repository.ClockedRepo, host string, port int) error {
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))
 	r.HandleFunc("/", withRepoCache(repo, handleIndex))
 	r.HandleFunc("/ticket/{ticketId:[0-9a-fA-F]{7,}}/", withRepoCache(repo, handleTicket))
+	r.HandleFunc("/ticket/{ticketId:[0-9a-fA-F]{7,}}/comment/", withRepoCache(repo, handleComment)).Methods(http.MethodPost)
 	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
 	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
-	r.HandleFunc("/api/submit-comment", withRepoCache(repo, handleApiSubmitComment))
 
 	http.Handle("/", r)
 	fmt.Printf("Running web-ui at http://%s:%d\n", host, port)
 
-	return http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), r)
+	return http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), deferWrite(r))
+}
+
+func deferWrite(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		dw := newDeferredResponseWriter(w)
+		next.ServeHTTP(dw, r)
+
+		_, _ = dw.Flush()
+	})
 }
 
 func errorHandlingMiddleware(next http.Handler) http.Handler {
