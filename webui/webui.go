@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io"
 	"net/http"
 	"regexp"
 	"sort"
@@ -69,7 +68,7 @@ type ApiActionSubmitComment struct {
 	Comment string
 }
 
-type HandlerWithRepoCache = func(*cache.RepoCache, io.Writer, *http.Request) error
+type HandlerWithRepoCache = func(*cache.RepoCache, http.ResponseWriter, *http.Request) error
 
 var (
 	//go:embed static
@@ -93,7 +92,7 @@ type SideBarData struct {
 	ColorKey       map[string]string
 }
 
-func handleIndex(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
+func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
 	if r.URL.Path != "/" {
 		return fmt.Errorf("Unknown request path: %s", r.URL.Path)
 	}
@@ -152,9 +151,10 @@ func handleIndex(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 	})
 }
 
-func handleTicket(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
+func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
 	vars := mux.Vars(r)
 	ticketId := vars["ticketId"]
+
 	ticket, err := repo.ResolveBugPrefix(ticketId)
 
 	if err != nil {
@@ -173,7 +173,7 @@ func handleTicket(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 	})
 }
 
-func handleChecklist(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
+func handleChecklist(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
 	id := r.URL.Query().Get("id")
 
 	checklist := bug.Label(r.URL.Query().Get("checklist"))
@@ -226,7 +226,7 @@ func handleChecklist(repo *cache.RepoCache, w io.Writer, r *http.Request) error 
 	})
 }
 
-func handleApiSetStatus(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
+func handleApiSetStatus(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
 	action := ApiActionSetStatus{}
 	if err := json.NewDecoder(r.Body).Decode(&action); err != nil {
 		return fmt.Errorf("failed to decode body: %w", err)
@@ -254,7 +254,7 @@ func handleApiSetStatus(repo *cache.RepoCache, w io.Writer, r *http.Request) err
 	return nil
 }
 
-func handleApiSubmitComment(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
+func handleApiSubmitComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
 	action := ApiActionSubmitComment{}
 	if err := json.NewDecoder(r.Body).Decode(&action); err != nil {
 		return fmt.Errorf("failed to decode body: %w", err)
@@ -280,21 +280,18 @@ func handleApiSubmitComment(repo *cache.RepoCache, w io.Writer, r *http.Request)
 
 func withRepoCache(repo repository.ClockedRepo, handler HandlerWithRepoCache) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cache, err := cache.NewRepoCache(repo, false)
+		repoCache, err := cache.NewRepoCache(repo, false)
 		if err != nil {
 			w.WriteHeader(500)
 			fmt.Fprintf(w, "Error: unable to open git cache: %s", err)
 			return
 		}
-		defer cache.Close()
+		defer repoCache.Close()
 
-		buf := &bytes.Buffer{}
-		if err := handler(cache, buf, r); err != nil {
-			w.WriteHeader(500)
-			fmt.Fprintf(w, "Error: %s", err)
+		if err := handler(repoCache, w, r); err != nil {
+			errorIntoResponse(err, w)
 			return
 		}
-		io.Copy(w, buf)
 	}
 }
 
@@ -304,18 +301,31 @@ func Run(repo repository.ClockedRepo, host string, port int) error {
 	}
 
 	r := mux.NewRouter()
+	r.Use(errorHandlingMiddleware)
 
-	http.Handle("/static/", http.FileServer(http.FS(staticFs)))
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))
 	r.HandleFunc("/", withRepoCache(repo, handleIndex))
 	r.HandleFunc("/ticket/{ticketId:[0-9a-fA-F]{7,}}/", withRepoCache(repo, handleTicket))
 	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
 	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
 	r.HandleFunc("/api/submit-comment", withRepoCache(repo, handleApiSubmitComment))
-	http.Handle("/", r)
 
+	http.Handle("/", r)
 	fmt.Printf("Running web-ui at http://%s:%d\n", host, port)
 
-	return http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), nil)
+	return http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), r)
+}
+
+func errorHandlingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Println("Unexpected error occurred: ", err)
+				http.Error(w, "internal server error.", http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 func loadConfig(repo repository.ClockedRepo) error {
