@@ -10,38 +10,9 @@
 <body>
     <div id="alert" class="alert" role="alert"></div>
     <div class="gt-container">
-        <div class="gt-menu bg-dark">
-            <div class="gt-menu-section mt-5">
-                <span class="mx-3"><a href="/">HOME</a></span>
-            </div>
+        {{ template "side_bar.html" $.SideBar }}
 
-            <div class="gt-menu-section mt-2">
-                <span class="mx-3">bookmarks</span>
-                {{ range $.BookmarkGroups }}
-                    <div>
-                        <span class="px-4">{{ .Group }}</span>
-                        {{ range .Bookmarks }}
-                            <a href="/?q={{ .Query }}">
-                                <div class="px-5 my-1 gt-menu-bookmark {{ if eq .Query $.Query }}active{{ end }}">
-                                    {{ .Label }}
-                                </div>
-                            </a>
-                        {{ end }}
-                    </div>
-                {{ end }}
-            </div>
-            {{ if len $.ColorKey }}
-                <div class="gt-menu-section mt-2">
-                    <span class="mx-3">COLOR KEY</span>
-                    {{ range $k, $v := $.ColorKey }}
-                        <div class="gt-color-key mx-4">
-                            <div class="gt-color-key-dot" style="background-color: {{ $v }};"></div><div>{{ $k }}</div>
-                        </div>
-                    {{ end }}
-                </div>
-            {{ end }}
-        </div>
-        <div class="gt-columns">
+        <div class="gt-content">
             <div class="gt-buffer"></div>
 
             {{ range $.Statuses }}

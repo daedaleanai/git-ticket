@@ -2,127 +2,140 @@
 <html>
 
 <head>
-    <title>git-ticket | {{ .Id }}</title>
+    <title>git-ticket | {{ $.Ticket.Id }}</title>
     <link href="/static/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH">
+    <link href="/static/index.css" rel="stylesheet">
     <link href="/static/ticket.css" rel="stylesheet">
     <script src="/static/ticket.js"></script>
 </head>
 
 <body>
-    <div id="alert" class="alert alert-danger" role="alert"></div>
-    <div class="card">
-        <div class="card-header text-center">
-            <h5 class="card-title">{{ xref .Title }}</h5>
-        </div>
-        <div class="card-body">
-            <table class="table">
-                <tr>
-                    <td><b>Id</b></td>
-                    <td> <span id="ticket-id">{{ .Id }}</span> &nbsp;&nbsp;<span class="badge bg-secondary"><a href="#" onclick="navigator.clipboard.writeText('{{ .Id }}');">copy</a></span></a></td>
-                </tr>
-                <tr>
-                    <td><b>Short Id</b></td>
-                    <td>{{  slice .Id 0 7 }}&nbsp;&nbsp;<span class="badge bg-secondary"><a href="#" onclick="navigator.clipboard.writeText('{{ slice .Id 0 7 }}');">copy</a></span></a></td>
-                </tr>
+    <div class="gt-container">
+        {{ template "side_bar.html" $.SideBar }}
 
-                <tr>
-                    <td><b>Status</b></td>
-                    <td><span class="badge {{ ticketStatusColor .Status }}" >{{ .Status }}</span></td>
-                </tr>
+        <div class="gt-content">
+            <div class="container">
+                <div class="row">
+                    <div class="col">
+                        <div id="alert" class="alert alert-danger" role="alert"></div>
+                        <div class="card">
+                            <div class="card-header text-center">
+                                <h5 class="card-title">{{ xref $.Ticket.Title }}</h5>
+                            </div>
+                            <div class="card-body">
+                                <table class="table">
+                                    <tr>
+                                        <td><b>Id</b></td>
+                                        <td> <span id="ticket-id">{{ $.Ticket.Id }}</span> &nbsp;&nbsp;<span class="badge bg-secondary"><a href="#" onclick="navigator.clipboard.writeText('{{ $.Ticket.Id }}');">copy</a></span></a></td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>Short Id</b></td>
+                                        <td>{{  slice $.Ticket.Id 0 7 }}&nbsp;&nbsp;<span class="badge bg-secondary"><a href="#" onclick="navigator.clipboard.writeText('{{ slice $.Ticket.Id 0 7 }}');">copy</a></span></a></td>
+                                    </tr>
 
-                <tr>
-                    <td><b>Created</b></td>
-                    <td>{{ formatTime .CreateTime }}</td>
-                </tr>
+                                    <tr>
+                                        <td><b>Status</b></td>
+                                        <td><span class="badge {{ ticketStatusColor $.Ticket.Status }}" >{{ $.Ticket.Status }}</span></td>
+                                    </tr>
 
-                <tr>
-                    <td><b>Author</b></td>
-                    <td><a href="/?q=author:&quot;{{ identityToName .Author }}&quot;">{{ identityToName .Author }}</a></td>
-                    </tr>
+                                    <tr>
+                                        <td><b>Created</b></td>
+                                        <td>{{ formatTime $.Ticket.CreateTime }}</td>
+                                    </tr>
 
-                <tr>
-                    <td><b>Assignee</b></td>
-                    <td><a href="/?q=assignee:&quot;{{ identityToName .Assignee }}&quot;">{{ identityToName .Assignee }}</a></td>
-                </tr>
+                                    <tr>
+                                        <td><b>Author</b></td>
+                                        <td><a href="/?q=author:&quot;{{ identityToName $.Ticket.Author }}&quot;">{{ identityToName $.Ticket.Author }}</a></td>
+                                    </tr>
 
-                <tr>
-                    <td><b>Workflow</b></td>
-                    <td><span class="badge bg-secondary">{{ workflow . }}</span></td>
-                </tr>
+                                    <tr>
+                                        <td><b>Assignee</b></td>
+                                        <td><a href="/?q=assignee:&quot;{{ identityToName $.Ticket.Assignee }}&quot;">{{ identityToName $.Ticket.Assignee }}</a></td>
+                                    </tr>
 
-                <tr>
-                    <td><b>CCB</b></td>
-                    <td>
-                    {{ range .Ccb }}
-                        <span class="badge {{ ccbStateColor .State }}">{{ .Status }}</span>&nbsp;{{ identityToName .User }}<br>
-                    {{ end }}
-                    </td>
-                </tr>
+                                    <tr>
+                                        <td><b>Workflow</b></td>
+                                        <td><span class="badge bg-secondary">{{ workflow $.Ticket }}</span></td>
+                                    </tr>
 
-                <tr>
-                    <td><b>Reviews</b></td>
-                    <td>
-                    {{ range .Reviews }}
-                        <span class="badge {{ reviewStatusColor .LatestOverallStatus }}">{{ xref .Id }}</span><br>
-                    {{ end }}
-                    </td>
-                </tr>
+                                    <tr>
+                                        <td><b>CCB</b></td>
+                                        <td>
+                                            {{ range $.Ticket.Ccb }}
+                                            <span class="badge {{ ccbStateColor .State }}">{{ .Status }}</span>&nbsp;{{ identityToName .User }}<br>
+                                            {{ end }}
+                                        </td>
+                                    </tr>
 
-                <tr>
-                    <td><b>Checklists</b></td>
-                    <td>
-                    {{ range $k, $v := .GetChecklistCompoundStates  }}
-                        <span class="badge {{ checklistStateColor $v }}">
-                            {{ if ne $v 0 }}<a href="/checklist?id={{ $.Id }}&checklist={{ $k }}">{{end}}
-                                {{ checklist $k }}
-                            {{ if ne $v 0 }}</a>{{ end }}
-                        </span>
-                    {{ end }}
-                    </td>
-                <tr>
+                                    <tr>
+                                        <td><b>Reviews</b></td>
+                                        <td>
+                                            {{ range $.Ticket.Reviews }}
+                                            <span class="badge {{ reviewStatusColor .LatestOverallStatus }}">{{ xref .Id }}</span><br>
+                                            {{ end }}
+                                        </td>
+                                    </tr>
 
-                <tr>
-                    <td><b>Labels</b></td>
-                    <td>
-                    {{ range .Labels }}
-                        {{ if and (not .IsWorkflow) (not .IsChecklist) }}
-                            <span class="badge bg-secondary"><a href="/?q=label:{{ . }}">{{ . }}</a></span>
-                        {{ end }}
-                    {{ end }}
-                    </td>
-                </tr>
+                                    <tr>
+                                        <td><b>Checklists</b></td>
+                                        <td>
+                                            {{ range $k, $v := $.Ticket.GetChecklistCompoundStates  }}
+                                            <span class="badge {{ checklistStateColor $v }}">
+                                            {{ if ne $v 0 }}<a href="/checklist?id={{ $.Id }}&checklist={{ $k }}">{{end}}
+                                                {{ checklist $k }}
+                                            {{ if ne $v 0 }}</a>{{ end }}
+                                        </span>
+                                            {{ end }}
+                                        </td>
+                                    <tr>
 
-                <tr>
-                    <td><b>Actors</b></td>
-                    <td>
-                    {{ range .Actors }}
-                        <a href="/?q=actor:&quot;{{ identityToName . }}&quot;">{{ identityToName . }}<br>
-                    {{ end }}
-                    </td>
-                </tr>
+                                    <tr>
+                                        <td><b>Labels</b></td>
+                                        <td>
+                                            {{ range $.Ticket.Labels }}
+                                            {{ if and (not .IsWorkflow) (not .IsChecklist) }}
+                                            <span class="badge bg-secondary"><a href="/?q=label:{{ . }}">{{ . }}</a></span>
+                                            {{ end }}
+                                            {{ end }}
+                                        </td>
+                                    </tr>
 
-                <tr>
-                    <td><b>Participants</b></td>
-                    <td>
-                        {{ range .Participants }}
-                            <a href="/?q=participant:&quot;{{ identityToName . }}&quot;">{{ identityToName . }}<br>
-                        {{ end }}
-                    </td>
-                </tr>
-            </table>
-            {{ range .Comments }}
-                {{ if .Message }}
-                    <p>
-                        <b>{{ identityToName .Author }} | {{ formatTimestamp .UnixTime }} {{ if .Edited }}(edited){{ end }}</b></br>
-                        <div class="gt-comment">
-                            {{ mdToHtml .Message }}
+                                    <tr>
+                                        <td><b>Actors</b></td>
+                                        <td>
+                                            {{ range $.Ticket.Actors }}
+                                            <a href="/?q=actor:&quot;{{ identityToName . }}&quot;">{{ identityToName . }}<br>
+                                                {{ end }}
+                                        </td>
+                                    </tr>
+
+                                    <tr>
+                                        <td><b>Participants</b></td>
+                                        <td>
+                                            {{ range $.Ticket.Participants }}
+                                            <a href="/?q=participant:&quot;{{ identityToName . }}&quot;">{{ identityToName . }}<br>
+                                                {{ end }}
+                                        </td>
+                                    </tr>
+                                </table>
+                                {{ range $.Ticket.Comments }}
+                                {{ if .Message }}
+                                <p>
+                                    <b>{{ identityToName .Author }} | {{ formatTimestamp .UnixTime }} {{ if .Edited }}(edited){{ end }}</b></br>
+                                <div class="gt-comment">
+                                    {{ mdToHtml .Message }}
+                                </div>
+                                </p>
+                                {{ end }}
+                                {{ end }}
+
+                                <textarea class="form-control" id="comment-form-control-text-area" rows="3"></textarea>
+                                <button type="submit" id="submit-button" class="btn btn-primary mb-3" onclick="submitComment()">Submit comment</button>
+                            </div>
                         </div>
-                    </p>
-                {{ end }}
-            {{ end }}
-
-            <textarea class="form-control" id="comment-form-control-text-area" rows="3"></textarea>
-            <button type="submit" id="submit-button" class="btn btn-primary mb-3" onclick="submitComment()">Submit comment</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </body>

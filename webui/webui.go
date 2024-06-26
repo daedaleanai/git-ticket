@@ -86,6 +86,12 @@ var (
 	}
 )
 
+
+type SideBarData struct {
+	BookmarkGroups []BookmarkGroup
+	ColorKey       map[string]string
+}
+
 func handleIndex(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 	if r.URL.Path != "/" {
 		return fmt.Errorf("Unknown request path: %s", r.URL.Path)
@@ -129,13 +135,21 @@ func handleIndex(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 	ticketStatuses := determineWorkflowStatuses(workflows)
 
 	return templates.ExecuteTemplate(w, "index.html", struct {
-		Statuses       []bug.Status
-		BookmarkGroups []BookmarkGroup
-		Tickets        map[bug.Status][]*cache.BugExcerpt
-		Colors         map[entity.Id]string
-		ColorKey       map[string]string
-		Query          string
-	}{ticketStatuses, webUiConfig.BookmarkGroups, tickets, ticketColors, colorKey, qParam})
+		Statuses []bug.Status
+		Tickets  map[bug.Status][]*cache.BugExcerpt
+		Colors   map[entity.Id]string
+		Query    string
+		SideBar  SideBarData
+	}{
+		ticketStatuses,
+		tickets,
+		ticketColors,
+		qParam,
+		SideBarData{
+			BookmarkGroups: webUiConfig.BookmarkGroups,
+			ColorKey:       colorKey,
+		},
+	})
 }
 
 func handleTicket(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
@@ -144,7 +158,17 @@ func handleTicket(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 	if err != nil {
 		return fmt.Errorf("unable to find ticket %s: %w", id, err)
 	}
-	return templates.ExecuteTemplate(w, "ticket.html", ticket.Snapshot())
+
+	return templates.ExecuteTemplate(w, "ticket.html", struct {
+		SideBar SideBarData
+		Ticket  *bug.Snapshot
+	}{
+		SideBarData{
+			BookmarkGroups: webUiConfig.BookmarkGroups,
+			ColorKey:       map[string]string{},
+		},
+		ticket.Snapshot(),
+	})
 }
 
 func handleChecklist(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
