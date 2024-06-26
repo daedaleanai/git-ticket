@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/util/colors"
 )
 
@@ -26,7 +26,12 @@ func newChecklistShowCommand() *cobra.Command {
 }
 
 func runChecklistShow(env *Env, args []string) error {
-	checklist, err := bug.GetChecklist(bug.Label(args[0]))
+	var checklist config.Checklist
+	err := env.backend.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		inner, err := c.GetChecklist(config.Label(args[0]))
+		checklist = inner
+		return err
+	})
 	if err != nil {
 		return err
 	}

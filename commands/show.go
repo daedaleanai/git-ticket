@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/daedaleanai/git-ticket/bug"
 	_select "github.com/daedaleanai/git-ticket/commands/select"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/util/colors"
 	"github.com/daedaleanai/git-ticket/util/text"
 )
@@ -270,15 +271,22 @@ func showDefaultFormatter(env *Env, snapshot *bug.Snapshot, opts showOptions) er
 
 	// Checklists
 	var checklistStates []string
-	for clLabel, st := range snapshot.GetChecklistCompoundStates() {
-		cl, err := bug.GetChecklist(clLabel)
+	err := env.backend.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		for clLabel, st := range snapshot.GetChecklistCompoundStates() {
+			cl, err := c.GetChecklist(config.Label(clLabel))
 
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
+
+			checklistStates = append(checklistStates, fmt.Sprintf("%s (%s)", cl.Title, st.ColorString()))
 		}
-
-		checklistStates = append(checklistStates, fmt.Sprintf("%s (%s)", cl.Title, st.ColorString()))
+		return nil
+	})
+	if err != nil {
+		return err
 	}
+
 	sort.Strings(checklistStates)
 	env.out.Printf("checklists: %s\n", strings.Join(checklistStates, ", "))
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	review2 "github.com/daedaleanai/git-ticket/bug/review"
+	"github.com/daedaleanai/git-ticket/config"
 
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/entity"
@@ -114,7 +115,7 @@ func (c *BugCache) ChangeLabels(added []string, removed []string, allowDeprecate
 
 func (c *BugCache) ChangeLabelsRaw(author *IdentityCache, unixTime int64, added []string, removed []string, allowDeprecated bool, metadata map[string]string) ([]bug.LabelChangeResult, *bug.LabelChangeOperation, error) {
 	c.mu.Lock()
-	changes, op, err := bug.ChangeLabels(c.bug, author.Identity, unixTime, added, removed, allowDeprecated)
+	changes, op, err := bug.ChangeLabels(c.bug, author.Identity, c.repoCache.configCache, unixTime, added, removed, allowDeprecated)
 	if err != nil {
 		c.mu.Unlock()
 		return changes, nil, err
@@ -236,7 +237,7 @@ func (c *BugCache) SetAssigneeRaw(author *IdentityCache, unixTime int64, metadat
 	return op, c.notifyUpdated()
 }
 
-func (c *BugCache) SetChecklist(cl bug.Checklist) (*bug.SetChecklistOperation, error) {
+func (c *BugCache) SetChecklist(cl config.Checklist) (*bug.SetChecklistOperation, error) {
 	author, err := c.repoCache.GetUserIdentity()
 	if err != nil {
 		return nil, err
@@ -245,7 +246,7 @@ func (c *BugCache) SetChecklist(cl bug.Checklist) (*bug.SetChecklistOperation, e
 	return c.SetChecklistRaw(author, time.Now().Unix(), cl, nil)
 }
 
-func (c *BugCache) SetChecklistRaw(author *IdentityCache, unixTime int64, cl bug.Checklist, metadata map[string]string) (*bug.SetChecklistOperation, error) {
+func (c *BugCache) SetChecklistRaw(author *IdentityCache, unixTime int64, cl config.Checklist, metadata map[string]string) (*bug.SetChecklistOperation, error) {
 	op, err := bug.SetChecklist(c.bug, author.Identity, unixTime, cl)
 	if err != nil {
 		return nil, err

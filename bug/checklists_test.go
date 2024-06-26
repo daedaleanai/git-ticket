@@ -3,37 +3,38 @@ package bug
 import (
 	"testing"
 
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestChecklists_ChecklistCompoundState(t *testing.T) {
-	testChecklist := Checklist{Label: "XYZ",
+	testChecklist := config.Checklist{Label: "XYZ",
 		Title: "XYZ Checklist",
-		Sections: []ChecklistSection{
-			ChecklistSection{Title: "ABC",
-				Questions: []ChecklistQuestion{
-					ChecklistQuestion{Question: "1?", State: Passed},
-					ChecklistQuestion{Question: "2?", State: Passed},
-					ChecklistQuestion{Question: "3?", State: Passed},
+		Sections: []config.ChecklistSection{
+			config.ChecklistSection{Title: "ABC",
+				Questions: []config.ChecklistQuestion{
+					config.ChecklistQuestion{Question: "1?", State: config.Passed},
+					config.ChecklistQuestion{Question: "2?", State: config.Passed},
+					config.ChecklistQuestion{Question: "3?", State: config.Passed},
 				},
 			},
-			ChecklistSection{Title: "DEF",
-				Questions: []ChecklistQuestion{
-					ChecklistQuestion{Question: "4?", State: Passed},
-					ChecklistQuestion{Question: "5?", State: Passed},
-					ChecklistQuestion{Question: "6?", State: Passed},
+			config.ChecklistSection{Title: "DEF",
+				Questions: []config.ChecklistQuestion{
+					config.ChecklistQuestion{Question: "4?", State: config.Passed},
+					config.ChecklistQuestion{Question: "5?", State: config.Passed},
+					config.ChecklistQuestion{Question: "6?", State: config.Passed},
 				},
 			},
 		},
 	}
-	assert.Equal(t, testChecklist.CompoundState(), Passed)
+	assert.Equal(t, testChecklist.CompoundState(), config.Passed)
 
-	testChecklist.Sections[0].Questions[0].State = NotApplicable
-	assert.Equal(t, testChecklist.CompoundState(), Passed)
+	testChecklist.Sections[0].Questions[0].State = config.NotApplicable
+	assert.Equal(t, testChecklist.CompoundState(), config.Passed)
 
-	testChecklist.Sections[0].Questions[1].State = TBD
-	assert.Equal(t, testChecklist.CompoundState(), TBD)
+	testChecklist.Sections[0].Questions[1].State = config.TBD
+	assert.Equal(t, testChecklist.CompoundState(), config.TBD)
 
-	testChecklist.Sections[0].Questions[2].State = Failed
-	assert.Equal(t, testChecklist.CompoundState(), Failed)
+	testChecklist.Sections[0].Questions[2].State = config.Failed
+	assert.Equal(t, testChecklist.CompoundState(), config.Failed)
 }

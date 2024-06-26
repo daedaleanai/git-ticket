@@ -10,6 +10,7 @@ import (
 
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/util/colors"
 )
@@ -538,13 +539,17 @@ func (sb *showBug) comment(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (sb *showBug) review(g *gocui.Gui, v *gocui.View) error {
-
 	id, err := sb.cache.GetUserIdentity()
 	if err != nil {
 		return err
 	}
 
-	ticketChecklists, err := sb.bug.Snapshot().GetUserChecklists(id.Id(), false)
+	var ticketChecklists map[bug.Label]config.Checklist
+	err = sb.cache.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		inner, err := sb.bug.Snapshot().GetUserChecklists(c.ChecklistConfig, id.Id(), false)
+		ticketChecklists = inner
+		return err
+	})
 	if err != nil {
 		return err
 	}

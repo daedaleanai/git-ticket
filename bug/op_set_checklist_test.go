@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/stretchr/testify/assert"
 )
@@ -14,21 +15,21 @@ func TestOpSetChecklist_SetChecklist(t *testing.T) {
 	unix := time.Now().Unix()
 	bug1 := NewBug()
 
-	before, err := SetChecklist(bug1, rene, unix, Checklist{Label: "123",
+	before, err := SetChecklist(bug1, rene, unix, config.Checklist{Label: "123",
 		Title: "123 Checklist",
-		Sections: []ChecklistSection{
-			ChecklistSection{Title: "Section 1",
-				Questions: []ChecklistQuestion{
-					ChecklistQuestion{Question: "1?"},
-					ChecklistQuestion{Question: "2?"},
-					ChecklistQuestion{Question: "3?"},
+		Sections: []config.ChecklistSection{
+			config.ChecklistSection{Title: "Section 1",
+				Questions: []config.ChecklistQuestion{
+					config.ChecklistQuestion{Question: "1?"},
+					config.ChecklistQuestion{Question: "2?"},
+					config.ChecklistQuestion{Question: "3?"},
 				},
 			},
-			ChecklistSection{Title: "Section 2",
-				Questions: []ChecklistQuestion{
-					ChecklistQuestion{Question: "4?"},
-					ChecklistQuestion{Question: "5?"},
-					ChecklistQuestion{Question: "6?"},
+			config.ChecklistSection{Title: "Section 2",
+				Questions: []config.ChecklistQuestion{
+					config.ChecklistQuestion{Question: "4?"},
+					config.ChecklistQuestion{Question: "5?"},
+					config.ChecklistQuestion{Question: "6?"},
 				},
 			},
 		},

@@ -3,8 +3,8 @@ package commands
 import (
 	"sort"
 
-	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/util/colors"
 	"github.com/spf13/cobra"
 )
@@ -27,18 +27,20 @@ func newCcbListCommand() *cobra.Command {
 }
 
 func runCcbList(env *Env, args []string) error {
-	ids, err := bug.ListCcbMembers()
+	var users []*cache.IdentityExcerpt
+
+	err := env.backend.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		for _, id := range c.CcbConfig {
+			user, err := env.backend.ResolveIdentityExcerpt(id)
+			if err != nil {
+				return err
+			}
+			users = append(users, user)
+		}
+		return nil
+	})
 	if err != nil {
 		return err
-	}
-
-	var users []*cache.IdentityExcerpt
-	for _, id := range ids {
-		user, err := env.backend.ResolveIdentityExcerpt(id)
-		if err != nil {
-			return err
-		}
-		users = append(users, user)
 	}
 
 	sort.Sort(byDisplayName(users))

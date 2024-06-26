@@ -9,6 +9,7 @@ import (
 
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/input"
 	"github.com/daedaleanai/git-ticket/query"
@@ -305,7 +306,7 @@ func editCommentWithEditor(bug *cache.BugCache, target entity.Id, preMessage str
 	return errTerminateMainloop
 }
 
-func reviewWithEditor(bug *cache.BugCache, checklist bug.Checklist) error {
+func reviewWithEditor(bug *cache.BugCache, checklist config.Checklist) error {
 	// This is somewhat hacky.
 	// As there is no way to pause gocui, run the editor and restart gocui,
 	// we have to stop it entirely and start a new one later.

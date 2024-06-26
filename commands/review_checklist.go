@@ -9,6 +9,7 @@ import (
 
 	"github.com/daedaleanai/git-ticket/bug"
 	_select "github.com/daedaleanai/git-ticket/commands/select"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/input"
 )
 
@@ -52,7 +53,12 @@ func runReviewChecklist(env *Env, opts reviewChecklistOptions, args []string) er
 		return err
 	}
 
-	ticketChecklists, err := b.Snapshot().GetUserChecklists(id.Id(), opts.blank)
+	var ticketChecklists map[bug.Label]config.Checklist
+	env.backend.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		inner, err := b.Snapshot().GetUserChecklists(c.ChecklistConfig, id.Id(), opts.blank)
+		ticketChecklists = inner
+		return err
+	})
 	if err != nil {
 		return err
 	}

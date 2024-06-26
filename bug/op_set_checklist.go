@@ -6,6 +6,7 @@ import (
 
 	termtext "github.com/MichaelMure/go-term-text"
 
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/util/timestamp"
@@ -17,7 +18,7 @@ var _ Operation = &SetChecklistOperation{}
 // SetChecklistOperation will update the checklist associated with a ticket
 type SetChecklistOperation struct {
 	OpBase
-	Checklist Checklist `json:"checklist"`
+	Checklist config.Checklist `json:"checklist"`
 }
 
 //Sign-post method for gqlgen
@@ -32,10 +33,11 @@ func (op *SetChecklistOperation) Id() entity.Id {
 }
 
 func (op *SetChecklistOperation) Apply(snapshot *Snapshot) {
-	if snapshot.Checklists[op.Checklist.Label] == nil {
-		snapshot.Checklists[op.Checklist.Label] = make(map[entity.Id]ChecklistSnapshot)
+	label := Label(op.Checklist.Label)
+	if snapshot.Checklists[label] == nil {
+		snapshot.Checklists[label] = make(map[entity.Id]ChecklistSnapshot)
 	}
-	snapshot.Checklists[op.Checklist.Label][op.Author.Id()] = ChecklistSnapshot{Checklist: op.Checklist, LastEdit: op.Time()}
+	snapshot.Checklists[label][op.Author.Id()] = ChecklistSnapshot{Checklist: op.Checklist, LastEdit: op.Time()}
 	snapshot.addActor(op.Author)
 
 	item := &SetChecklistTimelineItem{
@@ -77,7 +79,7 @@ func (op *SetChecklistOperation) UnmarshalJSON(data []byte) error {
 	}
 
 	aux := struct {
-		Checklist Checklist `json:"checklist"`
+		Checklist config.Checklist `json:"checklist"`
 	}{}
 
 	err = json.Unmarshal(data, &aux)
@@ -94,7 +96,7 @@ func (op *SetChecklistOperation) UnmarshalJSON(data []byte) error {
 // Sign post method for gqlgen
 func (op *SetChecklistOperation) IsAuthored() {}
 
-func NewSetChecklistOp(author identity.Interface, unixTime int64, cl Checklist) *SetChecklistOperation {
+func NewSetChecklistOp(author identity.Interface, unixTime int64, cl config.Checklist) *SetChecklistOperation {
 	return &SetChecklistOperation{
 		OpBase:    newOpBase(SetChecklistOp, author, unixTime),
 		Checklist: cl,
@@ -105,7 +107,7 @@ type SetChecklistTimelineItem struct {
 	id        entity.Id
 	Author    identity.Interface
 	UnixTime  timestamp.Timestamp
-	Checklist Checklist
+	Checklist config.Checklist
 }
 
 func (s SetChecklistTimelineItem) Id() entity.Id {
@@ -127,7 +129,7 @@ func (s SetChecklistTimelineItem) String() string {
 func (s *SetChecklistTimelineItem) IsAuthored() {}
 
 // Convenience function to apply the operation
-func SetChecklist(b Interface, author identity.Interface, unixTime int64, cl Checklist) (*SetChecklistOperation, error) {
+func SetChecklist(b Interface, author identity.Interface, unixTime int64, cl config.Checklist) (*SetChecklistOperation, error) {
 	setChecklistOp := NewSetChecklistOp(author, unixTime, cl)
 
 	if err := setChecklistOp.Validate(); err != nil {

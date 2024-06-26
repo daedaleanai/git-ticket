@@ -6,6 +6,7 @@ import (
 
 	"github.com/daedaleanai/git-ticket/bug"
 	_select "github.com/daedaleanai/git-ticket/commands/select"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/spf13/cobra"
 )
 
@@ -53,12 +54,18 @@ func runCcbAdd(env *Env, args []string) error {
 		return err
 	}
 
-	ok, err := bug.IsCcbMember(userToAdd.Identity)
+	err = env.backend.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		ok, err := c.IsCcbMember(userToAdd.Identity)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errors.New(userToAdd.DisplayName() + " is not a CCB member")
+		}
+		return nil
+	})
 	if err != nil {
 		return err
-	}
-	if !ok {
-		return errors.New(userToAdd.DisplayName() + " is not a CCB member")
 	}
 
 	if b.Snapshot().GetCcbState(userToAdd.Id(), status) != bug.RemovedCcbState {
