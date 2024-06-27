@@ -93,13 +93,10 @@ type SideBarData struct {
 }
 
 func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
-	if r.URL.Path != "/" {
-		return fmt.Errorf("Unknown request path: %s", r.URL.Path)
-	}
 	qParam := r.URL.Query().Get("q")
 	q, err := query.Parse(qParam)
 	if err != nil {
-		return fmt.Errorf("unable to parse query: %w", err)
+		return &invalidRequestError{msg: fmt.Sprintf("unable to parse query: %s", err.Error())}
 	}
 
 	tickets := map[bug.Status][]*cache.BugExcerpt{}
@@ -110,7 +107,7 @@ func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) 
 	for _, id := range repo.QueryBugs(q) {
 		ticket, err := repo.ResolveBugExcerpt(id)
 		if err != nil {
-			return fmt.Errorf("unable to resolve ticket id: %w", err)
+			return ticketNotFound(string(id))
 		}
 		tickets[ticket.Status] = append(tickets[ticket.Status], ticket)
 
@@ -158,7 +155,7 @@ func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request)
 	ticket, err := repo.ResolveBugPrefix(ticketId)
 
 	if err != nil {
-		return fmt.Errorf("unable to find ticket %s: %w", ticketId, err)
+		return ticketNotFound(ticketId)
 	}
 
 	return templates.ExecuteTemplate(w, "ticket.html", struct {
@@ -178,19 +175,19 @@ func handleChecklist(repo *cache.RepoCache, w http.ResponseWriter, r *http.Reque
 
 	checklist := bug.Label(r.URL.Query().Get("checklist"))
 	if !checklist.IsChecklist() {
-		return fmt.Errorf("requested checklist %s is not a checklist", checklist)
+		return &invalidRequestError{msg: fmt.Sprintf("requested checklist %s is not a checklist", checklist)}
 	}
 
 	ticket, err := repo.ResolveBugPrefix(id)
 	if err != nil {
-		return fmt.Errorf("unable to find ticket %s: %w", id, err)
+		return ticketNotFound(id)
 	}
 
 	snap := ticket.Snapshot()
 	// only display checklists which are currently associated with the ticket
 	clMap, present := snap.Checklists[checklist]
 	if !present {
-		return fmt.Errorf("Checklist %s is not part of ticket %s", checklist, id)
+		return &invalidRequestError{msg: fmt.Sprintf("checklist %s is not part of ticket %s", checklist, id)}
 	}
 
 	type checklistItem struct {
@@ -229,17 +226,17 @@ func handleChecklist(repo *cache.RepoCache, w http.ResponseWriter, r *http.Reque
 func handleApiSetStatus(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
 	action := ApiActionSetStatus{}
 	if err := json.NewDecoder(r.Body).Decode(&action); err != nil {
-		return fmt.Errorf("failed to decode body: %w", err)
+		return &malformedRequestError{prev: err}
 	}
 
 	ticket, err := repo.ResolveBug(entity.Id(action.Ticket))
 	if err != nil {
-		return fmt.Errorf("invalid ticket id: %w", err)
+		return &invalidRequestError{msg: fmt.Sprintf("invalid ticket id: %s", action.Ticket)}
 	}
 
 	status, err := bug.StatusFromString(action.Status)
 	if err != nil {
-		return fmt.Errorf("invalid status %s", action.Status)
+		return &invalidRequestError{msg: fmt.Sprintf("invalid status %s", action.Status)}
 	}
 	_, err = ticket.SetStatus(status)
 	if err != nil {
@@ -257,12 +254,12 @@ func handleApiSetStatus(repo *cache.RepoCache, w http.ResponseWriter, r *http.Re
 func handleApiSubmitComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
 	action := ApiActionSubmitComment{}
 	if err := json.NewDecoder(r.Body).Decode(&action); err != nil {
-		return fmt.Errorf("failed to decode body: %w", err)
+		return &malformedRequestError{prev: err}
 	}
 
 	ticket, err := repo.ResolveBug(entity.Id(action.Ticket))
 	if err != nil {
-		return fmt.Errorf("invalid ticket id: %w", err)
+		return &invalidRequestError{msg: fmt.Sprintf("invalid ticket id: %s", action.Ticket)}
 	}
 
 	_, err = ticket.AddComment(action.Comment)
@@ -282,8 +279,7 @@ func withRepoCache(repo repository.ClockedRepo, handler HandlerWithRepoCache) fu
 	return func(w http.ResponseWriter, r *http.Request) {
 		repoCache, err := cache.NewRepoCache(repo, false)
 		if err != nil {
-			w.WriteHeader(500)
-			fmt.Fprintf(w, "Error: unable to open git cache: %s", err)
+			errorIntoResponse(fmt.Errorf("unable to open git cache: %w", err), w)
 			return
 		}
 		defer repoCache.Close()
