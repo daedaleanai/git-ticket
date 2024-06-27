@@ -10,7 +10,7 @@
       <span class="px-4">{{ .Group }}</span>
       {{ range .Bookmarks }}
       <a href="/?q={{ .Query }}">
-        <div class="px-5 my-1 gt-menu-bookmark {{ if eq .Query $.Query }}active{{ end }}">
+        <div class="px-5 my-1 gt-menu-bookmark {{ if eq .Query $.SelectedQuery }}active{{ end }}">
           {{ .Label }}
         </div>
       </a>

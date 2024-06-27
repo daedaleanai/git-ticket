@@ -86,8 +86,8 @@ var (
 	}
 )
 
-
 type SideBarData struct {
+	SelectedQuery  string
 	BookmarkGroups []BookmarkGroup
 	ColorKey       map[string]string
 }
@@ -138,14 +138,13 @@ func handleIndex(repo *cache.RepoCache, w io.Writer, r *http.Request) error {
 		Statuses []bug.Status
 		Tickets  map[bug.Status][]*cache.BugExcerpt
 		Colors   map[entity.Id]string
-		Query    string
 		SideBar  SideBarData
 	}{
 		ticketStatuses,
 		tickets,
 		ticketColors,
-		qParam,
 		SideBarData{
+			SelectedQuery:  qParam,
 			BookmarkGroups: webUiConfig.BookmarkGroups,
 			ColorKey:       colorKey,
 		},
