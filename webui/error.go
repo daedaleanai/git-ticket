@@ -6,11 +6,19 @@ import (
 	"net/http"
 )
 
-type ValidationError struct {
+type InvalidRequestError struct {
 	msg string
 }
 
-func (e *ValidationError) Error() string { return e.msg }
+func (e *InvalidRequestError) Error() string { return e.msg }
+
+type MalformedRequestError struct {
+	prev error
+}
+
+func (e *MalformedRequestError) Error() string {
+	return fmt.Errorf("failed to decode body: %w", e.prev).Error()
+}
 
 type NotFoundError struct {
 	msg string
@@ -18,13 +26,17 @@ type NotFoundError struct {
 
 func (e *NotFoundError) Error() string { return e.msg }
 
+func TicketNotFound(ticketId string) *NotFoundError {
+	return &NotFoundError{msg: fmt.Sprintf("unable to find ticket with id [%s]", ticketId)}
+}
+
 func ErrorIntoResponse(e error, w http.ResponseWriter) {
 	switch e.(type) {
 	default:
 		w.WriteHeader(500)
 		w.Write([]byte("An unknown error occurred"))
 		log.Println(fmt.Sprintf("Internal server error: %s", e.Error()))
-	case *ValidationError:
+	case *InvalidRequestError:
 		w.WriteHeader(400)
 		w.Write([]byte("Invalid request: "))
 		w.Write([]byte(e.Error()))
