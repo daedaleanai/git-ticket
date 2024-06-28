@@ -7,29 +7,48 @@ import (
 )
 
 // Represents the type of a token parsed by the lexer
-type TokenType int
+type TokenType string
 
 const (
 	// An identifier token is a consecutive series of characters that is not made of one of the reserved characters below, and does not include whitespace
-	IdentToken TokenType = iota
+	IdentToken TokenType = "IdentToken"
 	// Left parenthesis `(`
-	LparenToken
+	LparenToken = "LparenToken"
 	// Right parenthesis `)`
-	RparenToken
+	RparenToken = "RparenToken"
 	// Comma `,`
-	CommaToken
+	CommaToken = "CommaToken"
 	// double-quoted string `"a string"` may contain any characters between its delimiters.
-	StringToken
+	StringToken = "StringToken"
 	// regex string `r"[a-f0-9]+"`.
-	RegexToken
+	RegexToken = "RegexToken"
 	// Represents the end of the token stream
-	EofToken
+	EofToken = "EofToken"
 )
 
 // A Span represents the range location of a token, measured in bytes
 type Span struct {
 	Begin int
 	End   int
+}
+
+func (s Span) Extend(other Span) Span {
+	min := func(a, b int) int {
+		if a < b {
+			return a
+		}
+		return b
+	}
+	max := func(a, b int) int {
+		if a > b {
+			return a
+		}
+		return b
+	}
+	return Span{
+		Begin: min(s.Begin, other.Begin),
+		End:   max(s.End, other.End),
+	}
 }
 
 // A Token represents the lexical unit returned by the lexer
