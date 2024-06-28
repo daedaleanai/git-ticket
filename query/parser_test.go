@@ -2,95 +2,131 @@ package query
 
 import (
 	"testing"
-
-	"github.com/stretchr/testify/assert"
+	"time"
 
 	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParse(t *testing.T) {
+	getTime := func(input string) time.Time {
+		result, err := time.ParseInLocation("2006-01-02", input, time.Local)
+		assert.NoError(t, err)
+		return result
+	}
+
 	var tests = []struct {
 		input  string
-		output *Query
+		filter AstNode
 	}{
-		{"gibberish", nil},
-		{"status:", nil},
-		{":value", nil},
-
-		{"status:proposed", &Query{
-			Filters: Filters{Status: []bug.Status{bug.ProposedStatus}},
-		}},
-		{"status:done", &Query{
-			Filters: Filters{Status: []bug.Status{bug.DoneStatus}},
-		}},
-		{"status:unknown", nil},
-
-		{"author:rene", &Query{
-			Filters: Filters{Author: []string{"rene"}},
-		}},
-		{`author:"René Descartes"`, &Query{
-			Filters: Filters{Author: []string{"René Descartes"}},
-		}},
-
-		{"actor:bernhard", &Query{
-			Filters: Filters{Actor: []string{"bernhard"}},
-		}},
-		{"participant:leonhard", &Query{
-			Filters: Filters{Participant: []string{"leonhard"}},
-		}},
-
-		{"label:hello", &Query{
-			Filters: Filters{Label: []string{"hello"}},
-		}},
-		{`label:"Good first issue"`, &Query{
-			Filters: Filters{Label: []string{"Good first issue"}},
-		}},
-
-		{"title:titleOne", &Query{
-			Filters: Filters{Title: []string{"titleOne"}},
-		}},
-		{`title:"Bug titleTwo"`, &Query{
-			Filters: Filters{Title: []string{"Bug titleTwo"}},
-		}},
-
-		{"no:label", &Query{
-			Filters: Filters{NoLabel: true},
-		}},
-
-		{"sort:edit", &Query{
-			OrderBy: OrderByEdit,
-		}},
-		{"sort:unknown", nil},
-
-		{`status:proposed author:"René Descartes" participant:leonhard label:hello label:"Good first issue" sort:edit-desc`,
-			&Query{
-				Filters: Filters{
-					Status:      []bug.Status{bug.ProposedStatus},
-					Author:      []string{"René Descartes"},
-					Participant: []string{"leonhard"},
-					Label:       []string{"hello", "Good first issue"},
-				},
-				OrderBy:        OrderByEdit,
-				OrderDirection: OrderDescending,
-			},
+		{``, nil},
+		{
+			`status  (merged, "proposed", inprogress)`,
+			&StatusFilter{Statuses: []bug.Status{bug.MergedStatus, bug.ProposedStatus, bug.InProgressStatus}},
+		},
+		{
+			`status(all)`,
+			&StatusFilter{Statuses: bug.AllStatuses()},
+		},
+		{
+			`status(ALL)`,
+			&StatusFilter{Statuses: bug.AllStatuses()},
+		},
+		{
+			`author("John Doe")`,
+			&AuthorFilter{AuthorName: "John Doe"},
+		},
+		{
+			`author(Jane)`,
+			&AuthorFilter{AuthorName: "Jane"},
+		},
+		{
+			`assignee(Jane)`,
+			&AssigneeFilter{AssigneeName: "Jane"},
+		},
+		{
+			`assignee("Jane Doe")`,
+			&AssigneeFilter{AssigneeName: "Jane Doe"},
+		},
+		{
+			`ccb("Jane Doe")`,
+			&CcbFilter{CcbName: "Jane Doe"},
+		},
+		{
+			`ccb-pending("Jane Doe")`,
+			&CcbPendingFilter{CcbName: "Jane Doe"},
+		},
+		{
+			`actor("Jane Doe")`,
+			&ActorFilter{ActorName: "Jane Doe"},
+		},
+		{
+			`participant("Jane Doe")`,
+			&ParticipantFilter{ParticipantName: "Jane Doe"},
+		},
+		{
+			`label("a new label")`,
+			&LabelFilter{LabelName: "a new label"},
+		},
+		{
+			`"label"("a new label")`,
+			&LabelFilter{LabelName: "a new label"},
+		},
+		{
+			`"title"(mytitle)`,
+			&TitleFilter{Title: "mytitle"},
+		},
+		{
+			`title("my title")`,
+			&TitleFilter{Title: "my title"},
+		},
+		{
+			`not(status("proposed", vetted))`,
+			&NotFilter{&StatusFilter{[]bug.Status{bug.ProposedStatus, bug.VettedStatus}}},
+		},
+		{
+			`create-before(2026-05-23)`,
+			&CreationDateFilter{Date: getTime("2026-05-23"), Before: true},
+		},
+		{
+			`create-after(2026-05-23)`,
+			&CreationDateFilter{Date: getTime("2026-05-23")},
+		},
+		{
+			`edit-before(2026-05-23)`,
+			&EditDateFilter{Date: getTime("2026-05-23"), Before: true},
+		},
+		{
+			`edit-after(2026-05-23)`,
+			&EditDateFilter{Date: getTime("2026-05-23")},
+		},
+		{
+			`all(status(vetted), label("mylabel"))`,
+			&AndFilter{Inner: []FilterNode{
+				&StatusFilter{[]bug.Status{bug.VettedStatus}},
+				&LabelFilter{LabelName: "mylabel"},
+			}},
+		},
+		{
+			`any(status(vetted), label("mylabel"))`,
+			&OrFilter{Inner: []FilterNode{
+				&StatusFilter{[]bug.Status{bug.VettedStatus}},
+				&LabelFilter{LabelName: "mylabel"},
+			}},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
-			query, err := Parse(tc.input)
-			if tc.output == nil {
-				assert.Error(t, err)
-				assert.Nil(t, query)
+			parser, err := NewParser(tc.input)
+			assert.NoError(t, err)
+
+			ast, err := parser.Parse()
+			assert.NoError(t, err)
+			if tc.filter != nil {
+				assert.Equal(t, ast.FilterNode, tc.filter)
 			} else {
-				assert.NoError(t, err)
-				if tc.output.OrderBy != 0 {
-					assert.Equal(t, tc.output.OrderBy, query.OrderBy)
-				}
-				if tc.output.OrderDirection != 0 {
-					assert.Equal(t, tc.output.OrderDirection, query.OrderDirection)
-				}
-				assert.Equal(t, tc.output.Filters, query.Filters)
+				assert.Nil(t, ast.FilterNode)
 			}
 		})
 	}

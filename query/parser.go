@@ -85,7 +85,7 @@ func (p *Parser) Parse() (*CompiledQuery, error) {
 		case EofToken:
 			return &query, nil
 
-		case IdentToken:
+		case IdentToken, StringToken:
 			err := p.parseQueryStatement(&query)
 			if err != nil {
 				return &query, err
@@ -205,6 +205,47 @@ func (parser *Parser) parseDelimitedExpressionList() ([]AstNode, error) {
 	}
 }
 
+func (parser *Parser) parseDelimitedLiteralList() ([]string, error) {
+	literals := []string{}
+
+	err := parser.expectTokenTypeAndAdvance(LparenToken)
+	if err != nil {
+		return nil, err
+	}
+
+	if parser.curToken.TokenType == RparenToken {
+		err := parser.advance()
+		return literals, err
+	}
+
+	for {
+		if ty := parser.curToken.TokenType; ty != StringToken && ty != IdentToken {
+			return literals, fmt.Errorf("Expected a literal")
+		}
+
+		lit := parser.curToken.Literal
+		literals = append(literals, lit)
+
+		err := parser.advance()
+		if err != nil {
+			return literals, err
+		}
+
+		switch parser.curToken.TokenType {
+		case RparenToken:
+			err = parser.advance()
+			return literals, err
+		case CommaToken:
+			err = parser.advance()
+			if err != nil {
+				return literals, err
+			}
+		default:
+			return literals, fmt.Errorf("Unexpected delimiter in delimited expression: %s", parser.curToken.TokenType)
+		}
+	}
+}
+
 func (parser *Parser) parseDelimitedLiteral() (string, error) {
 	err := parser.expectTokenTypeAndAdvance(LparenToken)
 	if err != nil {
@@ -212,7 +253,7 @@ func (parser *Parser) parseDelimitedLiteral() (string, error) {
 	}
 
 	if ty := parser.curToken.TokenType; ty != StringToken && ty != IdentToken {
-		return "", fmt.Errorf("status expects a token type")
+		return "", fmt.Errorf("Expected a literal")
 	}
 
 	result := parser.curToken.Literal
@@ -227,7 +268,7 @@ func (parser *Parser) parseDelimitedLiteral() (string, error) {
 }
 
 func parseStatusExpression(parser *Parser) (AstNode, error) {
-	list, err := parser.parseDelimitedExpressionList()
+	list, err := parser.parseDelimitedLiteralList()
 	if err != nil {
 		return nil, err
 	}
@@ -247,13 +288,8 @@ func parseStatusExpression(parser *Parser) (AstNode, error) {
 		return nil
 	}
 
-	for _, n := range list {
-		lit, ok := n.(*LiteralNode)
-		if !ok {
-			return nil, fmt.Errorf("status() expects a comman separated list of statuses")
-		}
-
-		err := appendStatus(lit.token.Literal)
+	for _, lit := range list {
+		err := appendStatus(lit)
 		if err != nil {
 			return node, err
 		}
