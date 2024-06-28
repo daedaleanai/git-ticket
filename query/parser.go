@@ -9,6 +9,28 @@ import (
 	"github.com/daedaleanai/git-ticket/bug"
 )
 
+type Parser struct {
+	curToken Token
+	lexer    Lexer
+}
+
+func NewParser(query string) (*Parser, error) {
+	l := NewLexer(query)
+	tok, err := l.NextToken()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Parser{
+		lexer:    l,
+		curToken: tok,
+	}, nil
+}
+
+func (p *Parser) Parse() (*CompiledQuery, error) {
+	return nil, fmt.Errorf("Unimplemented")
+}
+
 // Parse parse a query DSL
 //
 // Ex: "status:open author:descartes sort:edit-asc"
