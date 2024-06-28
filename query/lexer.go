@@ -7,21 +7,21 @@ import (
 )
 
 // Represents the type of a token parsed by the lexer
-type TokenType int
+type TokenType string
 
 const (
 	// An identifier token is a consecutive series of characters that is not made of one of the reserved characters below, and does not include whitespace
-	IdentToken TokenType = iota
+	IdentToken TokenType = "IdentToken"
 	// Left parenthesis `(`
-	LparenToken
+	LparenToken = "LparenToken"
 	// Right parenthesis `)`
-	RparenToken
+	RparenToken = "RparenToken"
 	// Comma `,`
-	CommaToken
+	CommaToken = "CommaToken"
 	// double-quoted string `"a string"` may contain any characters between its delimiters.
-	StringToken
+	StringToken = "StringToken"
 	// Represents the end of the token stream
-	EofToken
+	EofToken = "EofToken"
 )
 
 // A Span represents the range location of a token, measured in bytes
