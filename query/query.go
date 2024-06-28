@@ -19,6 +19,12 @@ type Query struct {
 	ColorByCcbUserName
 }
 
+type CompiledQuery struct {
+	filterNode FilterNode
+	orderNode  OrderByNode
+	colorNode  ColorByNode
+}
+
 // NewQuery return an identity query with the default sorting (creation-desc).
 func NewQuery() *Query {
 	return &Query{
