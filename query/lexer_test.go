@@ -112,26 +112,37 @@ func TestLexer(t *testing.T) {
 				newToken(RparenToken, ")", 23, 24),
 			},
 		},
+		{
+			`label(r"impact:some-doc")`,
+			[]Token{
+				newToken(IdentToken, "label", 0, 5),
+				newToken(LparenToken, "(", 5, 6),
+				newToken(RegexToken, "impact:some-doc", 6, 24),
+				newToken(RparenToken, ")", 24, 25),
+			},
+		},
 	}
 
 	for _, tc := range tests {
-		lexer := NewLexer(tc.input)
+		t.Run(tc.input, func(t *testing.T) {
+			lexer := NewLexer(tc.input)
 
-		idx := 0
-		for {
-			tok, err := lexer.NextToken()
-			assert.NoError(t, err)
+			idx := 0
+			for {
+				tok, err := lexer.NextToken()
+				assert.NoError(t, err)
 
-			if tok.TokenType == EofToken {
-				assert.Equal(t, idx, len(tc.tokens))
-				break
+				if tok.TokenType == EofToken {
+					assert.Equal(t, idx, len(tc.tokens))
+					break
+				}
+
+				assert.Less(t, idx, len(tc.tokens))
+				assert.Equal(t, tok, tc.tokens[idx])
+
+				idx += 1
 			}
-
-			assert.Less(t, idx, len(tc.tokens))
-			assert.Equal(t, tok, tc.tokens[idx])
-
-			idx += 1
-		}
+		})
 	}
 }
 
@@ -141,7 +152,7 @@ func TestLexerFailures(t *testing.T) {
 		err       error
 		errString string
 	}{
-		{`    "unterminated string`, &UnterminatedStringTokenError{`    "unterminated string`, Span{4, 24}}, `Unterminated string token: "unterminated string`},
+		{`    "unterminated string`, &UnterminatedTokenError{`    "unterminated string`, Span{4, 24}}, `Unterminated string token: "unterminated string`},
 	}
 
 	for _, tc := range tests {

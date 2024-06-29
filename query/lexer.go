@@ -18,8 +18,10 @@ const (
 	RparenToken = "RparenToken"
 	// Comma `,`
 	CommaToken = "CommaToken"
-	// double-quoted string `"a string"` may contain any characters between its delimiters.
+	// double-quoted string `"a string"`. May contain any characters between its delimiters.
 	StringToken = "StringToken"
+	// regex string `r"[a-f0-9]+"`.
+	RegexToken = "RegexToken"
 	// Represents the end of the token stream
 	EofToken = "EofToken"
 )
@@ -67,12 +69,25 @@ func (l *Lexer) NextToken() (Token, error) {
 		return l.parseStringToken()
 	}
 
+	peekChar := l.peekChar()
+	if curChar == 'r' && peekChar == '"' {
+		return l.parseRegexToken()
+	}
+
 	return l.parseIdentToken()
 }
 
 func (l *Lexer) curChar() byte {
 	if l.pos < len(l.query) {
 		return l.query[l.pos]
+	}
+	// Indicates EOF
+	return 0
+}
+
+func (l *Lexer) peekChar() byte {
+	if l.pos+1 < len(l.query) {
+		return l.query[l.pos+1]
 	}
 	// Indicates EOF
 	return 0
@@ -116,25 +131,50 @@ func (l *Lexer) parseIdentToken() (Token, error) {
 	return token, nil
 }
 
-type UnterminatedStringTokenError struct {
+type UnterminatedTokenError struct {
 	Input string
 	Span  Span
 }
 
-func (e *UnterminatedStringTokenError) Error() string {
+func (e *UnterminatedTokenError) Error() string {
 	return fmt.Sprintf("Unterminated string token: %s", e.Input[e.Span.Begin:e.Span.End])
 }
 
 func (l *Lexer) parseStringToken() (Token, error) {
+	if l.curChar() != '"' {
+		panic("parseStringToken expects the string to start with \"")
+	}
 	endIdx := strings.Index(l.query[l.pos+1:], "\"")
 	if endIdx < 0 {
-		return Token{}, &UnterminatedStringTokenError{l.query, Span{l.pos, len(l.query)}}
+		return Token{}, &UnterminatedTokenError{l.query, Span{l.pos, len(l.query)}}
 	}
 	endIdx += l.pos + 1
 
 	token := Token{
 		TokenType: StringToken,
 		Literal:   l.query[l.pos+1 : endIdx],
+		Span: Span{
+			Begin: l.pos,
+			End:   endIdx + 1,
+		},
+	}
+	l.pos = endIdx + 1
+	return token, nil
+}
+
+func (l *Lexer) parseRegexToken() (Token, error) {
+	if l.curChar() != 'r' || l.peekChar() != '"' {
+		panic("parseRegexToken expects the string to start with r\"")
+	}
+	endIdx := strings.Index(l.query[l.pos+2:], "\"")
+	if endIdx < 0 {
+		return Token{}, &UnterminatedTokenError{l.query, Span{l.pos, len(l.query)}}
+	}
+	endIdx += l.pos + 2
+
+	token := Token{
+		TokenType: RegexToken,
+		Literal:   l.query[l.pos+2 : endIdx],
 		Span: Span{
 			Begin: l.pos,
 			End:   endIdx + 1,
