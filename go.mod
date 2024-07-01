@@ -1,6 +1,6 @@
 module github.com/daedaleanai/git-ticket
 
-go 1.16
+go 1.18
 
 require (
 	code.gitea.io/sdk/gitea v0.15.1
