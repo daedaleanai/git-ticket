@@ -395,7 +395,12 @@ func editQueryWithEditor(bt *bugTable) error {
 
 	bt.queryStr = queryStr
 
-	q, err := query.Parse(queryStr)
+	parser, err := query.NewParser(queryStr)
+
+	var q *query.CompiledQuery
+	if err == nil {
+		q, err = parser.Parse()
+	}
 
 	if err != nil {
 		ui.msgPopup.Activate(msgPopupErrorTitle, err.Error())

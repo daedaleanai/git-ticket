@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -21,8 +20,14 @@ import (
 )
 
 type lsOptions struct {
-	query query.Query
-
+	authorQuery       []string
+	assigneeQuery     []string
+	ccbQuery          []string
+	ccbPendingQuery   []string
+	participantQuery  []string
+	actorQuery        []string
+	labelQuery        []string
+	titleQuery        []string
 	statusQuery       []string
 	createBeforeQuery string
 	createAfterQuery  string
@@ -62,21 +67,21 @@ git ticket ls --status merged --by creation
 
 	flags.StringSliceVarP(&options.statusQuery, "status", "s", nil,
 		"Filter by status. Valid values are [proposed,vetted,inprogress,inreview,reviewed,accepted,merged,done,rejected,ALL]")
-	flags.StringSliceVarP(&options.query.Author, "author", "a", nil,
+	flags.StringSliceVarP(&options.authorQuery, "author", "a", nil,
 		"Filter by author")
-	flags.StringSliceVarP(&options.query.Assignee, "assignee", "A", nil,
+	flags.StringSliceVarP(&options.assigneeQuery, "assignee", "A", nil,
 		"Filter by assignee, or specify UNASSIGNED")
-	flags.StringSliceVarP(&options.query.Ccb, "ccb", "c", nil,
+	flags.StringSliceVarP(&options.ccbQuery, "ccb", "c", nil,
 		"Filter by ccb members assigned to the ticket, or specify UNASSIGNED")
-	flags.StringSliceVarP(&options.query.CcbPending, "ccb-pending", "C", nil,
+	flags.StringSliceVarP(&options.ccbPendingQuery, "ccb-pending", "C", nil,
 		"Filter by ccb members assigned to the ticket, which are pending approval")
-	flags.StringSliceVarP(&options.query.Participant, "participant", "p", nil,
+	flags.StringSliceVarP(&options.participantQuery, "participant", "p", nil,
 		"Filter by participant")
-	flags.StringSliceVarP(&options.query.Actor, "actor", "", nil,
+	flags.StringSliceVarP(&options.actorQuery, "actor", "", nil,
 		"Filter by actor")
-	flags.StringSliceVarP(&options.query.Label, "label", "l", nil,
+	flags.StringSliceVarP(&options.labelQuery, "label", "l", nil,
 		"Filter by label")
-	flags.StringSliceVarP(&options.query.Title, "title", "t", nil,
+	flags.StringSliceVarP(&options.titleQuery, "title", "t", nil,
 		"Filter by title")
 	flags.StringVarP(&options.createBeforeQuery, "create-before", "", "",
 		"Filter by created before. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd")
@@ -99,31 +104,34 @@ git ticket ls --status merged --by creation
 }
 
 func runLs(env *Env, opts lsOptions, args []string) error {
-	var q *query.Query
-	var err error
+	var q *query.CompiledQuery
 
 	if len(args) >= 1 {
 		// construct filter from query language
-		q, err = query.Parse(strings.Join(args, " "))
+		parser, err := query.NewParser(strings.Join(args, " "))
+		if err != nil {
+			return err
+		}
 
+		q, err = parser.Parse()
 		if err != nil {
 			return err
 		}
 	} else {
 		// construct filter from flags
-		err = completeQuery(&opts)
+		query, err := completeQuery(&opts)
 		if err != nil {
 			return err
 		}
-		q = &opts.query
+		q = query
 	}
-	if reflect.ValueOf(q.Filters).IsZero() {
-		// If no filters are set then default to active tickets
-		q.Status = bug.ActiveStatuses()
-	} else if len(q.Status) == 0 {
-		// If filters are set but not on status then apply to all tickets
-		q.Status = bug.AllStatuses()
-	}
+	// if reflect.ValueOf(q.Filters).IsZero() {
+	// 	// If no filters are set then default to active tickets
+	// 	q.Status = bug.ActiveStatuses()
+	// } else if len(q.Status) == 0 {
+	// 	// If filters are set but not on status then apply to all tickets
+	// 	q.Status = bug.AllStatuses()
+	// }
 
 	allIds := env.backend.QueryBugs(q)
 
@@ -433,75 +441,77 @@ func lsOrgmodeFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 }
 
 // Finish the command flags transformation into the query.Query
-func completeQuery(opts *lsOptions) error {
+func completeQuery(opts *lsOptions) (*query.CompiledQuery, error) {
+	// TODO: fix
+	query := &query.CompiledQuery{}
 	for _, str := range opts.statusQuery {
 		if strings.EqualFold(str, "ALL") {
-			opts.query.Status = bug.AllStatuses()
+			// opts.query.Status = bug.AllStatuses()
 			break
 		}
-		status, err := bug.StatusFromString(str)
+		_, err := bug.StatusFromString(str)
 		if err != nil {
-			return err
+			return query, err
 		}
-		opts.query.Status = append(opts.query.Status, status)
+		// opts.query.Status = append(opts.query.Status, status)
 	}
 
 	for _, no := range opts.noQuery {
 		switch no {
 		case "label":
-			opts.query.NoLabel = true
+			// opts.query.NoLabel = true
 		default:
-			return fmt.Errorf("unknown \"no\" filter %s", no)
+			return query, fmt.Errorf("unknown \"no\" filter %s", no)
 		}
 	}
 	if opts.createBeforeQuery != "" {
-		parsedTime, err := parseTime(opts.createBeforeQuery)
+		_, err := parseTime(opts.createBeforeQuery)
 		if err != nil {
-			return err
+			return query, err
 		}
-		opts.query.CreateBefore = parsedTime
+		// opts.query.CreateBefore = parsedTime
 	}
 	if opts.createAfterQuery != "" {
-		parsedTime, err := parseTime(opts.createAfterQuery)
+		_, err := parseTime(opts.createAfterQuery)
 		if err != nil {
-			return err
+			return query, err
 		}
-		opts.query.CreateAfter = parsedTime
+		// opts.query.CreateAfter = parsedTime
 	}
 	if opts.editBeforeQuery != "" {
-		parsedTime, err := parseTime(opts.editBeforeQuery)
+		_, err := parseTime(opts.editBeforeQuery)
 		if err != nil {
-			return err
+			return query, err
 		}
-		opts.query.EditBefore = parsedTime
+		// opts.query.EditBefore = parsedTime
 	}
 	if opts.editAfterQuery != "" {
-		parsedTime, err := parseTime(opts.editAfterQuery)
+		_, err := parseTime(opts.editAfterQuery)
 		if err != nil {
-			return err
+			return query, err
 		}
-		opts.query.EditAfter = parsedTime
+		// opts.query.EditAfter = parsedTime
 	}
 
 	switch opts.sortBy {
 	case "id":
-		opts.query.OrderBy = query.OrderById
+		// opts.query.OrderBy = query.OrderById
 	case "creation":
-		opts.query.OrderBy = query.OrderByCreation
+		// opts.query.OrderBy = query.OrderByCreation
 	case "edit":
-		opts.query.OrderBy = query.OrderByEdit
+		// opts.query.OrderBy = query.OrderByEdit
 	default:
-		return fmt.Errorf("unknown sort flag %s", opts.sortBy)
+		return query, fmt.Errorf("unknown sort flag %s", opts.sortBy)
 	}
 
 	switch opts.sortDirection {
 	case "asc":
-		opts.query.OrderDirection = query.OrderAscending
+		// opts.query.OrderDirection = query.OrderAscending
 	case "desc":
-		opts.query.OrderDirection = query.OrderDescending
+		// opts.query.OrderDirection = query.OrderDescending
 	default:
-		return fmt.Errorf("unknown sort direction %s", opts.sortDirection)
+		// return fmt.Errorf("unknown sort direction %s", opts.sortDirection)
 	}
 
-	return nil
+	return query, nil
 }

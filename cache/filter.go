@@ -1,8 +1,9 @@
 package cache
 
 import (
+	"log"
+	"reflect"
 	"strings"
-	"time"
 
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/entity"
@@ -15,347 +16,225 @@ type resolver interface {
 	ResolveIdentityExcerpt(id entity.Id) (*IdentityExcerpt, error)
 }
 
-// Filter is a predicate that match a subset of bugs
-type Filter func(excerpt *BugExcerpt, resolver resolver) bool
-
-// StatusFilter return a Filter that match a bug status
-func StatusFilter(status bug.Status) Filter {
-	return func(excerpt *BugExcerpt, resolver resolver) bool {
-		return excerpt.Status == status
-	}
-}
-
-// AuthorFilter return a Filter that match a bug author
-func AuthorFilter(query string) Filter {
-	return func(excerpt *BugExcerpt, resolver resolver) bool {
-		query = strings.ToLower(query)
-
-		// Normal identity
-		if excerpt.AuthorId != "" {
-			author, err := resolver.ResolveIdentityExcerpt(excerpt.AuthorId)
-			if err != nil {
-				panic(err)
-			}
-
-			return author.Match(query)
-		}
-
-		// Legacy identity support
-		return strings.Contains(strings.ToLower(excerpt.LegacyAuthor.Name), query) ||
-			strings.Contains(strings.ToLower(excerpt.LegacyAuthor.Login), query)
-	}
-}
-
-// AssigneeFilter return a Filter that match a bug assignee
-func AssigneeFilter(query string) Filter {
-	return func(excerpt *BugExcerpt, resolver resolver) bool {
-		query = strings.ToLower(query)
-
-		// Normal identity
-		if excerpt.AssigneeId != "" {
-			assignee, err := resolver.ResolveIdentityExcerpt(excerpt.AssigneeId)
-			if err != nil {
-				panic(err)
-			}
-
-			return assignee.Match(query)
-		} else if query == "unassigned" {
-			return true
-		}
-
+func executeFilter(filter query.FilterNode, resolver resolver, b *BugExcerpt) bool {
+	switch filter := filter.(type) {
+	case *query.StatusFilter:
+		return executeStatusFilter(filter, resolver, b)
+	case *query.AuthorFilter:
+		return executeAuthorFilter(filter, resolver, b)
+	case *query.AssigneeFilter:
+		return executeAssigneeFilter(filter, resolver, b)
+	case *query.CcbFilter:
+		return executeCcbFilter(filter, resolver, b)
+	case *query.CcbPendingFilter:
+		return executeCcbPendingFilter(filter, resolver, b)
+	case *query.ActorFilter:
+		return executeActorFilter(filter, resolver, b)
+	case *query.ParticipantFilter:
+		return executeParticipantFilter(filter, resolver, b)
+	case *query.LabelFilter:
+		return executeLabelFilter(filter, resolver, b)
+	case *query.TitleFilter:
+		return executeTitleFilter(filter, resolver, b)
+	case *query.NotFilter:
+		return executeNotFilter(filter, resolver, b)
+	case *query.CreationDateFilter:
+		return executeCreationDateFilter(filter, resolver, b)
+	case *query.EditDateFilter:
+		return executeEditDateFilter(filter, resolver, b)
+	case *query.AndFilter:
+		return executeAndFilter(filter, resolver, b)
+	case *query.OrFilter:
+		return executeOrFilter(filter, resolver, b)
+	default:
+		log.Fatal("Unhandled type when executing filter: ", reflect.TypeOf(filter))
 		return false
 	}
 }
 
-// CcbFilter return a Filter that match a bug ccb
-func CcbFilter(query string) Filter {
-	return func(excerpt *BugExcerpt, resolver resolver) bool {
-		query = strings.ToLower(query)
-
-		if query == "unassigned" && len(excerpt.Ccb) == 0 {
+func executeStatusFilter(filter *query.StatusFilter, resolver resolver, b *BugExcerpt) bool {
+	for _, s := range filter.Statuses {
+		if b.Status == s {
 			return true
 		}
-
-		for _, id := range excerpt.Ccb {
-			identityExcerpt, err := resolver.ResolveIdentityExcerpt(id.User)
-			if err != nil {
-				panic(err)
-			}
-
-			if identityExcerpt.Match(query) {
-				return true
-			}
-		}
-		return false
 	}
+	return false
 }
 
-// CcbPendingFilter return a Filter that matches a ticket with pending ccb approval
-func CcbPendingFilter(query string) Filter {
-	return func(excerpt *BugExcerpt, resolver resolver) bool {
-		query = strings.ToLower(query)
-		workflow := bug.FindWorkflow(excerpt.Labels)
-		if workflow == nil {
-			// No workflow assigned
-			return false
+func executeAuthorFilter(filter *query.AuthorFilter, resolver resolver, b *BugExcerpt) bool {
+	query := filter.AuthorName
+	query = strings.ToLower(query)
+
+	// Normal identity
+	if b.AuthorId != "" {
+		author, err := resolver.ResolveIdentityExcerpt(b.AuthorId)
+		if err != nil {
+			panic(err)
 		}
-		nextStatuses := workflow.NextStatuses(excerpt.Status)
 
-		// For each of the next possible statuses of the ticket check if there is a ccb assigned,
-		// who is the queried user and the associated state is not approved
-		for _, id := range excerpt.Ccb {
-			identityExcerpt, err := resolver.ResolveIdentityExcerpt(id.User)
-			if err != nil {
-				panic(err)
-			}
+		return author.Match(query)
+	}
 
-			if identityExcerpt.Match(query) {
-				for _, nextStatus := range nextStatuses {
-					if nextStatus == id.Status && id.State != bug.ApprovedCcbState {
-						return true
-					}
+	// Legacy identity support
+	return strings.Contains(strings.ToLower(b.LegacyAuthor.Name), query) ||
+		strings.Contains(strings.ToLower(b.LegacyAuthor.Login), query)
+}
+
+func executeAssigneeFilter(filter *query.AssigneeFilter, resolver resolver, b *BugExcerpt) bool {
+	query := filter.AssigneeName
+	query = strings.ToLower(query)
+
+	if query == "" {
+		return b.AssigneeId == ""
+	}
+
+	if b.AssigneeId != "" {
+		assignee, err := resolver.ResolveIdentityExcerpt(b.AssigneeId)
+		if err != nil {
+			panic(err)
+		}
+
+		return assignee.Match(query)
+	}
+
+	return false
+}
+
+func executeCcbFilter(filter *query.CcbFilter, resolver resolver, b *BugExcerpt) bool {
+	query := filter.CcbName
+	query = strings.ToLower(query)
+
+	if query == "" {
+		return len(b.Ccb) == 0
+	}
+
+	for _, id := range b.Ccb {
+		identityExcerpt, err := resolver.ResolveIdentityExcerpt(id.User)
+		if err != nil {
+			panic(err)
+		}
+
+		if identityExcerpt.Match(query) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func executeCcbPendingFilter(filter *query.CcbPendingFilter, resolver resolver, b *BugExcerpt) bool {
+	query := filter.CcbName
+	query = strings.ToLower(query)
+
+	workflow := bug.FindWorkflow(b.Labels)
+	if workflow == nil {
+		// No workflow assigned
+		return false
+	}
+
+	nextStatuses := workflow.NextStatuses(b.Status)
+
+	// For each of the next possible statuses of the ticket check if there is a ccb assigned,
+	// who is the queried user and the associated state is not approved
+	for _, id := range b.Ccb {
+		identityExcerpt, err := resolver.ResolveIdentityExcerpt(id.User)
+		if err != nil {
+			panic(err)
+		}
+
+		if identityExcerpt.Match(query) {
+			for _, nextStatus := range nextStatuses {
+				if nextStatus == id.Status && id.State != bug.ApprovedCcbState {
+					return true
 				}
 			}
 		}
-		return false
 	}
+	return false
 }
 
-// LabelFilter return a Filter that match a label
-func LabelFilter(label string) Filter {
-	return func(excerpt *BugExcerpt, resolver resolver) bool {
-		for _, l := range excerpt.Labels {
-			if string(l) == label {
-				return true
-			}
+func executeActorFilter(filter *query.ActorFilter, resolver resolver, b *BugExcerpt) bool {
+	query := filter.ActorName
+	query = strings.ToLower(query)
+
+	for _, id := range b.Actors {
+		identityExcerpt, err := resolver.ResolveIdentityExcerpt(id)
+		if err != nil {
+			panic(err)
 		}
-		return false
-	}
-}
 
-// ActorFilter return a Filter that match a bug actor
-func ActorFilter(query string) Filter {
-	return func(excerpt *BugExcerpt, resolver resolver) bool {
-		query = strings.ToLower(query)
-
-		for _, id := range excerpt.Actors {
-			identityExcerpt, err := resolver.ResolveIdentityExcerpt(id)
-			if err != nil {
-				panic(err)
-			}
-
-			if identityExcerpt.Match(query) {
-				return true
-			}
-		}
-		return false
-	}
-}
-
-// ParticipantFilter return a Filter that match a bug participant
-func ParticipantFilter(query string) Filter {
-	return func(excerpt *BugExcerpt, resolver resolver) bool {
-		query = strings.ToLower(query)
-
-		for _, id := range excerpt.Participants {
-			identityExcerpt, err := resolver.ResolveIdentityExcerpt(id)
-			if err != nil {
-				panic(err)
-			}
-
-			if identityExcerpt.Match(query) {
-				return true
-			}
-		}
-		return false
-	}
-}
-
-// TitleFilter return a Filter that match if the title contains the given query
-func TitleFilter(query string) Filter {
-	return func(excerpt *BugExcerpt, resolver resolver) bool {
-		return strings.Contains(
-			strings.ToLower(excerpt.Title),
-			strings.ToLower(query),
-		)
-	}
-}
-
-// NoLabelFilter return a Filter that match the absence of labels
-func NoLabelFilter() Filter {
-	return func(excerpt *BugExcerpt, resolver resolver) bool {
-		return len(excerpt.Labels) == 0
-	}
-}
-
-// CreateBeforeFilter returns a Filter that match create time being before the provided time
-func CreateBeforeFilter(filterTime time.Time) Filter {
-	return func(excerpt *BugExcerpt, resolver resolver) bool {
-		if filterTime.IsZero() {
+		if identityExcerpt.Match(query) {
 			return true
 		}
-		return excerpt.CreateTime().Before(filterTime)
 	}
+	return false
 }
 
-// CreateAfterFilter returns a Filter that match create time being after the provided time
-func CreateAfterFilter(filterTime time.Time) Filter {
-	return func(excerpt *BugExcerpt, resolver resolver) bool {
-		if filterTime.IsZero() {
+func executeParticipantFilter(filter *query.ParticipantFilter, resolver resolver, b *BugExcerpt) bool {
+	query := filter.ParticipantName
+	query = strings.ToLower(query)
+
+	for _, id := range b.Participants {
+		identityExcerpt, err := resolver.ResolveIdentityExcerpt(id)
+		if err != nil {
+			panic(err)
+		}
+
+		if identityExcerpt.Match(query) {
 			return true
 		}
-		return excerpt.CreateTime().After(filterTime)
 	}
+	return false
 }
 
-// EditBeforeFilter returns a Filter that match edit time being before the provided time
-func EditBeforeFilter(filterTime time.Time) Filter {
-	return func(excerpt *BugExcerpt, resolver resolver) bool {
-		if filterTime.IsZero() {
+func executeLabelFilter(filter *query.LabelFilter, resolver resolver, b *BugExcerpt) bool {
+	for _, l := range b.Labels {
+		if string(l) == filter.LabelName {
 			return true
 		}
-		return excerpt.EditTime().Before(filterTime)
 	}
+	return false
 }
 
-// EditAfterFilter returns a Filter that match edit time being after the provided time
-func EditAfterFilter(filterTime time.Time) Filter {
-	return func(excerpt *BugExcerpt, resolver resolver) bool {
-		if filterTime.IsZero() {
-			return true
+func executeTitleFilter(filter *query.TitleFilter, resolver resolver, b *BugExcerpt) bool {
+	return strings.Contains(
+		strings.ToLower(b.Title),
+		strings.ToLower(filter.Title),
+	)
+}
+
+func executeNotFilter(filter *query.NotFilter, resolver resolver, b *BugExcerpt) bool {
+	return !executeFilter(filter.Inner, resolver, b)
+}
+
+func executeCreationDateFilter(filter *query.CreationDateFilter, resolver resolver, b *BugExcerpt) bool {
+	if filter.Before {
+		return b.CreateTime().Before(filter.Date)
+	}
+	return b.CreateTime().After(filter.Date)
+}
+
+func executeEditDateFilter(filter *query.EditDateFilter, resolver resolver, b *BugExcerpt) bool {
+	if filter.Before {
+		return b.EditTime().Before(filter.Date)
+	}
+	return b.EditTime().After(filter.Date)
+}
+
+func executeAndFilter(filter *query.AndFilter, resolver resolver, b *BugExcerpt) bool {
+	for _, f := range filter.Inner {
+		if !executeFilter(f, resolver, b) {
+			return false
 		}
-		return excerpt.EditTime().After(filterTime)
 	}
-}
-
-// Matcher is a collection of Filter that implement a complex filter
-type Matcher struct {
-	Status      []Filter
-	Author      []Filter
-	Assignee    []Filter
-	Ccb         []Filter
-	CcbPending  []Filter
-	Actor       []Filter
-	Participant []Filter
-	Label       []Filter
-	Title       []Filter
-	NoFilters   []Filter
-	TimeFilters []Filter
-}
-
-// compileMatcher transform a query.Filters into a specialized matcher
-// for the cache.
-func compileMatcher(filters query.Filters) *Matcher {
-	result := &Matcher{}
-
-	for _, value := range filters.Status {
-		result.Status = append(result.Status, StatusFilter(value))
-	}
-	for _, value := range filters.Author {
-		result.Author = append(result.Author, AuthorFilter(value))
-	}
-	for _, value := range filters.Assignee {
-		result.Assignee = append(result.Assignee, AssigneeFilter(value))
-	}
-	for _, value := range filters.Ccb {
-		result.Ccb = append(result.Ccb, CcbFilter(value))
-	}
-	for _, value := range filters.CcbPending {
-		result.CcbPending = append(result.CcbPending, CcbPendingFilter(value))
-	}
-	for _, value := range filters.Actor {
-		result.Actor = append(result.Actor, ActorFilter(value))
-	}
-	for _, value := range filters.Participant {
-		result.Participant = append(result.Participant, ParticipantFilter(value))
-	}
-	for _, value := range filters.Label {
-		result.Label = append(result.Label, LabelFilter(value))
-	}
-	for _, value := range filters.Title {
-		result.Title = append(result.Title, TitleFilter(value))
-	}
-	result.TimeFilters = append(result.TimeFilters, CreateBeforeFilter(filters.CreateBefore))
-	result.TimeFilters = append(result.TimeFilters, CreateAfterFilter(filters.CreateAfter))
-	result.TimeFilters = append(result.TimeFilters, EditBeforeFilter(filters.EditBefore))
-	result.TimeFilters = append(result.TimeFilters, EditAfterFilter(filters.EditAfter))
-
-	return result
-}
-
-// Match check if a bug match the set of filters
-func (f *Matcher) Match(excerpt *BugExcerpt, resolver resolver) bool {
-	if match := f.orMatch(f.Status, excerpt, resolver); !match {
-		return false
-	}
-
-	if match := f.orMatch(f.Author, excerpt, resolver); !match {
-		return false
-	}
-
-	if match := f.orMatch(f.Assignee, excerpt, resolver); !match {
-		return false
-	}
-
-	if match := f.orMatch(f.Ccb, excerpt, resolver); !match {
-		return false
-	}
-
-	if match := f.orMatch(f.CcbPending, excerpt, resolver); !match {
-		return false
-	}
-
-	if match := f.orMatch(f.Participant, excerpt, resolver); !match {
-		return false
-	}
-
-	if match := f.orMatch(f.Actor, excerpt, resolver); !match {
-		return false
-	}
-
-	if match := f.orMatch(f.Label, excerpt, resolver); !match {
-		return false
-	}
-
-	if match := f.andMatch(f.NoFilters, excerpt, resolver); !match {
-		return false
-	}
-
-	if match := f.andMatch(f.Title, excerpt, resolver); !match {
-		return false
-	}
-
-	if match := f.andMatch(f.TimeFilters, excerpt, resolver); !match {
-		return false
-	}
-
 	return true
 }
 
-// Check if any of the filters provided match the bug
-func (*Matcher) orMatch(filters []Filter, excerpt *BugExcerpt, resolver resolver) bool {
-	if len(filters) == 0 {
-		return true
+func executeOrFilter(filter *query.OrFilter, resolver resolver, b *BugExcerpt) bool {
+	for _, f := range filter.Inner {
+		if executeFilter(f, resolver, b) {
+			return true
+		}
 	}
-
-	match := false
-	for _, f := range filters {
-		match = match || f(excerpt, resolver)
-	}
-
-	return match
-}
-
-// Check if all of the filters provided match the bug
-func (*Matcher) andMatch(filters []Filter, excerpt *BugExcerpt, resolver resolver) bool {
-	if len(filters) == 0 {
-		return true
-	}
-
-	match := true
-	for _, f := range filters {
-		match = match && f(excerpt, resolver)
-	}
-
-	return match
+	return false
 }

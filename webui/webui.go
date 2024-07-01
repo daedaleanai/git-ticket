@@ -112,7 +112,12 @@ type SideBarData struct {
 
 func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
 	qParam := r.URL.Query().Get("q")
-	q, err := query.Parse(qParam)
+	parser, err := query.NewParser(qParam)
+	if err != nil {
+		return fmt.Errorf("unable to parse query: %w", err)
+	}
+
+	q, err := parser.Parse()
 	if err != nil {
 		return &invalidRequestError{msg: fmt.Sprintf("unable to parse query: %s", err.Error())}
 	}
@@ -482,60 +487,60 @@ func loadConfig(repo repository.ClockedRepo) error {
 	return nil
 }
 
-func getTicketColorKey(repo *cache.RepoCache, q *query.Query, ticket *cache.BugExcerpt) (string, error) {
-	switch q.ColorBy {
-	case query.ColorByAuthor:
-		id, err := repo.ResolveIdentityExcerpt(ticket.AuthorId)
-		if err != nil {
-			return "", fmt.Errorf("failed to resolve identity %s: %w", ticket.AuthorId, err)
-		}
-		return id.DisplayName(), nil
+func getTicketColorKey(repo *cache.RepoCache, q *query.CompiledQuery, ticket *cache.BugExcerpt) (string, error) {
+	// switch q.ColorBy {
+	// case query.ColorByAuthor:
+	// 	id, err := repo.ResolveIdentityExcerpt(ticket.AuthorId)
+	// 	if err != nil {
+	// 		return "", fmt.Errorf("failed to resolve identity %s: %w", ticket.AuthorId, err)
+	// 	}
+	// 	return id.DisplayName(), nil
 
-	case query.ColorByAssignee:
-		if ticket.AssigneeId != "" {
-			break
-		}
-		id, err := repo.ResolveIdentityExcerpt(ticket.AssigneeId)
-		if err != nil {
-			return "", fmt.Errorf("failed to resolve identity %s: %w", ticket.AssigneeId, err)
-		}
-		return id.DisplayName(), nil
+	// case query.ColorByAssignee:
+	// 	if ticket.AssigneeId != "" {
+	// 		break
+	// 	}
+	// 	id, err := repo.ResolveIdentityExcerpt(ticket.AssigneeId)
+	// 	if err != nil {
+	// 		return "", fmt.Errorf("failed to resolve identity %s: %w", ticket.AssigneeId, err)
+	// 	}
+	// 	return id.DisplayName(), nil
 
-	case query.ColorByLabel:
-		labels := []string{}
-		for _, label := range ticket.Labels {
-			if strings.HasPrefix(label.String(), string(q.ColorByLabelPrefix)) {
-				labels = append(labels, strings.TrimPrefix(label.String(), string(q.ColorByLabelPrefix)))
-			}
-		}
-		sort.Strings(labels)
-		return strings.Join(labels, " "), nil
+	// case query.ColorByLabel:
+	// 	labels := []string{}
+	// 	for _, label := range ticket.Labels {
+	// 		if strings.HasPrefix(label.String(), string(q.ColorByLabelPrefix)) {
+	// 			labels = append(labels, strings.TrimPrefix(label.String(), string(q.ColorByLabelPrefix)))
+	// 		}
+	// 	}
+	// 	sort.Strings(labels)
+	// 	return strings.Join(labels, " "), nil
 
-	case query.ColorByCcbPendingByUser:
-		workflow := bug.FindWorkflow(ticket.Labels)
-		if workflow == nil {
-			// No workflow assigned
-			break
-		}
+	// case query.ColorByCcbPendingByUser:
+	// 	workflow := bug.FindWorkflow(ticket.Labels)
+	// 	if workflow == nil {
+	// 		// No workflow assigned
+	// 		break
+	// 	}
 
-		nextStatuses := workflow.NextStatuses(ticket.Status)
+	// 	nextStatuses := workflow.NextStatuses(ticket.Status)
 
-		for _, ccbInfo := range ticket.Ccb {
-			identityExcerpt, err := repo.ResolveIdentityExcerpt(ccbInfo.User)
-			if err != nil {
-				return "", err
-			}
+	// 	for _, ccbInfo := range ticket.Ccb {
+	// 		identityExcerpt, err := repo.ResolveIdentityExcerpt(ccbInfo.User)
+	// 		if err != nil {
+	// 			return "", err
+	// 		}
 
-			if identityExcerpt.Match(string(q.ColorByCcbUserName)) {
-				for _, nextStatus := range nextStatuses {
-					if nextStatus == ccbInfo.Status && ccbInfo.State != bug.ApprovedCcbState {
-						return string(q.ColorByCcbUserName), nil
-					}
-				}
-			}
-		}
+	// 		if identityExcerpt.Match(string(q.ColorByCcbUserName)) {
+	// 			for _, nextStatus := range nextStatuses {
+	// 				if nextStatus == ccbInfo.Status && ccbInfo.State != bug.ApprovedCcbState {
+	// 					return string(q.ColorByCcbUserName), nil
+	// 				}
+	// 			}
+	// 		}
+	// 	}
 
-	}
+	// }
 
 	return "", nil
 }

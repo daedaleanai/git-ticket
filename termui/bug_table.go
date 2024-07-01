@@ -36,7 +36,7 @@ var bugTableHelp = helpBar{
 type bugTable struct {
 	repo         *cache.RepoCache
 	queryStr     string
-	query        *query.Query
+	query        *query.CompiledQuery
 	allIds       []entity.Id
 	excerpts     []*cache.BugExcerpt
 	pageCursor   int
@@ -44,7 +44,12 @@ type bugTable struct {
 }
 
 func newBugTable(c *cache.RepoCache) *bugTable {
-	q, err := query.Parse(defaultQuery)
+	parser, err := query.NewParser(defaultQuery)
+	if err != nil {
+		panic(err)
+	}
+
+	q, err := parser.Parse()
 	if err != nil {
 		panic(err)
 	}
