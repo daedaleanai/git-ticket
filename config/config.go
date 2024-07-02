@@ -105,12 +105,20 @@ func SetConfig(repo repository.ClockedRepo, name string, config []byte) error {
 	return nil
 }
 
+type NotFoundError struct {
+	string
+}
+
+func (e *NotFoundError) Error() string {
+	return string(e.string)
+}
+
 // Get the named configuration data
 func GetConfig(repo repository.ClockedRepo, name string) ([]byte, error) {
 	refName := configRefPattern + name
 	commitHash, err := repo.ResolveRef(refName)
 	if err != nil {
-		return nil, fmt.Errorf("cache: failed to resolve ref %s: %s", refName, err)
+		return nil, &NotFoundError{fmt.Sprintf("cache: failed to resolve ref %s: %s", refName, err)}
 	}
 
 	treeHash, err := repo.GetTreeHash(commitHash)

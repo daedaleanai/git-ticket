@@ -239,8 +239,15 @@ func (c *RepoCache) buildCache() error {
 		snap := b.Bug.Compile()
 		c.bugExcerpts[b.Bug.Id()] = NewBugExcerpt(b.Bug, &snap)
 	}
-
 	_, _ = fmt.Fprintln(os.Stderr, "Done.")
+
+	_, _ = fmt.Fprintf(os.Stderr, "Loading config cache... ")
+	err := c.loadConfigCache()
+	if err != nil {
+		return err
+	}
+	_, _ = fmt.Fprintln(os.Stderr, "Done.")
+
 	return nil
 }
 

@@ -40,6 +40,9 @@ type ChecklistConfig map[Label]Checklist
 func LoadChecklistConfig(repo repository.ClockedRepo) (ChecklistConfig, error) {
 	checklistData, err := GetConfig(repo, "checklists")
 	if err != nil {
+		if _, ok := err.(*NotFoundError); ok {
+			return ChecklistConfig{}, nil
+		}
 		return nil, fmt.Errorf("unable to read checklists config: %q", err)
 	}
 

@@ -1,10 +1,14 @@
 package commands
 
 import (
+	"strings"
+
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 
 	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/daedaleanai/git-ticket/cache"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/input"
 
 	_select "github.com/daedaleanai/git-ticket/commands/select"
@@ -15,6 +19,8 @@ type addOptions struct {
 	message     string
 	messageFile string
 	workflow    string
+	repo        string
+	impact      string
 	noSelect    bool
 }
 
@@ -43,48 +49,125 @@ func newAddCommand() *cobra.Command {
 		"Take the message from the given file. Use - to read the message from the standard input")
 	flags.StringVarP(&options.workflow, "workflow", "w", "",
 		"Provide a workflow to apply to this ticket")
+	flags.StringVarP(&options.repo, "repo", "r", "",
+		"Provide the repository affected by this ticket")
+	flags.StringVarP(&options.impact, "impact", "i", "",
+		"Provide the impact labels, using commas as separators")
 	flags.BoolVarP(&options.noSelect, "noselect", "n", false,
 		"Do not automatically select the new ticket once it's created")
 
 	return cmd
 }
 
-func runAdd(env *Env, opts addOptions) error {
-	var err error
-	if opts.messageFile != "" && opts.message == "" {
-		opts.title, opts.message, err = input.BugCreateFileInput(opts.messageFile)
-		if err != nil {
-			return err
-		}
+/// Keeps relative order so that the user does not notice any changes other than the removal.
+func removeFromSlice(s []string, index int) []string {
+	return append(s[:index], s[index+1:]...)
+}
+
+func queryImpact(configCache *config.ConfigCache) ([]string, error) {
+	availableImpactLabels, err := configCache.ListLabelsWithNamespace("impact")
+	if err != nil {
+		return nil, err
 	}
 
-	if opts.messageFile == "" && (opts.message == "" || opts.title == "") {
-		opts.title, opts.message, err = input.BugCreateEditorInput(env.backend, opts.title, opts.message)
-
-		if err == input.ErrEmptyTitle {
-			env.out.Println("Empty title, aborting.")
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-	}
-
-	if opts.workflow == "" {
-		workflows := bug.GetWorkflowLabels()
+	selectedImpact := []string{}
+	for {
 		prompt := promptui.Select{
-			Label: "Select workflow",
-			Items: workflows,
+			Label: "Select impact. Use <CTRL-D> to stop submitting impact labels.",
+			Items: availableImpactLabels,
 		}
 
 		selectedItem, _, err := prompt.Run()
-		if err != nil {
-			return err
+		if err == promptui.ErrEOF {
+			break
 		}
-		opts.workflow = string(workflows[selectedItem])
+		if err != nil {
+			return nil, err
+		}
+
+		selectedImpact = append(selectedImpact, "impact:"+availableImpactLabels[selectedItem])
+		availableImpactLabels = removeFromSlice(availableImpactLabels, selectedItem)
+	}
+	return selectedImpact, nil
+}
+
+func runAdd(env *Env, opts addOptions) error {
+	var selectedImpact []string
+	err := env.backend.DoWithLockedConfigCache(func(configCache *config.ConfigCache) error {
+		var err error
+		if opts.messageFile != "" && opts.message == "" {
+			opts.title, opts.message, err = input.BugCreateFileInput(opts.messageFile)
+			if err != nil {
+				return err
+			}
+		}
+
+		if opts.messageFile == "" && (opts.message == "" || opts.title == "") {
+			opts.title, opts.message, err = input.BugCreateEditorInput(env.backend, opts.title, opts.message)
+
+			if err == input.ErrEmptyTitle {
+				env.out.Println("Empty title, aborting.")
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+		}
+
+		if opts.workflow == "" {
+			workflows := bug.GetWorkflowLabels()
+			prompt := promptui.Select{
+				Label: "Select workflow",
+				Items: workflows,
+			}
+
+			selectedItem, _, err := prompt.Run()
+			if err != nil {
+				return err
+			}
+			opts.workflow = string(workflows[selectedItem])
+		}
+
+		if opts.repo == "" {
+			repoLabels, err := configCache.ListLabelsWithNamespace("repo")
+			if err != nil {
+				return err
+			}
+
+			prompt := promptui.Select{
+				Label: "Select repository",
+				Items: repoLabels,
+			}
+
+			selectedItem, _, err := prompt.Run()
+			if err != nil {
+				return err
+			}
+			opts.repo = "repo:" + string(repoLabels[selectedItem])
+		}
+
+		if opts.impact == "" {
+			selectedImpact, err = queryImpact(configCache)
+			if err != nil {
+				return err
+			}
+		} else {
+			// TODO: check validity of the given impact label
+			selectedImpact = strings.Split(opts.impact, ",")
+		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
-	b, _, err := env.backend.NewBug(opts.title, opts.message, opts.workflow)
+	b, _, err := env.backend.NewBug(cache.NewBugOpts{
+		Title:    opts.title,
+		Message:  opts.message,
+		Workflow: opts.workflow,
+		Repo:     opts.repo,
+		Impact:   selectedImpact,
+	})
 	if err != nil {
 		return err
 	}
