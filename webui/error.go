@@ -32,13 +32,13 @@ func ticketNotFound(ticketId string) *notFoundError {
 func errorIntoResponse(e error, w http.ResponseWriter) {
 	switch e.(type) {
 	default:
-		w.WriteHeader(500)
+		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("An unknown error occurred: "))
 	case *invalidRequestError:
-		w.WriteHeader(400)
+		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Invalid request: "))
 	case *notFoundError:
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("Resource not found: "))
 	}
 	w.Write([]byte(e.Error()))

@@ -12,6 +12,7 @@ require (
 	github.com/fatih/color v1.9.0
 	github.com/go-git/go-git/v5 v5.12.1-0.20240629213349-b00c68ab7140
 	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/sessions v1.3.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/icrowley/fake v0.0.0-20180203215853-4178557ae428
 	github.com/manifoldco/promptui v0.7.0
@@ -46,6 +47,7 @@ require (
 	github.com/go-git/go-billy/v5 v5.5.1-0.20240427054813-8453aa90c6ec // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/gorilla/css v1.0.0 // indirect
+	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/hashicorp/go-version v1.2.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect

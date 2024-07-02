@@ -2,6 +2,7 @@ package webui
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -24,6 +25,7 @@ import (
 	"github.com/daedaleanai/git-ticket/repository"
 	"github.com/daedaleanai/git-ticket/util/timestamp"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 	"github.com/yuin/goldmark"
 	gmast "github.com/yuin/goldmark/ast"
 	gmextension "github.com/yuin/goldmark/extension"
@@ -94,6 +96,13 @@ var (
 		"#469990", "#dcbeff", "#9A6324", "#fffac8", "#800000", "#aaffc3", "#808000", "#ffd8b1", "#000075", "#a9a9a9",
 	}
 )
+
+// **Note:** we're only using sessions to show flash messages.
+// If we ever use it for auth stuff (which is probably never), this should be an env var.
+const DDLN_SESSION_KEY = "DDLN_GT_SESSION"
+
+var store = sessions.NewCookieStore([]byte(DDLN_SESSION_KEY))
+var session *sessions.Session
 
 type SideBarData struct {
 	SelectedQuery  string
@@ -169,6 +178,9 @@ func renderTemplate(w http.ResponseWriter, name string, data interface{}) error 
 }
 
 func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
+	session := r.Context().Value("session").(*sessions.Session)
+	defer session.Save(r, w)
+
 	vars := mux.Vars(r)
 	ticketId := vars["ticketId"]
 
@@ -178,15 +190,19 @@ func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request)
 		return ticketNotFound(ticketId)
 	}
 
+	flashes := session.Flashes()
+
 	return renderTemplate(w, "ticket.html", struct {
-		SideBar SideBarData
-		Ticket  *bug.Snapshot
+		SideBar     SideBarData
+		Ticket      *bug.Snapshot
+		FlashErrors []interface{}
 	}{
 		SideBarData{
 			BookmarkGroups: webUiConfig.BookmarkGroups,
 			ColorKey:       map[string]string{},
 		},
 		ticket.Snapshot(),
+		flashes,
 	})
 }
 
@@ -272,14 +288,20 @@ func handleApiSetStatus(repo *cache.RepoCache, w http.ResponseWriter, r *http.Re
 }
 
 func handleComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
+	session := r.Context().Value("session").(*sessions.Session)
+	defer session.Save(r, w)
+
 	vars := mux.Vars(r)
 	if err := r.ParseForm(); err != nil {
 		return &malformedRequestError{prev: err}
 	}
 
-	action, err := SubmitCommentFromFormData(vars["ticketId"], r.Form)
+	ticketId := vars["ticketId"]
+	action, err := SubmitCommentFromFormData(ticketId, r.Form)
 	if err != nil {
-		return err
+		session.AddFlash(err.Error())
+		ticketRedirect(ticketId, w, r)
+		return nil
 	}
 
 	ticket, err := repo.ResolveBug(entity.Id(action.Ticket))
@@ -289,16 +311,19 @@ func handleComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request
 
 	_, err = ticket.AddComment(action.Comment)
 	if err != nil {
-		return err
+		session.AddFlash(fmt.Sprintf("Something went wrong: %s"))
 	}
 
 	if err := ticket.CommitAsNeeded(); err != nil {
-		return fmt.Errorf("failed to commit changes: %w", err)
+		session.AddFlash(fmt.Sprintf("Something went wrong: %s"))
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticket.Id()), http.StatusSeeOther)
-
+	ticketRedirect(ticket.Id().String(), w, r)
 	return nil
+}
+
+func ticketRedirect(ticketId string, w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticketId), http.StatusSeeOther)
 }
 
 type deferredResponseWriter struct {
@@ -348,8 +373,11 @@ func Run(repo repository.ClockedRepo, host string, port int) error {
 
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))
 	r.HandleFunc("/", withRepoCache(repo, handleIndex))
-	r.HandleFunc("/ticket/{ticketId:[0-9a-fA-F]{7,}}/", withRepoCache(repo, handleTicket))
-	r.HandleFunc("/ticket/{ticketId:[0-9a-fA-F]{7,}}/comment/", withRepoCache(repo, handleComment)).Methods(http.MethodPost)
+	r.HandleFunc("/ticket/{ticketId:[0-9a-fA-F]{7,}}/", withSession(withRepoCache(repo, handleTicket)))
+	r.HandleFunc(
+		"/ticket/{ticketId:[0-9a-fA-F]{7,}}/comment/",
+		withSession(withRepoCache(repo, handleComment)),
+	).Methods(http.MethodPost)
 	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
 	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
 
@@ -378,6 +406,19 @@ func errorHandlingMiddleware(next http.Handler) http.Handler {
 		}()
 		next.ServeHTTP(w, r)
 	})
+}
+
+func withSession(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, err := store.Get(r, DDLN_SESSION_KEY)
+		if err != nil {
+			http.Error(w, "failed to get session.", http.StatusInternalServerError)
+			return
+		}
+
+		r = r.WithContext(context.WithValue(r.Context(), "session", session))
+		handler(w, r)
+	}
 }
 
 func loadConfig(repo repository.ClockedRepo) error {
