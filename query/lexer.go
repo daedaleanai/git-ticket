@@ -32,6 +32,25 @@ type Span struct {
 	End   int
 }
 
+func (s Span) Extend(other Span) Span {
+	min := func(a, b int) int {
+		if a < b {
+			return a
+		}
+		return b
+	}
+	max := func(a, b int) int {
+		if a > b {
+			return a
+		}
+		return b
+	}
+	return Span{
+		Begin: min(s.Begin, other.Begin),
+		End:   max(s.End, other.End),
+	}
+}
+
 // A Token represents the unit of returned by the lexer
 type Token struct {
 	TokenType TokenType

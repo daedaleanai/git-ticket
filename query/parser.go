@@ -1,6 +1,7 @@
 package query
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"reflect"
@@ -10,7 +11,7 @@ import (
 	"github.com/daedaleanai/git-ticket/bug"
 )
 
-type keywordParser func(p *Parser) (AstNode, error)
+type keywordParser func(p *Parser) (AstNode, *ParseError)
 
 var keywordParsers map[string]keywordParser
 
@@ -26,16 +27,16 @@ func init() {
 		"label":       parseLabelExpression,
 		"title":       parseTitleExpression,
 		"not":         parseNotExpression,
-		"create-before": func(parser *Parser) (AstNode, error) {
+		"create-before": func(parser *Parser) (AstNode, *ParseError) {
 			return parseCreationDateFilter(parser, true)
 		},
-		"create-after": func(parser *Parser) (AstNode, error) {
+		"create-after": func(parser *Parser) (AstNode, *ParseError) {
 			return parseCreationDateFilter(parser, false)
 		},
-		"edit-before": func(parser *Parser) (AstNode, error) {
+		"edit-before": func(parser *Parser) (AstNode, *ParseError) {
 			return parseEditDateFilter(parser, true)
 		},
-		"edit-after": func(parser *Parser) (AstNode, error) {
+		"edit-after": func(parser *Parser) (AstNode, *ParseError) {
 			return parseEditDateFilter(parser, false)
 		},
 		"all":      parseAndFilter,
@@ -45,9 +46,61 @@ func init() {
 	}
 }
 
+// Parser is a query parser
 type Parser struct {
 	curToken Token
 	lexer    Lexer
+	context  parseContext
+}
+
+// ParseError represents an error found while parsing a query
+type ParseError struct {
+	query   string
+	span    Span
+	message string
+}
+
+// parseContext is used to keep the current nested expression parsing for error reporting
+type parseContext struct {
+	query      string
+	parseStack []string
+}
+
+func (p *parseContext) push(s string) {
+	p.parseStack = append(p.parseStack, s)
+}
+
+func (p *parseContext) pop() {
+	p.parseStack = p.parseStack[:len(p.parseStack)-1]
+}
+
+const UNDERLINE = "\x1b[4m"
+const UNDERLINE_RESET = "\x1b[24m"
+const RED = "\x1b[31m"
+const RESET_COLOR = "\x1b[0m"
+
+func (e *ParseError) Error() string {
+	var highlightedError bytes.Buffer
+	firstPart := e.query[:e.span.Begin]
+	secondPart := e.query[e.span.Begin:e.span.End]
+	thirdPart := e.query[e.span.End:]
+	highlightedError.WriteString(firstPart)
+	highlightedError.WriteString(RED)
+	highlightedError.WriteString(UNDERLINE)
+	highlightedError.WriteString(secondPart)
+	highlightedError.WriteString(UNDERLINE_RESET)
+	highlightedError.WriteString(RESET_COLOR)
+	highlightedError.WriteString(thirdPart)
+	return fmt.Sprintf("%s\n%s\n", e.message, highlightedError.String())
+}
+
+func newParseError(context *parseContext, span Span, message string) *ParseError {
+	parseStack := []string{}
+	for _, e := range context.parseStack {
+		parseStack = append([]string{e}, parseStack...)
+	}
+	ctxString := strings.Join(parseStack, "\n\t")
+	return &ParseError{context.query, span, fmt.Sprintf("%s\n\t%s", message, ctxString)}
 }
 
 func NewParser(query string) (*Parser, error) {
@@ -60,18 +113,28 @@ func NewParser(query string) (*Parser, error) {
 	return &Parser{
 		lexer:    l,
 		curToken: tok,
+		context: parseContext{
+			query: query,
+		},
 	}, nil
 }
 
-func (p *Parser) advance() error {
+func (p *Parser) advance() *ParseError {
 	tok, err := p.lexer.NextToken()
+	if err != nil {
+		if lexErr, ok := err.(*UnterminatedTokenError); ok {
+			return newParseError(&p.context, lexErr.Span, "Unterminated token")
+		}
+		return newParseError(&p.context, p.curToken.Span, err.Error())
+	}
+
 	p.curToken = tok
-	return err
+	return nil
 }
 
-func (p *Parser) expectTokenTypeAndAdvance(t TokenType) error {
+func (p *Parser) expectTokenTypeAndAdvance(t TokenType) *ParseError {
 	if p.curToken.TokenType != t {
-		return fmt.Errorf("Expected %q", t)
+		return newParseError(&p.context, p.curToken.Span, fmt.Sprintf("Expected token of type %q", t))
 	}
 
 	return p.advance()
@@ -92,7 +155,7 @@ func (p *Parser) Parse() (*CompiledQuery, error) {
 			}
 
 		default:
-			return &query, fmt.Errorf("Invalid query: unexpected node of type %s", p.curToken.TokenType)
+			return &query, newParseError(&p.context, p.curToken.Span, fmt.Sprintf("Invalid query. Unexpected node of type %s", p.curToken.TokenType))
 		}
 	}
 }
@@ -101,13 +164,7 @@ func (p *Parser) parseQueryStatement(query *CompiledQuery) error {
 	keyword := p.curToken.Literal
 	specificParser, ok := keywordParsers[keyword]
 	if !ok {
-		return fmt.Errorf("Invalid keyword: %q", keyword)
-	}
-
-	// Consume first node, since it was already matched
-	err := p.advance()
-	if err != nil {
-		return err
+		return newParseError(&p.context, p.curToken.Span, "Invalid query statement keyword")
 	}
 
 	node, err := specificParser(p)
@@ -117,8 +174,7 @@ func (p *Parser) parseQueryStatement(query *CompiledQuery) error {
 
 	if filterNode, ok := node.(FilterNode); ok {
 		if query.FilterNode != nil {
-			// TODO: Point to both nodes and report error nicely
-			return fmt.Errorf("Multiple filtering criteria specified!")
+			return newParseError(&p.context, filterNode.Span(), "Multiple filtering criteria was specified")
 		}
 		query.FilterNode = filterNode
 		return nil
@@ -126,8 +182,7 @@ func (p *Parser) parseQueryStatement(query *CompiledQuery) error {
 
 	if orderByNode, ok := node.(*OrderByNode); ok {
 		if query.OrderNode != nil {
-			// TODO: Point to both nodes and report error nicely
-			return fmt.Errorf("Multiple ordering criteria specified!")
+			return newParseError(&p.context, orderByNode.Span(), "Multiple ordering criteria was specified")
 		}
 		query.OrderNode = orderByNode
 		return nil
@@ -135,161 +190,173 @@ func (p *Parser) parseQueryStatement(query *CompiledQuery) error {
 
 	if colorByNode, ok := node.(*ColorByNode); ok {
 		if query.ColorNode != nil {
-			// TODO: Point to both nodes and report error nicely
-			return fmt.Errorf("Multiple coloring criteria specified!")
+			return newParseError(&p.context, colorByNode.Span(), "Multiple coloring criteria was specified")
 		}
 		query.ColorNode = colorByNode
 		return nil
 	}
 
-	if n, ok := node.(*LiteralNode); ok {
-		return fmt.Errorf("Invalid query: %s", n.token.Literal)
+	if _, ok := node.(*LiteralNode); ok {
+		return newParseError(&p.context, p.curToken.Span, "Literal node found at top level of query")
 	}
 
-	return fmt.Errorf("Unhandled statement node type: %s", reflect.TypeOf(node))
+	return newParseError(&p.context, p.curToken.Span, fmt.Sprintf("Unhandled statement node type: %s", reflect.TypeOf(node)))
 }
 
-func (p *Parser) parseExpression() (AstNode, error) {
+func (p *Parser) parseExpression() (AstNode, *ParseError) {
 	if p.curToken.TokenType != IdentToken && p.curToken.TokenType != StringToken {
-		return nil, fmt.Errorf("Expression cannot begin with token: %s", p.curToken.TokenType)
+		return nil, newParseError(&p.context, p.curToken.Span, fmt.Sprintf("Expression cannot begin with token: %s", p.curToken.TokenType))
 	}
 
 	litTok := p.curToken
-
-	err := p.advance()
-	if err != nil {
-		return nil, err
-	}
-
 	specificParser, ok := keywordParsers[litTok.Literal]
 	if !ok {
-		return &LiteralNode{token: litTok}, nil
+		err := p.advance()
+		return &LiteralNode{token: litTok}, err
 	}
 
-	node, err := specificParser(p)
-	return node, err
+	return specificParser(p)
 }
 
-func (parser *Parser) parseDelimitedExpressionList() ([]AstNode, error) {
+func (parser *Parser) parseDelimitedExpressionList() ([]AstNode, Span, *ParseError) {
 	nodes := []AstNode{}
+	span := parser.curToken.Span
 
 	err := parser.expectTokenTypeAndAdvance(LparenToken)
 	if err != nil {
-		return nil, err
+		return nil, span, err
 	}
 
 	if parser.curToken.TokenType == RparenToken {
+		span = span.Extend(parser.curToken.Span)
 		err := parser.advance()
-		return nodes, err
+		return nodes, span, err
 	}
 
 	for {
 		expr, err := parser.parseExpression()
 		if err != nil {
-			return nodes, err
+			return nodes, span, err
 		}
 		nodes = append(nodes, expr)
 
 		switch parser.curToken.TokenType {
 		case RparenToken:
+			span = span.Extend(parser.curToken.Span)
 			err = parser.advance()
-			return nodes, err
+			return nodes, span, err
 		case CommaToken:
 			err = parser.advance()
 			if err != nil {
-				return nodes, err
+				return nodes, span, err
 			}
 		default:
-			return nodes, fmt.Errorf("Unexpected delimiter in delimited expression: %s", parser.curToken.TokenType)
+			return nil, span, newParseError(&parser.context, parser.curToken.Span, fmt.Sprintf("Unexpected delimiter in delimited expression: %s", parser.curToken.TokenType))
 		}
 	}
 }
 
-func (parser *Parser) parseDelimitedLiteralList() ([]string, error) {
-	literals := []string{}
+func (parser *Parser) parseDelimitedLiteralList() ([]Token, Span, *ParseError) {
+	literals := []Token{}
+	span := parser.curToken.Span
 
 	err := parser.expectTokenTypeAndAdvance(LparenToken)
 	if err != nil {
-		return nil, err
+		return nil, span, err
 	}
 
 	if parser.curToken.TokenType == RparenToken {
+		span = span.Extend(parser.curToken.Span)
 		err := parser.advance()
-		return literals, err
+		return literals, span, err
 	}
 
 	for {
 		if ty := parser.curToken.TokenType; ty != StringToken && ty != IdentToken {
-			return literals, fmt.Errorf("Expected a literal")
+			return literals, span, newParseError(&parser.context, parser.curToken.Span, "Expected literal")
 		}
 
-		lit := parser.curToken.Literal
-		literals = append(literals, lit)
+		literals = append(literals, parser.curToken)
 
 		err := parser.advance()
 		if err != nil {
-			return literals, err
+			return literals, span, err
 		}
 
 		switch parser.curToken.TokenType {
 		case RparenToken:
+			span = span.Extend(parser.curToken.Span)
 			err = parser.advance()
-			return literals, err
+			return literals, span, err
 		case CommaToken:
 			err = parser.advance()
 			if err != nil {
-				return literals, err
+				return literals, span, err
 			}
 		default:
-			return literals, fmt.Errorf("Unexpected delimiter in delimited expression: %s", parser.curToken.TokenType)
+			return literals, span, newParseError(&parser.context, parser.curToken.Span, "Unexpected delimiter in delimited expression")
 		}
 	}
 }
 
-func (parser *Parser) parseDelimitedLiteral() (string, error) {
+func (parser *Parser) parseDelimitedLiteral() (Token, Span, *ParseError) {
+	span := parser.curToken.Span
 	err := parser.expectTokenTypeAndAdvance(LparenToken)
 	if err != nil {
-		return "", err
+		return Token{}, span, err
 	}
 
 	if ty := parser.curToken.TokenType; ty != StringToken && ty != IdentToken {
-		return "", fmt.Errorf("Expected a literal")
+		return Token{}, span, newParseError(&parser.context, parser.curToken.Span, "Expected literal")
 	}
 
-	result := parser.curToken.Literal
+	result := parser.curToken
 
 	err = parser.advance()
 	if err != nil {
-		return "", err
+		return Token{}, span, err
 	}
 
+	span = span.Extend(parser.curToken.Span)
 	err = parser.expectTokenTypeAndAdvance(RparenToken)
-	return result, err
+	return result, span, err
 }
 
-func parseStatusExpression(parser *Parser) (AstNode, error) {
-	list, err := parser.parseDelimitedLiteralList()
+func parseStatusExpression(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing Status expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
 	if err != nil {
 		return nil, err
 	}
 
-	node := &StatusFilter{}
+	list, span, err := parser.parseDelimitedLiteralList()
+	if err != nil {
+		return nil, err
+	}
 
-	appendStatus := func(lit string) error {
-		if strings.EqualFold(lit, "ALL") {
+	node := &StatusFilter{
+		span: firstToken.Span.Extend(span),
+	}
+
+	appendStatus := func(token Token) *ParseError {
+		if strings.EqualFold(token.Literal, "ALL") {
 			node.Statuses = append(node.Statuses, bug.AllStatuses()...)
 		} else {
-			status, err := bug.StatusFromString(lit)
+			status, err := bug.StatusFromString(token.Literal)
 			if err != nil {
-				return fmt.Errorf("Invalid status name: %s", err)
+				return newParseError(&parser.context, token.Span, "Invalid ticket status")
 			}
 			node.Statuses = append(node.Statuses, status)
 		}
 		return nil
 	}
 
-	for _, lit := range list {
-		err := appendStatus(lit)
+	for _, token := range list {
+		err := appendStatus(token)
 		if err != nil {
 			return node, err
 		}
@@ -298,138 +365,290 @@ func parseStatusExpression(parser *Parser) (AstNode, error) {
 	return node, err
 }
 
-func parseAuthorExpression(parser *Parser) (AstNode, error) {
-	lit, err := parser.parseDelimitedLiteral()
-	return &AuthorFilter{AuthorName: lit}, err
-}
+func parseAuthorExpression(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing Author expression")
+	defer ctx.pop()
 
-func parseAssigneeExpression(parser *Parser) (AstNode, error) {
-	lit, err := parser.parseDelimitedLiteral()
-	return &AssigneeFilter{AssigneeName: lit}, err
-}
-
-func parseCcbExpression(parser *Parser) (AstNode, error) {
-	lit, err := parser.parseDelimitedLiteral()
-	return &CcbFilter{CcbName: lit}, err
-}
-
-func parseCcbPendingExpression(parser *Parser) (AstNode, error) {
-	lit, err := parser.parseDelimitedLiteral()
-	return &CcbPendingFilter{CcbName: lit}, err
-}
-
-func parseActorExpression(parser *Parser) (AstNode, error) {
-	lit, err := parser.parseDelimitedLiteral()
-	return &ActorFilter{ActorName: lit}, err
-}
-
-func parseParticipantExpression(parser *Parser) (AstNode, error) {
-	lit, err := parser.parseDelimitedLiteral()
-	return &ParticipantFilter{ParticipantName: lit}, err
-}
-
-func parseLabelExpression(parser *Parser) (AstNode, error) {
-	lit, err := parser.parseDelimitedLiteral()
-	return &LabelFilter{LabelName: lit}, err
-}
-
-func parseTitleExpression(parser *Parser) (AstNode, error) {
-	lit, err := parser.parseDelimitedLiteral()
-	return &TitleFilter{Title: lit}, err
-}
-
-func parseNotExpression(parser *Parser) (AstNode, error) {
-	list, err := parser.parseDelimitedExpressionList()
+	firstToken := parser.curToken
+	err := parser.advance()
 	if err != nil {
 		return nil, err
 	}
 
+	litToken, span, err := parser.parseDelimitedLiteral()
+	return &AuthorFilter{AuthorName: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+}
+
+func parseAssigneeExpression(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing Assignee expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
+	if err != nil {
+		return nil, err
+	}
+
+	litToken, span, err := parser.parseDelimitedLiteral()
+	return &AssigneeFilter{AssigneeName: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+}
+
+func parseCcbExpression(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing CCB expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
+	if err != nil {
+		return nil, err
+	}
+
+	litToken, span, err := parser.parseDelimitedLiteral()
+	return &CcbFilter{CcbName: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+}
+
+func parseCcbPendingExpression(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing CCB Pending expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
+	if err != nil {
+		return nil, err
+	}
+
+	litToken, span, err := parser.parseDelimitedLiteral()
+	return &CcbPendingFilter{CcbName: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+}
+
+func parseActorExpression(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing Actor expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
+	if err != nil {
+		return nil, err
+	}
+
+	litToken, span, err := parser.parseDelimitedLiteral()
+	return &ActorFilter{ActorName: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+}
+
+func parseParticipantExpression(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing Participant expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
+	if err != nil {
+		return nil, err
+	}
+
+	litToken, span, err := parser.parseDelimitedLiteral()
+	return &ParticipantFilter{ParticipantName: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+}
+
+func parseLabelExpression(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing Label expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
+	if err != nil {
+		return nil, err
+	}
+
+	litToken, span, err := parser.parseDelimitedLiteral()
+	return &LabelFilter{LabelName: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+}
+
+func parseTitleExpression(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing Title expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
+	if err != nil {
+		return nil, err
+	}
+
+	litToken, span, err := parser.parseDelimitedLiteral()
+	return &TitleFilter{Title: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+}
+
+func parseNotExpression(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing Not expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
+	if err != nil {
+		return nil, err
+	}
+
+	list, innerSpan, err := parser.parseDelimitedExpressionList()
+	if err != nil {
+		return nil, err
+	}
+
+	span := firstToken.Span.Extend(innerSpan)
+
 	if len(list) != 1 {
-		return nil, fmt.Errorf(`"no" filter only supports a single inner expression`)
+		return nil, newParseError(&parser.context, innerSpan, "Expected a single expression")
 	}
 
 	filter, ok := list[0].(FilterNode)
 	if !ok {
-		return nil, fmt.Errorf("Invalid")
+		return nil, newParseError(&parser.context, list[0].Span(), "Expected filter expression")
 	}
 
-	return &NotFilter{Inner: filter}, nil
+	return &NotFilter{Inner: filter, span: span}, nil
 }
 
-func parseCreationDateFilter(parser *Parser, before bool) (AstNode, error) {
-	literal, err := parser.parseDelimitedLiteral()
+func parseCreationDateFilter(parser *Parser, before bool) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing Creation Date expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
 	if err != nil {
 		return nil, err
 	}
 
-	date, err := parseTime(literal)
+	literal, innerSpan, err := parser.parseDelimitedLiteral()
 	if err != nil {
 		return nil, err
 	}
 
-	return &CreationDateFilter{Date: date, Before: before}, nil
+	span := firstToken.Span.Extend(innerSpan)
+
+	date, err := parseTimeToken(&parser.context, literal)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CreationDateFilter{Date: date, Before: before, span: span}, nil
 }
 
-func parseEditDateFilter(parser *Parser, before bool) (AstNode, error) {
-	literal, err := parser.parseDelimitedLiteral()
+func parseEditDateFilter(parser *Parser, before bool) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing Edit Date expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
 	if err != nil {
 		return nil, err
 	}
 
-	date, err := parseTime(literal)
+	literal, innerSpan, err := parser.parseDelimitedLiteral()
 	if err != nil {
 		return nil, err
 	}
 
-	return &EditDateFilter{Date: date, Before: before}, nil
+	span := firstToken.Span.Extend(innerSpan)
+
+	date, err := parseTimeToken(&parser.context, literal)
+	if err != nil {
+		return nil, err
+	}
+
+	return &EditDateFilter{Date: date, Before: before, span: span}, nil
 }
 
-func parseAndFilter(parser *Parser) (AstNode, error) {
-	list, err := parser.parseDelimitedExpressionList()
+func parseAndFilter(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing All expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
 	if err != nil {
 		return nil, err
 	}
+
+	list, innerSpan, err := parser.parseDelimitedExpressionList()
+	if err != nil {
+		return nil, err
+	}
+
+	span := firstToken.Span.Extend(innerSpan)
 
 	filters := []FilterNode{}
 	for _, n := range list {
 		f, ok := n.(FilterNode)
 		if !ok {
-			return nil, fmt.Errorf("Can only contain filters")
+			return nil, newParseError(&parser.context, n.Span(), "Expected filter expression")
 		}
 		filters = append(filters, f)
 	}
 
-	return &AndFilter{Inner: filters}, nil
+	return &AndFilter{Inner: filters, span: span}, nil
 }
 
-func parseOrFilter(parser *Parser) (AstNode, error) {
-	list, err := parser.parseDelimitedExpressionList()
+func parseOrFilter(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing Any expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
 	if err != nil {
 		return nil, err
 	}
+
+	list, innerSpan, err := parser.parseDelimitedExpressionList()
+	if err != nil {
+		return nil, err
+	}
+
+	span := firstToken.Span.Extend(innerSpan)
 
 	filters := []FilterNode{}
 	for _, n := range list {
 		f, ok := n.(FilterNode)
 		if !ok {
-			return nil, fmt.Errorf("Can only contain filters")
+			return nil, newParseError(&parser.context, n.Span(), "Expected filter expression")
 		}
 		filters = append(filters, f)
 	}
 
-	return &OrFilter{Inner: filters}, nil
+	return &OrFilter{Inner: filters, span: span}, nil
 }
 
-func parseSortOrder(parser *Parser) (AstNode, error) {
-	lit, err := parser.parseDelimitedLiteral()
+func parseSortOrder(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing Sort expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
 	if err != nil {
 		return nil, err
 	}
+
+	litToken, innerSpan, err := parser.parseDelimitedLiteral()
+	if err != nil {
+		return nil, err
+	}
+
+	span := firstToken.Span.Extend(innerSpan)
 
 	var orderBy OrderBy
 	var orderDirection OrderDirection
 
-	switch lit {
+	switch litToken.Literal {
 	// default ASC
 	case "id-desc":
 		orderBy = OrderById
@@ -455,15 +674,38 @@ func parseSortOrder(parser *Parser) (AstNode, error) {
 		orderDirection = OrderAscending
 
 	default:
-		return nil, fmt.Errorf("unknown sorting %s", lit)
+		return nil, newParseError(&parser.context, litToken.Span, "Unknown sorting")
 	}
 
-	return &OrderByNode{OrderBy: orderBy, OrderDirection: orderDirection}, nil
+	return &OrderByNode{OrderBy: orderBy, OrderDirection: orderDirection, span: span}, nil
 }
 
-func parseColor(parser *Parser) (AstNode, error) {
+func parseColor(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing Color expression")
+	defer ctx.pop()
+
 	// TODO: Implement
+
+	// firstToken := parser.curToken
+	// err := parser.advance()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
 	return &ColorByNode{}, nil
+}
+
+func parseTimeToken(context *parseContext, input Token) (time.Time, *ParseError) {
+	var formats = []string{"2006-01-02T15:04:05", "2006-01-02"}
+
+	for _, format := range formats {
+		t, err := time.ParseInLocation(format, input.Literal, time.Local)
+		if err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, newParseError(context, input.Span, "Invalid time")
 }
 
 // Parse parse a query DSL

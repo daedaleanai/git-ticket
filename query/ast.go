@@ -10,6 +10,7 @@ import (
 
 type AstNode interface {
 	String() string
+	Span() Span
 
 	// Just a marker method. Does not do anything
 	astNode()
@@ -25,6 +26,7 @@ type FilterNode interface {
 // Filters a ticket by status
 type StatusFilter struct {
 	Statuses []bug.Status
+	span     Span
 }
 
 func (f *StatusFilter) String() string {
@@ -34,16 +36,23 @@ func (f *StatusFilter) String() string {
 	}
 	return fmt.Sprintf("status(%s)", strings.Join(statuses, ", "))
 }
+func (f *StatusFilter) Span() Span {
+	return f.span
+}
 func (*StatusFilter) astNode()    {}
 func (*StatusFilter) filterNode() {}
 
 // Filters a ticket by author name
 type AuthorFilter struct {
 	AuthorName string
+	span       Span
 }
 
 func (f *AuthorFilter) String() string {
 	return fmt.Sprintf("author(%s)", f.AuthorName)
+}
+func (f *AuthorFilter) Span() Span {
+	return f.span
 }
 func (*AuthorFilter) astNode()    {}
 func (*AuthorFilter) filterNode() {}
@@ -51,10 +60,14 @@ func (*AuthorFilter) filterNode() {}
 // Filters a ticket by assignee name
 type AssigneeFilter struct {
 	AssigneeName string
+	span         Span
 }
 
 func (f *AssigneeFilter) String() string {
 	return fmt.Sprintf("assignee(%s)", f.AssigneeName)
+}
+func (f *AssigneeFilter) Span() Span {
+	return f.span
 }
 func (*AssigneeFilter) astNode()    {}
 func (*AssigneeFilter) filterNode() {}
@@ -62,10 +75,14 @@ func (*AssigneeFilter) filterNode() {}
 // Filters a ticket by assigned CCB
 type CcbFilter struct {
 	CcbName string
+	span    Span
 }
 
 func (f *CcbFilter) String() string {
 	return fmt.Sprintf("ccb(%s)", f.CcbName)
+}
+func (f *CcbFilter) Span() Span {
+	return f.span
 }
 func (*CcbFilter) astNode()    {}
 func (*CcbFilter) filterNode() {}
@@ -73,10 +90,14 @@ func (*CcbFilter) filterNode() {}
 // Filters a ticket by assigned CCB that is pending approval
 type CcbPendingFilter struct {
 	CcbName string
+	span    Span
 }
 
 func (f *CcbPendingFilter) String() string {
 	return fmt.Sprintf("ccb-pending(%s)", f.CcbName)
+}
+func (f *CcbPendingFilter) Span() Span {
+	return f.span
 }
 func (*CcbPendingFilter) astNode()    {}
 func (*CcbPendingFilter) filterNode() {}
@@ -84,10 +105,14 @@ func (*CcbPendingFilter) filterNode() {}
 // Filters a ticket by actor
 type ActorFilter struct {
 	ActorName string
+	span      Span
 }
 
 func (f *ActorFilter) String() string {
 	return fmt.Sprintf("actor(%s)", f.ActorName)
+}
+func (f *ActorFilter) Span() Span {
+	return f.span
 }
 func (*ActorFilter) astNode()    {}
 func (*ActorFilter) filterNode() {}
@@ -95,10 +120,14 @@ func (*ActorFilter) filterNode() {}
 // Filters a ticket by participant
 type ParticipantFilter struct {
 	ParticipantName string
+	span            Span
 }
 
 func (f *ParticipantFilter) String() string {
 	return fmt.Sprintf("participant(%s)", f.ParticipantName)
+}
+func (f *ParticipantFilter) Span() Span {
+	return f.span
 }
 func (*ParticipantFilter) astNode()    {}
 func (*ParticipantFilter) filterNode() {}
@@ -106,10 +135,14 @@ func (*ParticipantFilter) filterNode() {}
 // Filters a ticket label by name
 type LabelFilter struct {
 	LabelName string
+	span      Span
 }
 
 func (f *LabelFilter) String() string {
 	return fmt.Sprintf("label(%s)", f.LabelName)
+}
+func (f *LabelFilter) Span() Span {
+	return f.span
 }
 func (*LabelFilter) astNode()    {}
 func (*LabelFilter) filterNode() {}
@@ -117,10 +150,14 @@ func (*LabelFilter) filterNode() {}
 // Filters a ticket label by title
 type TitleFilter struct {
 	Title string
+	span  Span
 }
 
 func (f *TitleFilter) String() string {
 	return fmt.Sprintf("label(%s)", f.Title)
+}
+func (f *TitleFilter) Span() Span {
+	return f.span
 }
 func (*TitleFilter) astNode()    {}
 func (*TitleFilter) filterNode() {}
@@ -128,10 +165,14 @@ func (*TitleFilter) filterNode() {}
 // Filter that inverts an inner Filter
 type NotFilter struct {
 	Inner FilterNode
+	span  Span
 }
 
 func (f *NotFilter) String() string {
 	return fmt.Sprintf("no(%s)", f.Inner)
+}
+func (f *NotFilter) Span() Span {
+	return f.span
 }
 func (*NotFilter) astNode()    {}
 func (*NotFilter) filterNode() {}
@@ -140,6 +181,7 @@ func (*NotFilter) filterNode() {}
 type CreationDateFilter struct {
 	Date   time.Time
 	Before bool
+	span   Span
 }
 
 func (f *CreationDateFilter) String() string {
@@ -148,6 +190,9 @@ func (f *CreationDateFilter) String() string {
 	}
 	return fmt.Sprintf("create-after(%s)", f.Date)
 }
+func (f *CreationDateFilter) Span() Span {
+	return f.span
+}
 func (*CreationDateFilter) astNode()    {}
 func (*CreationDateFilter) filterNode() {}
 
@@ -155,6 +200,7 @@ func (*CreationDateFilter) filterNode() {}
 type EditDateFilter struct {
 	Date   time.Time
 	Before bool
+	span   Span
 }
 
 func (f *EditDateFilter) String() string {
@@ -163,12 +209,16 @@ func (f *EditDateFilter) String() string {
 	}
 	return fmt.Sprintf("edit-after(%s)", f.Date)
 }
+func (f *EditDateFilter) Span() Span {
+	return f.span
+}
 func (*EditDateFilter) astNode()    {}
 func (*EditDateFilter) filterNode() {}
 
 // Filter that is matched if all inner filters are true
 type AndFilter struct {
 	Inner []FilterNode
+	span  Span
 }
 
 func (f *AndFilter) String() string {
@@ -178,12 +228,16 @@ func (f *AndFilter) String() string {
 	}
 	return fmt.Sprintf("all(%s)", strings.Join(inner, ", "))
 }
+func (f *AndFilter) Span() Span {
+	return f.span
+}
 func (*AndFilter) astNode()    {}
 func (*AndFilter) filterNode() {}
 
 // Filter that is matched if any of the inner filters is true
 type OrFilter struct {
 	Inner []FilterNode
+	span  Span
 }
 
 func (f *OrFilter) String() string {
@@ -193,6 +247,9 @@ func (f *OrFilter) String() string {
 	}
 	return fmt.Sprintf("any(%s)", strings.Join(inner, ", "))
 }
+func (f *OrFilter) Span() Span {
+	return f.span
+}
 func (*OrFilter) astNode()    {}
 func (*OrFilter) filterNode() {}
 
@@ -200,10 +257,14 @@ func (*OrFilter) filterNode() {}
 type OrderByNode struct {
 	OrderBy        OrderBy
 	OrderDirection OrderDirection
+	span           Span
 }
 
 func (f *OrderByNode) String() string {
 	return fmt.Sprintf("order-by(%v, %v)", f.OrderBy, f.OrderDirection)
+}
+func (f *OrderByNode) Span() Span {
+	return f.span
 }
 func (*OrderByNode) astNode() {}
 
@@ -212,10 +273,14 @@ type ColorByNode struct {
 	ColorBy     ColorBy
 	CcbUserName ColorByCcbUserName
 	LabelPrefix ColorByLabelPrefix
+	span        Span
 }
 
 func (f *ColorByNode) String() string {
 	return fmt.Sprintf("color-by(%v, %v, %v)", f.ColorBy, f.CcbUserName, f.LabelPrefix)
+}
+func (f *ColorByNode) Span() Span {
+	return f.span
 }
 func (*ColorByNode) astNode() {}
 
@@ -225,5 +290,8 @@ type LiteralNode struct {
 
 func (f *LiteralNode) String() string {
 	return f.token.Literal
+}
+func (f *LiteralNode) Span() Span {
+	return f.token.Span
 }
 func (*LiteralNode) astNode() {}
