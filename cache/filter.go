@@ -52,6 +52,19 @@ func executeFilter(filter query.FilterNode, resolver resolver, b *BugExcerpt) bo
 	}
 }
 
+func executeMatcherOnIdentity(matcher query.LiteralMatcherNode, ident *IdentityExcerpt) bool {
+	switch matcher := matcher.(type) {
+	case *query.LiteralNode:
+		lit := strings.ToLower(matcher.Token.Literal)
+		return ident.Match(lit)
+	case *query.RegexNode:
+		return matcher.Match(ident.Name)
+	default:
+		log.Fatal("Unhandled LiteralMatcherNode type: ", reflect.TypeOf(matcher))
+		return false
+	}
+}
+
 func executeStatusFilter(filter *query.StatusFilter, resolver resolver, b *BugExcerpt) bool {
 	for _, s := range filter.Statuses {
 		if b.Status == s {
@@ -62,59 +75,34 @@ func executeStatusFilter(filter *query.StatusFilter, resolver resolver, b *BugEx
 }
 
 func executeAuthorFilter(filter *query.AuthorFilter, resolver resolver, b *BugExcerpt) bool {
-	query := filter.AuthorName
-	query = strings.ToLower(query)
-
-	// Normal identity
-	if b.AuthorId != "" {
-		author, err := resolver.ResolveIdentityExcerpt(b.AuthorId)
-		if err != nil {
-			panic(err)
-		}
-
-		return author.Match(query)
+	if b.AuthorId == "" {
+		log.Fatal("Ticket does not have an author: ", b.Id.Human())
 	}
 
-	// Legacy identity support
-	return strings.Contains(strings.ToLower(b.LegacyAuthor.Name), query) ||
-		strings.Contains(strings.ToLower(b.LegacyAuthor.Login), query)
+	author, err := resolver.ResolveIdentityExcerpt(b.AuthorId)
+	if err != nil {
+		panic(err)
+	}
+	return executeMatcherOnIdentity(filter.Author, author)
 }
 
 func executeAssigneeFilter(filter *query.AssigneeFilter, resolver resolver, b *BugExcerpt) bool {
-	query := filter.AssigneeName
-	query = strings.ToLower(query)
-
-	if query == "" {
-		return b.AssigneeId == ""
+	assignee, err := resolver.ResolveIdentityExcerpt(b.AssigneeId)
+	if err != nil {
+		panic(err)
 	}
 
-	if b.AssigneeId != "" {
-		assignee, err := resolver.ResolveIdentityExcerpt(b.AssigneeId)
-		if err != nil {
-			panic(err)
-		}
-
-		return assignee.Match(query)
-	}
-
-	return false
+	return executeMatcherOnIdentity(filter.Assignee, assignee)
 }
 
 func executeCcbFilter(filter *query.CcbFilter, resolver resolver, b *BugExcerpt) bool {
-	query := filter.CcbName
-	query = strings.ToLower(query)
-
-	if query == "" {
-		return len(b.Ccb) == 0
-	}
-
 	for _, id := range b.Ccb {
 		identityExcerpt, err := resolver.ResolveIdentityExcerpt(id.User)
 		if err != nil {
 			panic(err)
 		}
 
-		if identityExcerpt.Match(query) {
+		if executeMatcherOnIdentity(filter.Ccb, identityExcerpt) {
 			return true
 		}
 	}
@@ -123,9 +111,6 @@ func executeCcbFilter(filter *query.CcbFilter, resolver resolver, b *BugExcerpt)
 }
 
 func executeCcbPendingFilter(filter *query.CcbPendingFilter, resolver resolver, b *BugExcerpt) bool {
-	query := filter.CcbName
-	query = strings.ToLower(query)
-
 	workflow := bug.FindWorkflow(b.Labels)
 	if workflow == nil {
 		// No workflow assigned
@@ -142,7 +127,7 @@ func executeCcbPendingFilter(filter *query.CcbPendingFilter, resolver resolver, 
 			panic(err)
 		}
 
-		if identityExcerpt.Match(query) {
+		if executeMatcherOnIdentity(filter.Ccb, identityExcerpt) {
 			for _, nextStatus := range nextStatuses {
 				if nextStatus == id.Status && id.State != bug.ApprovedCcbState {
 					return true
@@ -154,16 +139,13 @@ func executeCcbPendingFilter(filter *query.CcbPendingFilter, resolver resolver, 
 }
 
 func executeActorFilter(filter *query.ActorFilter, resolver resolver, b *BugExcerpt) bool {
-	query := filter.ActorName
-	query = strings.ToLower(query)
-
 	for _, id := range b.Actors {
 		identityExcerpt, err := resolver.ResolveIdentityExcerpt(id)
 		if err != nil {
 			panic(err)
 		}
 
-		if identityExcerpt.Match(query) {
+		if executeMatcherOnIdentity(filter.Actor, identityExcerpt) {
 			return true
 		}
 	}
@@ -171,16 +153,13 @@ func executeActorFilter(filter *query.ActorFilter, resolver resolver, b *BugExce
 }
 
 func executeParticipantFilter(filter *query.ParticipantFilter, resolver resolver, b *BugExcerpt) bool {
-	query := filter.ParticipantName
-	query = strings.ToLower(query)
-
 	for _, id := range b.Participants {
 		identityExcerpt, err := resolver.ResolveIdentityExcerpt(id)
 		if err != nil {
 			panic(err)
 		}
 
-		if identityExcerpt.Match(query) {
+		if executeMatcherOnIdentity(filter.Participant, identityExcerpt) {
 			return true
 		}
 	}
@@ -188,8 +167,21 @@ func executeParticipantFilter(filter *query.ParticipantFilter, resolver resolver
 }
 
 func executeLabelFilter(filter *query.LabelFilter, resolver resolver, b *BugExcerpt) bool {
+	runMatcher := func(label bug.Label) bool {
+		switch matcher := filter.Label.(type) {
+		case *query.LiteralNode:
+			expected := matcher.Token.Literal
+			return expected == string(label)
+		case *query.RegexNode:
+			return matcher.Match(string(label))
+		default:
+			log.Fatal("Unhandled LiteralMatcherNode type: ", reflect.TypeOf(filter.Label))
+			return false
+		}
+	}
+
 	for _, l := range b.Labels {
-		if string(l) == filter.LabelName {
+		if runMatcher(l) {
 			return true
 		}
 	}
@@ -197,10 +189,16 @@ func executeLabelFilter(filter *query.LabelFilter, resolver resolver, b *BugExce
 }
 
 func executeTitleFilter(filter *query.TitleFilter, resolver resolver, b *BugExcerpt) bool {
-	return strings.Contains(
-		strings.ToLower(b.Title),
-		strings.ToLower(filter.Title),
-	)
+	switch matcher := filter.Title.(type) {
+	case *query.LiteralNode:
+		expected := strings.ToLower(matcher.Token.Literal)
+		return expected == strings.ToLower(b.Title)
+	case *query.RegexNode:
+		return matcher.Match(b.Title)
+	default:
+		log.Fatal("Unhandled LiteralMatcherNode type: ", reflect.TypeOf(filter.Title))
+		return false
+	}
 }
 
 func executeNotFilter(filter *query.NotFilter, resolver resolver, b *BugExcerpt) bool {
