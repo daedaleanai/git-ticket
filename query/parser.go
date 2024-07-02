@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -204,6 +205,18 @@ func (p *Parser) parseQueryStatement(query *CompiledQuery) error {
 }
 
 func (p *Parser) parseExpression() (AstNode, *ParseError) {
+	if p.curToken.TokenType == RegexToken {
+		tok := p.curToken
+
+		regex, err := regexp.Compile(tok.Literal)
+		if err != nil {
+			return nil, newParseError(&p.context, p.curToken.Span, "Invalid regular expression")
+		}
+
+		advanceErr := p.advance()
+		return &RegexNode{Token: tok, Regex: *regex}, advanceErr
+	}
+
 	if p.curToken.TokenType != IdentToken && p.curToken.TokenType != StringToken {
 		return nil, newParseError(&p.context, p.curToken.Span, fmt.Sprintf("Expression cannot begin with token: %s", p.curToken.TokenType))
 	}
@@ -212,7 +225,7 @@ func (p *Parser) parseExpression() (AstNode, *ParseError) {
 	specificParser, ok := keywordParsers[litTok.Literal]
 	if !ok {
 		err := p.advance()
-		return &LiteralNode{token: litTok}, err
+		return &LiteralNode{Token: litTok}, err
 	}
 
 	return specificParser(p)
@@ -256,8 +269,8 @@ func (parser *Parser) parseDelimitedExpressionList() ([]AstNode, Span, *ParseErr
 	}
 }
 
-func (parser *Parser) parseDelimitedLiteralList() ([]Token, Span, *ParseError) {
-	literals := []Token{}
+func (parser *Parser) parseDelimitedLiteralList() ([]*LiteralNode, Span, *ParseError) {
+	nodes := []*LiteralNode{}
 	span := parser.curToken.Span
 
 	err := parser.expectTokenTypeAndAdvance(LparenToken)
@@ -268,58 +281,52 @@ func (parser *Parser) parseDelimitedLiteralList() ([]Token, Span, *ParseError) {
 	if parser.curToken.TokenType == RparenToken {
 		span = span.Extend(parser.curToken.Span)
 		err := parser.advance()
-		return literals, span, err
+		return nodes, span, err
 	}
 
 	for {
-		if ty := parser.curToken.TokenType; ty != StringToken && ty != IdentToken {
-			return literals, span, newParseError(&parser.context, parser.curToken.Span, "Expected literal")
+		if parser.curToken.TokenType != IdentToken && parser.curToken.TokenType != StringToken {
+			return nodes, span, newParseError(&parser.context, parser.curToken.Span, "Expected Literal")
 		}
+		nodes = append(nodes, &LiteralNode{parser.curToken})
 
-		literals = append(literals, parser.curToken)
-
-		err := parser.advance()
+		err = parser.advance()
 		if err != nil {
-			return literals, span, err
+			return nodes, span, err
 		}
 
 		switch parser.curToken.TokenType {
 		case RparenToken:
 			span = span.Extend(parser.curToken.Span)
 			err = parser.advance()
-			return literals, span, err
+			return nodes, span, err
 		case CommaToken:
 			err = parser.advance()
 			if err != nil {
-				return literals, span, err
+				return nodes, span, err
 			}
 		default:
-			return literals, span, newParseError(&parser.context, parser.curToken.Span, "Unexpected delimiter in delimited expression")
+			return nil, span, newParseError(&parser.context, parser.curToken.Span, fmt.Sprintf("Unexpected delimiter in delimited expression: %s", parser.curToken.TokenType))
 		}
 	}
 }
 
-func (parser *Parser) parseDelimitedLiteral() (Token, Span, *ParseError) {
-	span := parser.curToken.Span
-	err := parser.expectTokenTypeAndAdvance(LparenToken)
+func (parser *Parser) parseDelimitedLiteralMatcher() (LiteralMatcherNode, Span, *ParseError) {
+	nodes, span, err := parser.parseDelimitedExpressionList()
 	if err != nil {
-		return Token{}, span, err
+		return nil, span, err
 	}
 
-	if ty := parser.curToken.TokenType; ty != StringToken && ty != IdentToken {
-		return Token{}, span, newParseError(&parser.context, parser.curToken.Span, "Expected literal")
+	if len(nodes) != 1 {
+		return nil, span, newParseError(&parser.context, span, "Expected exactly on expression within the delimiters")
 	}
 
-	result := parser.curToken
-
-	err = parser.advance()
-	if err != nil {
-		return Token{}, span, err
+	literal, ok := nodes[0].(LiteralMatcherNode)
+	if !ok {
+		return nil, span, newParseError(&parser.context, nodes[0].Span(), "Expected Literal matcher (either string or regexp) expression")
 	}
 
-	span = span.Extend(parser.curToken.Span)
-	err = parser.expectTokenTypeAndAdvance(RparenToken)
-	return result, span, err
+	return literal, span, err
 }
 
 func parseStatusExpression(parser *Parser) (AstNode, *ParseError) {
@@ -355,8 +362,8 @@ func parseStatusExpression(parser *Parser) (AstNode, *ParseError) {
 		return nil
 	}
 
-	for _, token := range list {
-		err := appendStatus(token)
+	for _, literalNode := range list {
+		err := appendStatus(literalNode.Token)
 		if err != nil {
 			return node, err
 		}
@@ -376,8 +383,8 @@ func parseAuthorExpression(parser *Parser) (AstNode, *ParseError) {
 		return nil, err
 	}
 
-	litToken, span, err := parser.parseDelimitedLiteral()
-	return &AuthorFilter{AuthorName: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+	matcher, span, err := parser.parseDelimitedLiteralMatcher()
+	return &AuthorFilter{Author: matcher, span: firstToken.Span.Extend(span)}, err
 }
 
 func parseAssigneeExpression(parser *Parser) (AstNode, *ParseError) {
@@ -391,8 +398,8 @@ func parseAssigneeExpression(parser *Parser) (AstNode, *ParseError) {
 		return nil, err
 	}
 
-	litToken, span, err := parser.parseDelimitedLiteral()
-	return &AssigneeFilter{AssigneeName: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+	matcher, span, err := parser.parseDelimitedLiteralMatcher()
+	return &AssigneeFilter{Assignee: matcher, span: firstToken.Span.Extend(span)}, err
 }
 
 func parseCcbExpression(parser *Parser) (AstNode, *ParseError) {
@@ -406,8 +413,8 @@ func parseCcbExpression(parser *Parser) (AstNode, *ParseError) {
 		return nil, err
 	}
 
-	litToken, span, err := parser.parseDelimitedLiteral()
-	return &CcbFilter{CcbName: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+	matcher, span, err := parser.parseDelimitedLiteralMatcher()
+	return &CcbFilter{Ccb: matcher, span: firstToken.Span.Extend(span)}, err
 }
 
 func parseCcbPendingExpression(parser *Parser) (AstNode, *ParseError) {
@@ -421,8 +428,8 @@ func parseCcbPendingExpression(parser *Parser) (AstNode, *ParseError) {
 		return nil, err
 	}
 
-	litToken, span, err := parser.parseDelimitedLiteral()
-	return &CcbPendingFilter{CcbName: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+	matcher, span, err := parser.parseDelimitedLiteralMatcher()
+	return &CcbPendingFilter{Ccb: matcher, span: firstToken.Span.Extend(span)}, err
 }
 
 func parseActorExpression(parser *Parser) (AstNode, *ParseError) {
@@ -436,8 +443,8 @@ func parseActorExpression(parser *Parser) (AstNode, *ParseError) {
 		return nil, err
 	}
 
-	litToken, span, err := parser.parseDelimitedLiteral()
-	return &ActorFilter{ActorName: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+	matcher, span, err := parser.parseDelimitedLiteralMatcher()
+	return &ActorFilter{Actor: matcher, span: firstToken.Span.Extend(span)}, err
 }
 
 func parseParticipantExpression(parser *Parser) (AstNode, *ParseError) {
@@ -451,8 +458,8 @@ func parseParticipantExpression(parser *Parser) (AstNode, *ParseError) {
 		return nil, err
 	}
 
-	litToken, span, err := parser.parseDelimitedLiteral()
-	return &ParticipantFilter{ParticipantName: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+	matcher, span, err := parser.parseDelimitedLiteralMatcher()
+	return &ParticipantFilter{Participant: matcher, span: firstToken.Span.Extend(span)}, err
 }
 
 func parseLabelExpression(parser *Parser) (AstNode, *ParseError) {
@@ -466,8 +473,8 @@ func parseLabelExpression(parser *Parser) (AstNode, *ParseError) {
 		return nil, err
 	}
 
-	litToken, span, err := parser.parseDelimitedLiteral()
-	return &LabelFilter{LabelName: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+	matcher, span, err := parser.parseDelimitedLiteralMatcher()
+	return &LabelFilter{Label: matcher, span: firstToken.Span.Extend(span)}, err
 }
 
 func parseTitleExpression(parser *Parser) (AstNode, *ParseError) {
@@ -481,8 +488,8 @@ func parseTitleExpression(parser *Parser) (AstNode, *ParseError) {
 		return nil, err
 	}
 
-	litToken, span, err := parser.parseDelimitedLiteral()
-	return &TitleFilter{Title: litToken.Literal, span: firstToken.Span.Extend(span)}, err
+	matcher, span, err := parser.parseDelimitedLiteralMatcher()
+	return &TitleFilter{Title: matcher, span: firstToken.Span.Extend(span)}, err
 }
 
 func parseNotExpression(parser *Parser) (AstNode, *ParseError) {
@@ -526,14 +533,19 @@ func parseCreationDateFilter(parser *Parser, before bool) (AstNode, *ParseError)
 		return nil, err
 	}
 
-	literal, innerSpan, err := parser.parseDelimitedLiteral()
+	matcher, innerSpan, err := parser.parseDelimitedLiteralMatcher()
 	if err != nil {
 		return nil, err
 	}
 
+	literalNode, ok := matcher.(*LiteralNode)
+	if !ok {
+		return nil, newParseError(&parser.context, matcher.Span(), "Expected Literal expression")
+	}
+
 	span := firstToken.Span.Extend(innerSpan)
 
-	date, err := parseTimeToken(&parser.context, literal)
+	date, err := parseTimeToken(&parser.context, literalNode.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -552,14 +564,19 @@ func parseEditDateFilter(parser *Parser, before bool) (AstNode, *ParseError) {
 		return nil, err
 	}
 
-	literal, innerSpan, err := parser.parseDelimitedLiteral()
+	matcher, innerSpan, err := parser.parseDelimitedLiteralMatcher()
 	if err != nil {
 		return nil, err
 	}
 
+	literalNode, ok := matcher.(*LiteralNode)
+	if !ok {
+		return nil, newParseError(&parser.context, matcher.Span(), "Expected Literal expression")
+	}
+
 	span := firstToken.Span.Extend(innerSpan)
 
-	date, err := parseTimeToken(&parser.context, literal)
+	date, err := parseTimeToken(&parser.context, literalNode.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -638,9 +655,14 @@ func parseSortOrder(parser *Parser) (AstNode, *ParseError) {
 		return nil, err
 	}
 
-	litToken, innerSpan, err := parser.parseDelimitedLiteral()
+	matcher, innerSpan, err := parser.parseDelimitedLiteralMatcher()
 	if err != nil {
 		return nil, err
+	}
+
+	literalNode, ok := matcher.(*LiteralNode)
+	if !ok {
+		return nil, newParseError(&parser.context, matcher.Span(), "Expected Literal expression")
 	}
 
 	span := firstToken.Span.Extend(innerSpan)
@@ -648,7 +670,7 @@ func parseSortOrder(parser *Parser) (AstNode, *ParseError) {
 	var orderBy OrderBy
 	var orderDirection OrderDirection
 
-	switch litToken.Literal {
+	switch literalNode.Token.Literal {
 	// default ASC
 	case "id-desc":
 		orderBy = OrderById
@@ -674,7 +696,7 @@ func parseSortOrder(parser *Parser) (AstNode, *ParseError) {
 		orderDirection = OrderAscending
 
 	default:
-		return nil, newParseError(&parser.context, litToken.Span, "Unknown sorting")
+		return nil, newParseError(&parser.context, literalNode.Span(), "Unknown sorting")
 	}
 
 	return &OrderByNode{OrderBy: orderBy, OrderDirection: orderDirection, span: span}, nil
@@ -685,15 +707,28 @@ func parseColor(parser *Parser) (AstNode, *ParseError) {
 	ctx.push("While parsing Color expression")
 	defer ctx.pop()
 
-	// TODO: Implement
+	firstToken := parser.curToken
+	err := parser.advance()
+	if err != nil {
+		return nil, err
+	}
 
-	// firstToken := parser.curToken
-	// err := parser.advance()
-	// if err != nil {
-	// 	return nil, err
-	// }
+	nodes, innerSpan, err := parser.parseDelimitedExpressionList()
+	if err != nil {
+		return nil, err
+	}
 
-	return &ColorByNode{}, nil
+	if len(nodes) != 1 {
+		return nil, newParseError(&parser.context, innerSpan, "Expected exactly on expression within the delimiters")
+	}
+
+	colorFilter, ok := nodes[0].(ColorFilterNode)
+	if !ok {
+		return nil, newParseError(&parser.context, nodes[0].Span(), "Expected Color filter expression")
+	}
+
+	span := firstToken.Span.Extend(innerSpan)
+	return &ColorByNode{ColorFilter: colorFilter, span: span}, nil
 }
 
 func parseTimeToken(context *parseContext, input Token) (time.Time, *ParseError) {

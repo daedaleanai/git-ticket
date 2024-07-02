@@ -2,6 +2,7 @@ package query
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -21,6 +22,23 @@ type FilterNode interface {
 
 	// Just a marker method. Does not do anything
 	filterNode()
+}
+
+// A filter that can additionally be used for coloring and not just matching tickets
+type ColorFilterNode interface {
+	FilterNode
+
+	// Just a marker method. Does not do anything
+	colorFilterNode()
+}
+
+type LiteralMatcherNode interface {
+	AstNode
+
+	// Just a marker method. Does not do anything
+	literalMatcherNode()
+
+	Match(text string) bool
 }
 
 // Filters a ticket by status
@@ -44,42 +62,44 @@ func (*StatusFilter) filterNode() {}
 
 // Filters a ticket by author name
 type AuthorFilter struct {
-	AuthorName string
-	span       Span
+	Author LiteralMatcherNode
+	span   Span
 }
 
 func (f *AuthorFilter) String() string {
-	return fmt.Sprintf("author(%s)", f.AuthorName)
+	return fmt.Sprintf("author(%s)", f.Author)
 }
 func (f *AuthorFilter) Span() Span {
 	return f.span
 }
-func (*AuthorFilter) astNode()    {}
-func (*AuthorFilter) filterNode() {}
+func (*AuthorFilter) astNode()         {}
+func (*AuthorFilter) filterNode()      {}
+func (*AuthorFilter) colorFilterNode() {}
 
 // Filters a ticket by assignee name
 type AssigneeFilter struct {
-	AssigneeName string
-	span         Span
+	Assignee LiteralMatcherNode
+	span     Span
 }
 
 func (f *AssigneeFilter) String() string {
-	return fmt.Sprintf("assignee(%s)", f.AssigneeName)
+	return fmt.Sprintf("assignee(%s)", f.Assignee)
 }
 func (f *AssigneeFilter) Span() Span {
 	return f.span
 }
-func (*AssigneeFilter) astNode()    {}
-func (*AssigneeFilter) filterNode() {}
+func (*AssigneeFilter) astNode()         {}
+func (*AssigneeFilter) filterNode()      {}
+func (*AssigneeFilter) colorFilterNode() {}
 
 // Filters a ticket by assigned CCB
 type CcbFilter struct {
-	CcbName string
-	span    Span
+	Ccb  LiteralMatcherNode
+	span Span
 }
 
 func (f *CcbFilter) String() string {
-	return fmt.Sprintf("ccb(%s)", f.CcbName)
+	return fmt.Sprintf("ccb(%s)", f.Ccb)
 }
 func (f *CcbFilter) Span() Span {
 	return f.span
@@ -89,27 +109,28 @@ func (*CcbFilter) filterNode() {}
 
 // Filters a ticket by assigned CCB that is pending approval
 type CcbPendingFilter struct {
-	CcbName string
-	span    Span
+	Ccb  LiteralMatcherNode
+	span Span
 }
 
 func (f *CcbPendingFilter) String() string {
-	return fmt.Sprintf("ccb-pending(%s)", f.CcbName)
+	return fmt.Sprintf("ccb-pending(%s)", f.Ccb)
 }
 func (f *CcbPendingFilter) Span() Span {
 	return f.span
 }
-func (*CcbPendingFilter) astNode()    {}
-func (*CcbPendingFilter) filterNode() {}
+func (*CcbPendingFilter) astNode()         {}
+func (*CcbPendingFilter) filterNode()      {}
+func (*CcbPendingFilter) colorFilterNode() {}
 
 // Filters a ticket by actor
 type ActorFilter struct {
-	ActorName string
-	span      Span
+	Actor LiteralMatcherNode
+	span  Span
 }
 
 func (f *ActorFilter) String() string {
-	return fmt.Sprintf("actor(%s)", f.ActorName)
+	return fmt.Sprintf("actor(%s)", f.Actor)
 }
 func (f *ActorFilter) Span() Span {
 	return f.span
@@ -119,12 +140,12 @@ func (*ActorFilter) filterNode() {}
 
 // Filters a ticket by participant
 type ParticipantFilter struct {
-	ParticipantName string
-	span            Span
+	Participant LiteralMatcherNode
+	span        Span
 }
 
 func (f *ParticipantFilter) String() string {
-	return fmt.Sprintf("participant(%s)", f.ParticipantName)
+	return fmt.Sprintf("participant(%s)", f.Participant)
 }
 func (f *ParticipantFilter) Span() Span {
 	return f.span
@@ -134,22 +155,23 @@ func (*ParticipantFilter) filterNode() {}
 
 // Filters a ticket label by name
 type LabelFilter struct {
-	LabelName string
-	span      Span
+	Label LiteralMatcherNode
+	span  Span
 }
 
 func (f *LabelFilter) String() string {
-	return fmt.Sprintf("label(%s)", f.LabelName)
+	return fmt.Sprintf("label(%s)", f.Label)
 }
 func (f *LabelFilter) Span() Span {
 	return f.span
 }
-func (*LabelFilter) astNode()    {}
-func (*LabelFilter) filterNode() {}
+func (*LabelFilter) astNode()         {}
+func (*LabelFilter) filterNode()      {}
+func (*LabelFilter) colorFilterNode() {}
 
 // Filters a ticket label by title
 type TitleFilter struct {
-	Title string
+	Title LiteralMatcherNode
 	span  Span
 }
 
@@ -169,7 +191,7 @@ type NotFilter struct {
 }
 
 func (f *NotFilter) String() string {
-	return fmt.Sprintf("no(%s)", f.Inner)
+	return fmt.Sprintf("not(%s)", f.Inner)
 }
 func (f *NotFilter) Span() Span {
 	return f.span
@@ -270,14 +292,12 @@ func (*OrderByNode) astNode() {}
 
 // Selects the ordering of the nodes
 type ColorByNode struct {
-	ColorBy     ColorBy
-	CcbUserName ColorByCcbUserName
-	LabelPrefix ColorByLabelPrefix
+	ColorFilter ColorFilterNode
 	span        Span
 }
 
 func (f *ColorByNode) String() string {
-	return fmt.Sprintf("color-by(%v, %v, %v)", f.ColorBy, f.CcbUserName, f.LabelPrefix)
+	return fmt.Sprintf("color-by(%v)", f.ColorFilter)
 }
 func (f *ColorByNode) Span() Span {
 	return f.span
@@ -285,13 +305,34 @@ func (f *ColorByNode) Span() Span {
 func (*ColorByNode) astNode() {}
 
 type LiteralNode struct {
-	token Token
+	Token Token
 }
 
-func (f *LiteralNode) String() string {
-	return f.token.Literal
+func (n *LiteralNode) String() string {
+	return n.Token.Literal
 }
-func (f *LiteralNode) Span() Span {
-	return f.token.Span
+func (n *LiteralNode) Span() Span {
+	return n.Token.Span
 }
-func (*LiteralNode) astNode() {}
+func (*LiteralNode) astNode()            {}
+func (*LiteralNode) literalMatcherNode() {}
+func (n *LiteralNode) Match(text string) bool {
+	return n.Token.Literal == text
+}
+
+type RegexNode struct {
+	Token Token
+	Regex regexp.Regexp
+}
+
+func (n *RegexNode) String() string {
+	return n.Token.Literal
+}
+func (n *RegexNode) Span() Span {
+	return n.Token.Span
+}
+func (*RegexNode) astNode()            {}
+func (*RegexNode) literalMatcherNode() {}
+func (n *RegexNode) Match(text string) bool {
+	return n.Regex.Match([]byte(text))
+}
