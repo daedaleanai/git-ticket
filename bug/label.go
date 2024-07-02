@@ -105,17 +105,17 @@ const RepoPrefix string = "repo:"
 const ImpactPrefix string = "impact:"
 
 func (l Label) IsChecklist() bool {
-	return strings.HasPrefix(string(l), ChecklistPrefix)
+	return strings.HasPrefix(l.String(), ChecklistPrefix)
 }
 
 func (l Label) IsWorkflow() bool {
-	return strings.HasPrefix(string(l), WorkflowPrefix)
+	return strings.HasPrefix(l.String(), WorkflowPrefix)
 }
 
 func (l Label) IsRepo() bool {
-	return strings.HasPrefix(string(l), RepoPrefix)
+	return strings.HasPrefix(l.String(), RepoPrefix)
 }
 
 func (l Label) IsImpact() bool {
-	return strings.HasPrefix(string(l), ImpactPrefix)
+	return strings.HasPrefix(l.String(), ImpactPrefix)
 }

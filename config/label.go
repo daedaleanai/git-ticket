@@ -155,7 +155,7 @@ func (c *LabelConfig) ListLabelsWithNamespace(namespaces ...string) ([]string, e
 		}
 
 		if curLables == nil {
-			return nil, fmt.Errorf("Unable to find lable namespace: %s", strings.Join(namespaces, ":"))
+			return nil, fmt.Errorf("Unable to find label namespace: %s", strings.Join(namespaces, ":"))
 		}
 
 		labels = curLables
