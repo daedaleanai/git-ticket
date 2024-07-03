@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -488,59 +490,88 @@ func loadConfig(repo repository.ClockedRepo) error {
 }
 
 func getTicketColorKey(repo *cache.RepoCache, q *query.CompiledQuery, ticket *cache.BugExcerpt) (string, error) {
-	// switch q.ColorBy {
-	// case query.ColorByAuthor:
-	// 	id, err := repo.ResolveIdentityExcerpt(ticket.AuthorId)
-	// 	if err != nil {
-	// 		return "", fmt.Errorf("failed to resolve identity %s: %w", ticket.AuthorId, err)
-	// 	}
-	// 	return id.DisplayName(), nil
+	if q.ColorNode == nil {
+		return "", nil
+	}
 
-	// case query.ColorByAssignee:
-	// 	if ticket.AssigneeId != "" {
-	// 		break
-	// 	}
-	// 	id, err := repo.ResolveIdentityExcerpt(ticket.AssigneeId)
-	// 	if err != nil {
-	// 		return "", fmt.Errorf("failed to resolve identity %s: %w", ticket.AssigneeId, err)
-	// 	}
-	// 	return id.DisplayName(), nil
+	switch colorFilter := q.ColorNode.ColorFilter.(type) {
+	case *query.AuthorFilter:
+		id, err := repo.ResolveIdentityExcerpt(ticket.AuthorId)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve identity %s: %w", ticket.AuthorId, err)
+		}
 
-	// case query.ColorByLabel:
-	// 	labels := []string{}
-	// 	for _, label := range ticket.Labels {
-	// 		if strings.HasPrefix(label.String(), string(q.ColorByLabelPrefix)) {
-	// 			labels = append(labels, strings.TrimPrefix(label.String(), string(q.ColorByLabelPrefix)))
-	// 		}
-	// 	}
-	// 	sort.Strings(labels)
-	// 	return strings.Join(labels, " "), nil
+		if !cache.ExecuteMatcherOnIdentity(colorFilter.Author, id) {
+			break
+		}
+		return id.DisplayName(), nil
 
-	// case query.ColorByCcbPendingByUser:
-	// 	workflow := bug.FindWorkflow(ticket.Labels)
-	// 	if workflow == nil {
-	// 		// No workflow assigned
-	// 		break
-	// 	}
+	case *query.AssigneeFilter:
+		if ticket.AssigneeId == "" {
+			break
+		}
 
-	// 	nextStatuses := workflow.NextStatuses(ticket.Status)
+		id, err := repo.ResolveIdentityExcerpt(ticket.AssigneeId)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve identity %s: %w", ticket.AssigneeId, err)
+		}
 
-	// 	for _, ccbInfo := range ticket.Ccb {
-	// 		identityExcerpt, err := repo.ResolveIdentityExcerpt(ccbInfo.User)
-	// 		if err != nil {
-	// 			return "", err
-	// 		}
+		if !cache.ExecuteMatcherOnIdentity(colorFilter.Assignee, id) {
+			break
+		}
 
-	// 		if identityExcerpt.Match(string(q.ColorByCcbUserName)) {
-	// 			for _, nextStatus := range nextStatuses {
-	// 				if nextStatus == ccbInfo.Status && ccbInfo.State != bug.ApprovedCcbState {
-	// 					return string(q.ColorByCcbUserName), nil
-	// 				}
-	// 			}
-	// 		}
-	// 	}
+		return id.DisplayName(), nil
 
-	// }
+	case *query.CcbPendingFilter:
+		workflow := bug.FindWorkflow(ticket.Labels)
+		if workflow == nil {
+			// No workflow assigned
+			break
+		}
+
+		nextStatuses := workflow.NextStatuses(ticket.Status)
+
+		for _, ccbInfo := range ticket.Ccb {
+			identityExcerpt, err := repo.ResolveIdentityExcerpt(ccbInfo.User)
+			if err != nil {
+				return "", err
+			}
+
+			if cache.ExecuteMatcherOnIdentity(colorFilter.Ccb, identityExcerpt) {
+				for _, nextStatus := range nextStatuses {
+					if nextStatus == ccbInfo.Status && ccbInfo.State != bug.ApprovedCcbState {
+						return identityExcerpt.DisplayName(), nil
+					}
+				}
+			}
+		}
+
+	case *query.LabelFilter:
+		runMatcher := func(label bug.Label) bool {
+			switch matcher := colorFilter.Label.(type) {
+			case *query.LiteralNode:
+				expected := matcher.Token.Literal
+				return expected == string(label)
+			case *query.RegexNode:
+				return matcher.Match(string(label))
+			default:
+				log.Fatal("Unhandled LiteralMatcherNode type: ", reflect.TypeOf(colorFilter.Label))
+				return false
+			}
+		}
+
+		labels := []string{}
+		for _, label := range ticket.Labels {
+			if runMatcher(label) {
+				labels = append(labels, label.String())
+			}
+		}
+		sort.Strings(labels)
+		return strings.Join(labels, " "), nil
+
+	default:
+		return "", fmt.Errorf("Unhandled color filter type: %v", reflect.TypeOf(q.ColorNode.ColorFilter))
+	}
 
 	return "", nil
 }
