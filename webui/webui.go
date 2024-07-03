@@ -311,11 +311,11 @@ func handleComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request
 
 	_, err = ticket.AddComment(action.Comment)
 	if err != nil {
-		session.AddFlash(fmt.Sprintf("Something went wrong: %s"))
+		session.AddFlash(fmt.Sprintf("Something went wrong: %s", err))
 	}
 
 	if err := ticket.CommitAsNeeded(); err != nil {
-		session.AddFlash(fmt.Sprintf("Something went wrong: %s"))
+		session.AddFlash(fmt.Sprintf("Something went wrong: %s", err))
 	}
 
 	ticketRedirect(ticket.Id().String(), w, r)
