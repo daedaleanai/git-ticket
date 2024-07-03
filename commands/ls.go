@@ -21,17 +21,7 @@ import (
 )
 
 type lsOptions struct {
-	query query.Query
-
-	statusQuery       []string
-	createBeforeQuery string
-	createAfterQuery  string
-	editBeforeQuery   string
-	editAfterQuery    string
-	noQuery           []string
-	sortBy            string
-	sortDirection     string
-	outputFormat      string
+	outputFormat string
 }
 
 func newLsCommand() *cobra.Command {
@@ -43,12 +33,9 @@ func newLsCommand() *cobra.Command {
 		Short: "List tickets.",
 		Long: `Display a summary of each ticket. By default shows only "active" tickets, i.e. In Progress, In Review, Reviewed and Accepted.
 
-You can pass an additional query to filter and order the list. This query can be expressed either with a simple query language or with flags.`,
+You can pass an additional query to filter and order the list. This query can be expressed either with a simple query language.`,
 		Example: `List vetted tickets sorted by last edition with a query:
-git ticket ls status:vetted sort:edit-desc
-
-List merged tickets sorted by creation with flags:
-git ticket ls --status merged --by creation
+git ticket ls all(status(vetted), label(r"repo:.*")) sort(edit-desc)
 `,
 		PreRunE:  loadBackend(env),
 		PostRunE: closeBackend(env),
@@ -60,38 +47,6 @@ git ticket ls --status merged --by creation
 	flags := cmd.Flags()
 	flags.SortFlags = false
 
-	flags.StringSliceVarP(&options.statusQuery, "status", "s", nil,
-		"Filter by status. Valid values are [proposed,vetted,inprogress,inreview,reviewed,accepted,merged,done,rejected,ALL]")
-	flags.StringSliceVarP(&options.query.Author, "author", "a", nil,
-		"Filter by author")
-	flags.StringSliceVarP(&options.query.Assignee, "assignee", "A", nil,
-		"Filter by assignee, or specify UNASSIGNED")
-	flags.StringSliceVarP(&options.query.Ccb, "ccb", "c", nil,
-		"Filter by ccb members assigned to the ticket, or specify UNASSIGNED")
-	flags.StringSliceVarP(&options.query.CcbPending, "ccb-pending", "C", nil,
-		"Filter by ccb members assigned to the ticket, which are pending approval")
-	flags.StringSliceVarP(&options.query.Participant, "participant", "p", nil,
-		"Filter by participant")
-	flags.StringSliceVarP(&options.query.Actor, "actor", "", nil,
-		"Filter by actor")
-	flags.StringSliceVarP(&options.query.Label, "label", "l", nil,
-		"Filter by label")
-	flags.StringSliceVarP(&options.query.Title, "title", "t", nil,
-		"Filter by title")
-	flags.StringVarP(&options.createBeforeQuery, "create-before", "", "",
-		"Filter by created before. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd")
-	flags.StringVarP(&options.createAfterQuery, "create-after", "", "",
-		"Filter by created after. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd")
-	flags.StringVarP(&options.editBeforeQuery, "edit-before", "", "",
-		"Filter by last edited before. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd")
-	flags.StringVarP(&options.editAfterQuery, "edit-after", "", "",
-		"Filter by last edited after. Valid formats are: yyyy-mm-ddThh:mm:ss OR yyyy-mm-dd")
-	flags.StringSliceVarP(&options.noQuery, "no", "n", nil,
-		"Filter by absence of something. Valid values are [label]")
-	flags.StringVarP(&options.sortBy, "by", "b", "creation",
-		"Sort the results by a characteristic. Valid values are [id,creation,edit]")
-	flags.StringVarP(&options.sortDirection, "direction", "d", "asc",
-		"Select the sorting direction. Valid values are [asc,desc]")
 	flags.StringVarP(&options.outputFormat, "format", "f", "default",
 		"Select the output formatting style. Valid values are [default,plain,json,org-mode]")
 
@@ -99,7 +54,7 @@ git ticket ls --status merged --by creation
 }
 
 func runLs(env *Env, opts lsOptions, args []string) error {
-	var q *query.Query
+	q := &query.Query{}
 	var err error
 
 	if len(args) >= 1 {
@@ -109,14 +64,8 @@ func runLs(env *Env, opts lsOptions, args []string) error {
 		if err != nil {
 			return err
 		}
-	} else {
-		// construct filter from flags
-		err = completeQuery(&opts)
-		if err != nil {
-			return err
-		}
-		q = &opts.query
 	}
+
 	if reflect.ValueOf(q.Filters).IsZero() {
 		// If no filters are set then default to active tickets
 		q.Status = bug.ActiveStatuses()
@@ -427,80 +376,6 @@ func lsOrgmodeFormatter(env *Env, bugExcerpts []*cache.BugExcerpt) error {
 				participant.DisplayName(),
 			)
 		}
-	}
-
-	return nil
-}
-
-// Finish the command flags transformation into the query.Query
-func completeQuery(opts *lsOptions) error {
-	for _, str := range opts.statusQuery {
-		if strings.EqualFold(str, "ALL") {
-			opts.query.Status = bug.AllStatuses()
-			break
-		}
-		status, err := bug.StatusFromString(str)
-		if err != nil {
-			return err
-		}
-		opts.query.Status = append(opts.query.Status, status)
-	}
-
-	for _, no := range opts.noQuery {
-		switch no {
-		case "label":
-			opts.query.NoLabel = true
-		default:
-			return fmt.Errorf("unknown \"no\" filter %s", no)
-		}
-	}
-	if opts.createBeforeQuery != "" {
-		parsedTime, err := parseTime(opts.createBeforeQuery)
-		if err != nil {
-			return err
-		}
-		opts.query.CreateBefore = parsedTime
-	}
-	if opts.createAfterQuery != "" {
-		parsedTime, err := parseTime(opts.createAfterQuery)
-		if err != nil {
-			return err
-		}
-		opts.query.CreateAfter = parsedTime
-	}
-	if opts.editBeforeQuery != "" {
-		parsedTime, err := parseTime(opts.editBeforeQuery)
-		if err != nil {
-			return err
-		}
-		opts.query.EditBefore = parsedTime
-	}
-	if opts.editAfterQuery != "" {
-		parsedTime, err := parseTime(opts.editAfterQuery)
-		if err != nil {
-			return err
-		}
-		opts.query.EditAfter = parsedTime
-	}
-
-	switch opts.sortBy {
-	case "id":
-		opts.query.OrderBy = query.OrderById
-	case "creation":
-		opts.query.OrderBy = query.OrderByCreation
-	case "edit":
-		opts.query.OrderBy = query.OrderByEdit
-	default:
-		return fmt.Errorf("unknown sort flag %s", opts.sortBy)
-	}
-
-	switch opts.sortDirection {
-	case "asc":
-		opts.query.OrderDirection = query.OrderAscending
-	case "desc":
-		opts.query.OrderDirection = query.OrderDescending
-	default:
-		return fmt.Errorf("unknown sort direction %s", opts.sortDirection)
 	}
 
 	return nil
