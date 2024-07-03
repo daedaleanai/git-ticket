@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"fmt"
 	"log"
 	"reflect"
 	"strings"
@@ -398,7 +399,7 @@ func executeFilter(filter query.FilterNode, resolver resolver, b *BugExcerpt) bo
 	}
 }
 
-func executeMatcherOnIdentity(matcher query.LiteralMatcherNode, ident *IdentityExcerpt) bool {
+func ExecuteMatcherOnIdentity(matcher query.LiteralMatcherNode, ident *IdentityExcerpt) bool {
 	switch matcher := matcher.(type) {
 	case *query.LiteralNode:
 		lit := strings.ToLower(matcher.Token.Literal)
@@ -429,16 +430,21 @@ func executeAuthorFilter(filter *query.AuthorFilter, resolver resolver, b *BugEx
 	if err != nil {
 		panic(err)
 	}
-	return executeMatcherOnIdentity(filter.Author, author)
+	return ExecuteMatcherOnIdentity(filter.Author, author)
 }
 
 func executeAssigneeFilter(filter *query.AssigneeFilter, resolver resolver, b *BugExcerpt) bool {
-	assignee, err := resolver.ResolveIdentityExcerpt(b.AssigneeId)
-	if err != nil {
-		panic(err)
+	if b.AssigneeId == "" {
+		// Never matches unassigned tickets. To match unassigned tickets: not(assignee(r".*"))
+		return false
 	}
 
-	return executeMatcherOnIdentity(filter.Assignee, assignee)
+	assignee, err := resolver.ResolveIdentityExcerpt(b.AssigneeId)
+	if err != nil {
+		panic(fmt.Sprintf("%v: %s", err, b.AssigneeId))
+	}
+
+	return ExecuteMatcherOnIdentity(filter.Assignee, assignee)
 }
 
 func executeCcbFilter(filter *query.CcbFilter, resolver resolver, b *BugExcerpt) bool {
@@ -448,7 +454,7 @@ func executeCcbFilter(filter *query.CcbFilter, resolver resolver, b *BugExcerpt)
 			panic(err)
 		}
 
-		if executeMatcherOnIdentity(filter.Ccb, identityExcerpt) {
+		if ExecuteMatcherOnIdentity(filter.Ccb, identityExcerpt) {
 			return true
 		}
 	}
@@ -473,7 +479,7 @@ func executeCcbPendingFilter(filter *query.CcbPendingFilter, resolver resolver, 
 			panic(err)
 		}
 
-		if executeMatcherOnIdentity(filter.Ccb, identityExcerpt) {
+		if ExecuteMatcherOnIdentity(filter.Ccb, identityExcerpt) {
 			for _, nextStatus := range nextStatuses {
 				if nextStatus == id.Status && id.State != bug.ApprovedCcbState {
 					return true
@@ -491,7 +497,7 @@ func executeActorFilter(filter *query.ActorFilter, resolver resolver, b *BugExce
 			panic(err)
 		}
 
-		if executeMatcherOnIdentity(filter.Actor, identityExcerpt) {
+		if ExecuteMatcherOnIdentity(filter.Actor, identityExcerpt) {
 			return true
 		}
 	}
@@ -505,7 +511,7 @@ func executeParticipantFilter(filter *query.ParticipantFilter, resolver resolver
 			panic(err)
 		}
 
-		if executeMatcherOnIdentity(filter.Participant, identityExcerpt) {
+		if ExecuteMatcherOnIdentity(filter.Participant, identityExcerpt) {
 			return true
 		}
 	}
