@@ -329,6 +329,14 @@ func (c *RepoCache) ListConfigs() ([]string, error) {
 	return config.ListConfigs(c.repo)
 }
 
+// List configured repo labels for this repository
+func (c *RepoCache) ListRepoLabels() ([]string, error) {
+	c.muConfig.RLock()
+	defer c.muConfig.RUnlock()
+
+	return c.configCache.GetRepoLabels()
+}
+
 // Store the configuration data under the given name
 func (c *RepoCache) SetConfig(name string, configData []byte) error {
 	c.muConfig.Lock()

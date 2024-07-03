@@ -70,6 +70,10 @@ func (l *LabelConfig) GetLabelConfig(label Label) (*SingleLabelConfig, error) {
 	return nil, fmt.Errorf("Label %s does not exist", label)
 }
 
+func (l *LabelConfig) GetRepoLabels() ([]string, error) {
+	return l.ListLabelsWithNamespace("repo")
+}
+
 // AppendLabelToConfiguration appends a given label to the label store, turning it into a valid label.
 // Note that this function does not persistently store it in the configuration.
 // Obtain the serialized label configuration and the key in the configuration using LabelStoreData.
