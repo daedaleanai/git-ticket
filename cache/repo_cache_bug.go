@@ -256,7 +256,7 @@ func (c *RepoCache) QueryBugs(q *query.CompiledQuery) []entity.Id {
 	var filtered []*BugExcerpt
 
 	for _, excerpt := range c.bugExcerpts {
-		if executeFilter(q.FilterNode, c, excerpt) {
+		if q.FilterNode == nil || executeFilter(q.FilterNode, c, excerpt) {
 			filtered = append(filtered, excerpt)
 		}
 	}
