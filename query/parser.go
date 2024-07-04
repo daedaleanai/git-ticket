@@ -246,11 +246,16 @@ func (parser *Parser) parseDelimitedExpressionList() ([]AstNode, Span, *ParseErr
 	}
 
 	for {
+		if parser.curToken.TokenType == EofToken {
+			return nil, span, newParseError(&parser.context, span, "Unterminated delimited expression")
+		}
+
 		expr, err := parser.parseExpression()
 		if err != nil {
 			return nodes, span, err
 		}
 		nodes = append(nodes, expr)
+		span = span.Extend(expr.Span())
 
 		switch parser.curToken.TokenType {
 		case RparenToken:
@@ -262,6 +267,8 @@ func (parser *Parser) parseDelimitedExpressionList() ([]AstNode, Span, *ParseErr
 			if err != nil {
 				return nodes, span, err
 			}
+		case EofToken:
+			return nil, span, newParseError(&parser.context, span, "Unterminated delimited expression")
 		default:
 			return nil, span, newParseError(&parser.context, parser.curToken.Span, fmt.Sprintf("Unexpected delimiter in delimited expression: %s", parser.curToken.TokenType))
 		}
@@ -284,10 +291,15 @@ func (parser *Parser) parseDelimitedLiteralList() ([]*LiteralNode, Span, *ParseE
 	}
 
 	for {
+		if parser.curToken.TokenType == EofToken {
+			return nil, span, newParseError(&parser.context, span, "Unterminated delimited expression")
+		}
+
 		if parser.curToken.TokenType != IdentToken && parser.curToken.TokenType != StringToken {
 			return nodes, span, newParseError(&parser.context, parser.curToken.Span, "Expected Literal")
 		}
 		nodes = append(nodes, &LiteralNode{parser.curToken})
+		span = span.Extend(parser.curToken.Span)
 
 		err = parser.advance()
 		if err != nil {
@@ -304,6 +316,8 @@ func (parser *Parser) parseDelimitedLiteralList() ([]*LiteralNode, Span, *ParseE
 			if err != nil {
 				return nodes, span, err
 			}
+		case EofToken:
+			return nil, span, newParseError(&parser.context, span, "Unterminated delimited expression")
 		default:
 			return nil, span, newParseError(&parser.context, parser.curToken.Span, fmt.Sprintf("Unexpected delimiter in delimited expression: %s", parser.curToken.TokenType))
 		}

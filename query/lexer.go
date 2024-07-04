@@ -74,10 +74,19 @@ func (l *Lexer) NextToken() (Token, error) {
 
 	curChar := l.curChar()
 	if simpleTokenType, ok := simpleTokenTypeMap[curChar]; ok {
-		token := Token{
-			TokenType: simpleTokenType,
-			Literal:   string(curChar),
-			Span:      newSpanAt(l.pos),
+		var token Token
+		if simpleTokenType == EofToken {
+			token = Token{
+				TokenType: simpleTokenType,
+				Literal:   string(curChar),
+				Span:      Span{l.pos, l.pos},
+			}
+		} else {
+			token = Token{
+				TokenType: simpleTokenType,
+				Literal:   string(curChar),
+				Span:      Span{l.pos, l.pos + 1},
+			}
 		}
 		l.advance() // consume the char
 		return token, nil

@@ -271,6 +271,10 @@ func TestParseErrors(t *testing.T) {
 			`edit-after(r"2026-05-23")`,
 			&ParseError{query: "edit-after(r\"2026-05-23\")", span: Span{Begin: 11, End: 24}, message: "Expected Literal expression\n\tWhile parsing Edit Date expression"},
 		},
+		{
+			`all(`,
+			&ParseError{query: "all(", span: Span{3, 4}, message: "Unterminated delimited expression\n\tWhile parsing All expression"},
+		},
 	}
 
 	for _, tc := range tests {
