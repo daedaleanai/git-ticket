@@ -236,7 +236,7 @@ func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) 
 	qParam := r.URL.Query().Get("q")
 	q, err := query.Parse(qParam)
 	if err != nil {
-		return &invalidRequestError{msg: fmt.Sprintf("unable to parse query: %s", err.Error())}
+		return &invalidRequestError{msg: fmt.Sprintf("unable to parse query: %s", err)}
 	}
 
 	tickets := map[bug.Status][]*cache.BugExcerpt{}
@@ -316,7 +316,9 @@ func handleCreate(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request)
 		formData = r.Form
 		action, validationErrors, err := createTicketFromFormData(formData, repo)
 
-		if len(validationErrors) == 0 && err == nil {
+		if err != nil {
+			session.AddFlash(fmt.Sprintf("Failed to create ticket: %s", err))
+		} else if len(validationErrors) == 0 {
 			ticket, _, err := repo.NewBug(cache.NewBugOpts{
 				Title:    action.Title,
 				Message:  action.Message,
@@ -325,15 +327,11 @@ func handleCreate(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request)
 				Repo:     fmt.Sprintf("%s%s", bug.RepoPrefix, action.Repo),
 			})
 			if err != nil {
-				session.AddFlash(fmt.Sprintf("Failed to create ticket: %s", err.Error()))
+				session.AddFlash(fmt.Sprintf("Failed to create ticket: %s", err))
 			} else {
 				http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticket.Id()), http.StatusSeeOther)
 				return nil
 			}
-		}
-
-		if err != nil {
-			session.AddFlash(fmt.Sprintf("Failed to create ticket: %s", err.Error()))
 		}
 	}
 
@@ -351,6 +349,7 @@ func handleCreate(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request)
 		ValidationErrors map[string]*invalidRequestError
 		FlashErrors      []interface{}
 		FormData         url.Values
+		UserOptions      []*cache.IdentityExcerpt
 	}{
 		SideBar: SideBarData{
 			BookmarkGroups: webUiConfig.BookmarkGroups,
@@ -361,6 +360,7 @@ func handleCreate(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request)
 		RepoLabels:       repoLabels,
 		FormData:         formData,
 		FlashErrors:      flashes,
+		UserOptions:      repo.AllIdentityExcerpts(),
 	}
 
 	return renderTemplate(w, "create.html", data)

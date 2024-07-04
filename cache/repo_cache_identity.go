@@ -246,6 +246,15 @@ func (c *RepoCache) AllIdentityIds() []entity.Id {
 	return result
 }
 
+func (c *RepoCache) AllIdentityExcerpts() []*IdentityExcerpt {
+	var vals []*IdentityExcerpt
+	for _, v := range c.identitiesExcerpts {
+		vals = append(vals, v)
+	}
+
+	return vals
+}
+
 func (c *RepoCache) NewIdentityFromGitUser() (*IdentityCache, error) {
 	return c.NewIdentityFromGitUserRaw(nil)
 }
