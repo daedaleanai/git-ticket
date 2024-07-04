@@ -83,21 +83,9 @@ You can sort bugs by their edit time.
 
 The webui can color tickets that match a certain criteria. All coloring nodes start with `color-by()` and contain a single argument, which must be one of:
 
-| Color-by nodes   | Arguments                                                            | Example                                                                                               |
-| ---              | ---                                                                  | ---                                                                                                   |
-| `author`         | A literal matcher                                                    | `author(r"John|Jane")` matches tickets authored by either John or Jane                                |
-| `assignee`       | A literal matcher                                                    | `assignee(r"John|Jane")` matches tickets assigned to either John or Jane                              |
-| `ccb`            | A literal matcher                                                    | `ccb(john)` matches tickets CCB'ed by John                                                            |
-| `ccb-pending`    | A literal matcher                                                    | `ccb-pending(john)` matches tickets CCB'ed by John in which a CCB action is pending                   |
-| `actor`          | A literal matcher                                                    | `actor(r"John|Jane")` matches tickets in which either John or Jane are actors                         |
-| `participant`    | A literal matcher                                                    | `participant(r"John|Jane")` matches tickets in which either John or Jane are participants             |
-| `label`          | A literal matcher                                                    | `label(r"^repo:.*")` matches tickets with labels that start with `repo:`                              |
-| `title`          | A literal matcher                                                    | `title(r"^\[QA\].*")` matches tickets in which their title starts with `[QA]`                         |
-| `not`            | A nested filter                                                      | `not(title(r"^\[QA\].*"))` matches tickets that do not have titles starting with `[QA]`               |
-| `any`            | A comma-separated list of nested filters                             | `any(ccb(john), status(vetted))` matches tickets that are CCB'ed by John or are in the vetted status  |
-| `all`            | A comma-separated list of nested filters                             | `all(ccb(john), status(vetted))` matches tickets that are CCB'ed by John and are in the vetted status |
-| `created-before` | Identifier or string with format 2006-01-02T15:04:05 or 2006-01-02   | `created-before(2006-01-02)` matches tickets created before the given date                            |
-| `created-after`  | Identifier or string with format 2006-01-02T15:04:05 or 2006-01-02   | `created-after(2006-01-02)` matches tickets created before the given date                             |
-| `edit-before`    | Identifier or string with format 2006-01-02T15:04:05 or 2006-01-02   | `edit-before(2006-01-02)` matches tickets were last edited before the given date                      |
-| `edit-after`     | Identifier or string with format 2006-01-02T15:04:05 or 2006-01-02   | `edit-after(2006-01-02)` matches tickets were last edited after the given date                        |
-
+| Color-by nodes   | Arguments                                                            | Example                                                                                                                                           |
+| ---              | ---                                                                  | ---                                                                                                                                               |
+| `author`         | A literal matcher                                                    | `color-by(author(r"John|Jane"))` matches tickets authored by either John or Jane, coloring the tickets that were authored by them.                |
+| `assignee`       | A literal matcher                                                    | `color-by(assignee(r"John|Jane"))` matches tickets assigned to either John or Jane, coloring the tickets that are assigned to them.               |
+| `ccb-pending`    | A literal matcher                                                    | `color-by(ccb-pending(john))` matches tickets CCB'ed by John in which a CCB action is pending, coloring the tickets that are pending CCB by John. |
+| `label`          | A literal matcher                                                    | `color-by(label(r"^repo:.*"))` matches tickets with labels that start with `repo:`, assigning a color to each of the different matched labels.    |
