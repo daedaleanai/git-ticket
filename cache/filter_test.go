@@ -1,23 +1,26 @@
 package cache
 
 import (
+	"regexp"
 	"testing"
 
+	"github.com/daedaleanai/git-ticket/query"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestTitleFilter(t *testing.T) {
 	tests := []struct {
-		name  string
-		title string
-		query string
-		match bool
+		name        string
+		title       string
+		titleFilter query.TitleFilter
+		match       bool
 	}{
-		{name: "complete match", title: "hello world", query: "hello world", match: true},
-		{name: "partial match", title: "hello world", query: "hello", match: true},
-		{name: "no match", title: "hello world", query: "foo", match: false},
-		{name: "cased title", title: "Hello World", query: "hello", match: true},
-		{name: "cased query", title: "hello world", query: "Hello", match: true},
+		{name: "complete match", title: "hello world", titleFilter: query.TitleFilter{Title: &query.LiteralNode{Token: query.Token{TokenType: query.StringToken, Literal: "hello world"}}}, match: true},
+		{name: "no match", title: "hello world", titleFilter: query.TitleFilter{Title: &query.LiteralNode{Token: query.Token{TokenType: query.StringToken, Literal: "foo"}}}, match: false},
+		{name: "cased title", title: "Hello World", titleFilter: query.TitleFilter{Title: &query.LiteralNode{Token: query.Token{TokenType: query.StringToken, Literal: "hello world"}}}, match: true},
+		{name: "cased query", title: "hello world", titleFilter: query.TitleFilter{Title: &query.LiteralNode{Token: query.Token{TokenType: query.StringToken, Literal: "Hello World"}}}, match: true},
+		{name: "regex title", title: "hello world", titleFilter: query.TitleFilter{Title: &query.RegexNode{Token: query.Token{TokenType: query.RegexToken, Literal: "^hello.*"}, Regex: *regexp.MustCompile("^hello.*")}}, match: true},
+		{name: "regex title", title: "hello world", titleFilter: query.TitleFilter{Title: &query.RegexNode{Token: query.Token{TokenType: query.RegexToken, Literal: "^Hello.*"}, Regex: *regexp.MustCompile("^Hello.*")}}, match: false},
 
 		// Those following tests should work eventually but are left for a future iteration.
 
@@ -26,9 +29,8 @@ func TestTitleFilter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			filter := TitleFilter(tt.query)
 			excerpt := &BugExcerpt{Title: tt.title}
-			assert.Equal(t, tt.match, filter(excerpt, nil))
+			assert.Equal(t, tt.match, executeTitleFilter(&tt.titleFilter, nil, excerpt))
 		})
 	}
 }

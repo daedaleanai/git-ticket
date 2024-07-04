@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -117,7 +119,12 @@ type SideBarData struct {
 
 func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
 	qParam := r.URL.Query().Get("q")
-	q, err := query.Parse(qParam)
+	parser, err := query.NewParser(qParam)
+	if err != nil {
+		return fmt.Errorf("unable to parse query: %w", err)
+	}
+
+	q, err := parser.Parse()
 	if err != nil {
 		return &invalidRequestError{msg: fmt.Sprintf("unable to parse query: %s", err)}
 	}
@@ -443,36 +450,40 @@ func loadConfig(repo repository.ClockedRepo) error {
 	return nil
 }
 
-func getTicketColorKey(repo *cache.RepoCache, q *query.Query, ticket *cache.BugExcerpt) (string, error) {
-	switch q.ColorBy {
-	case query.ColorByAuthor:
+func getTicketColorKey(repo *cache.RepoCache, q *query.CompiledQuery, ticket *cache.BugExcerpt) (string, error) {
+	if q.ColorNode == nil {
+		return "", nil
+	}
+
+	switch colorFilter := q.ColorNode.ColorFilter.(type) {
+	case *query.AuthorFilter:
 		id, err := repo.ResolveIdentityExcerpt(ticket.AuthorId)
 		if err != nil {
 			return "", fmt.Errorf("failed to resolve identity %s: %w", ticket.AuthorId, err)
 		}
-		return id.DisplayName(), nil
 
-	case query.ColorByAssignee:
-		if ticket.AssigneeId != "" {
+		if !cache.ExecuteMatcherOnIdentity(colorFilter.Author, id) {
 			break
 		}
+		return id.DisplayName(), nil
+
+	case *query.AssigneeFilter:
+		if ticket.AssigneeId == "" {
+			break
+		}
+
 		id, err := repo.ResolveIdentityExcerpt(ticket.AssigneeId)
 		if err != nil {
 			return "", fmt.Errorf("failed to resolve identity %s: %w", ticket.AssigneeId, err)
 		}
+
+		if !cache.ExecuteMatcherOnIdentity(colorFilter.Assignee, id) {
+			break
+		}
+
 		return id.DisplayName(), nil
 
-	case query.ColorByLabel:
-		labels := []string{}
-		for _, label := range ticket.Labels {
-			if strings.HasPrefix(label.String(), string(q.ColorByLabelPrefix)) {
-				labels = append(labels, strings.TrimPrefix(label.String(), string(q.ColorByLabelPrefix)))
-			}
-		}
-		sort.Strings(labels)
-		return strings.Join(labels, " "), nil
-
-	case query.ColorByCcbPendingByUser:
+	case *query.CcbPendingFilter:
 		workflow := bug.FindWorkflow(ticket.Labels)
 		if workflow == nil {
 			// No workflow assigned
@@ -487,15 +498,40 @@ func getTicketColorKey(repo *cache.RepoCache, q *query.Query, ticket *cache.BugE
 				return "", err
 			}
 
-			if identityExcerpt.Match(string(q.ColorByCcbUserName)) {
+			if cache.ExecuteMatcherOnIdentity(colorFilter.Ccb, identityExcerpt) {
 				for _, nextStatus := range nextStatuses {
 					if nextStatus == ccbInfo.Status && ccbInfo.State != bug.ApprovedCcbState {
-						return string(q.ColorByCcbUserName), nil
+						return identityExcerpt.DisplayName(), nil
 					}
 				}
 			}
 		}
 
+	case *query.LabelFilter:
+		runMatcher := func(label bug.Label) bool {
+			switch matcher := colorFilter.Label.(type) {
+			case *query.LiteralNode:
+				expected := matcher.Token.Literal
+				return expected == string(label)
+			case *query.RegexNode:
+				return matcher.Match(string(label))
+			default:
+				log.Fatal("Unhandled LiteralMatcherNode type: ", reflect.TypeOf(colorFilter.Label))
+				return false
+			}
+		}
+
+		labels := []string{}
+		for _, label := range ticket.Labels {
+			if runMatcher(label) {
+				labels = append(labels, label.String())
+			}
+		}
+		sort.Strings(labels)
+		return strings.Join(labels, " "), nil
+
+	default:
+		return "", fmt.Errorf("Unhandled color filter type: %v", reflect.TypeOf(q.ColorNode.ColorFilter))
 	}
 
 	return "", nil
