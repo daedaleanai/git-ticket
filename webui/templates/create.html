@@ -25,7 +25,7 @@
       <div class="col mx-auto p-2 alert alert-danger d-flex align-items-center" role="alert">
         <ul>
           {{ range $.FlashErrors }}
-          <li>{{ . }}</li>
+          <li>{{ .Message }}</li>
           {{ end }}
         </ul>
       </div>
