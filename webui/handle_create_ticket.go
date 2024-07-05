@@ -37,6 +37,7 @@ func handleCreateTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Re
 			if err != nil {
 				bag.Add(NewError(fmt.Sprintf("Failed to create ticket: %s", err.Error())))
 			} else {
+				bag.newSuccess("Ticket created")
 				http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticket.Id()), http.StatusSeeOther)
 				return nil
 			}

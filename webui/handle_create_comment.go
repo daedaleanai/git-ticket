@@ -52,6 +52,10 @@ func handleCreateComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.R
 		bag.Add(NewError(fmt.Sprintf("Something went wrong: %s", err)))
 	}
 
+	if err == nil {
+		bag.newSuccess("Success")
+	}
+
 	ticketRedirect(ticket.Id().String(), w, r)
 	return nil
 }
