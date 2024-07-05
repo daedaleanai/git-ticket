@@ -17,7 +17,7 @@ func (l Label) String() string {
 	return string(l)
 }
 
-func (l Label) DisplayName() string {
+func (l Label) WorkflowName() string {
 	return strings.TrimPrefix(l.String(), WorkflowPrefix)
 }
 

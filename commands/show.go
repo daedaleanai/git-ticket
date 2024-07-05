@@ -229,7 +229,7 @@ func workflowAndLabels(snap *bug.Snapshot) (string, []string) {
 
 	for _, lbl := range snap.Labels {
 		if lbl.IsWorkflow() {
-			workflow = lbl.DisplayName()
+			workflow = lbl.WorkflowName()
 		} else if lbl.IsChecklist() {
 			continue
 		} else {
