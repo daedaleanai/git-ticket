@@ -1,13 +1,15 @@
 package commands
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/spf13/cobra"
 
 	"github.com/daedaleanai/git-ticket/webui"
 )
 
 func newWebUICommand() *cobra.Command {
-	env := newEnv()
 	port := 0
 	host := ""
 
@@ -15,9 +17,8 @@ func newWebUICommand() *cobra.Command {
 		Use:     "webui",
 		Aliases: []string{"web"},
 		Short:   "Launch the web UI.",
-		PreRunE: loadRepo(env),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runWebUI(env, host, port)
+			return runWebUI(host, port)
 		},
 	}
 
@@ -27,6 +28,11 @@ func newWebUICommand() *cobra.Command {
 	return cmd
 }
 
-func runWebUI(env *Env, host string, port int) error {
-	return webui.Run(env.repo, host, port)
+func runWebUI(host string, port int) error {
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("unable to get the current working directory: %q", err)
+	}
+
+	return webui.Run(currentDir, host, port)
 }
