@@ -24,7 +24,6 @@ import (
 	"github.com/daedaleanai/git-ticket/repository"
 	"github.com/daedaleanai/git-ticket/util/timestamp"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/sessions"
 	"github.com/yuin/goldmark"
 	gmast "github.com/yuin/goldmark/ast"
 	gmextension "github.com/yuin/goldmark/extension"
@@ -83,12 +82,7 @@ var (
 	}
 )
 
-// **Note:** we're only using sessions to show flash messages.
-// If we ever use it for auth stuff (which is probably never), this should be an env var.
-const ddlnContextKeySession = "session"
-
-var store = sessions.NewCookieStore([]byte(ddlnSessionKey))
-var session *sessions.Session
+const flashMessageBagContextKey = "flash_message_context"
 
 func Run(repo repository.ClockedRepo, host string, port int) error {
 	if err := loadConfig(repo); err != nil {
@@ -97,17 +91,18 @@ func Run(repo repository.ClockedRepo, host string, port int) error {
 
 	r := mux.NewRouter()
 	r.Use(errorHandlingMiddleware)
+	r.Use(flashMessageMiddleware)
 
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))
 	r.HandleFunc("/", withRepoCache(repo, handleIndex))
 	r.HandleFunc(
 		"/ticket/new/",
-		withSession(withRepoCache(repo, handleCreateTicket)),
+		withRepoCache(repo, handleCreateTicket),
 	).Methods(http.MethodGet, http.MethodPost)
-	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", withSession(withRepoCache(repo, handleTicket))).Methods(http.MethodGet)
+	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", withRepoCache(repo, handleTicket)).Methods(http.MethodGet)
 	r.HandleFunc(
 		"/ticket/{ticketId:[0-9a-fA-F]{7,}}/comment/",
-		withSession(withRepoCache(repo, handleCreateComment)),
+		withRepoCache(repo, handleCreateComment),
 	).Methods(http.MethodPost)
 	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
 	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
@@ -192,8 +187,7 @@ func renderTemplate(w http.ResponseWriter, name string, data interface{}) error 
 }
 
 func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
-	session := r.Context().Value(ddlnContextKeySession).(*sessions.Session)
-	defer session.Save(r, w)
+	bag := r.Context().Value(flashMessageBagContextKey).(*FlashMessageBag)
 
 	var ticket *cache.BugCache
 	var err error
@@ -207,12 +201,12 @@ func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request)
 		return ticketNotFound(id)
 	}
 
-	flashes := session.Flashes()
+	flashes := bag.Messages()
 
 	return renderTemplate(w, "ticket.html", struct {
-		SideBar     SideBarData
-		Ticket      *bug.Snapshot
-		FlashErrors []interface{}
+		SideBar       SideBarData
+		Ticket        *bug.Snapshot
+		FlashMessages []FlashMessage
 	}{
 		SideBarData{
 			BookmarkGroups: webUiConfig.BookmarkGroups,
@@ -362,17 +356,17 @@ func errorHandlingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func withSession(handler http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		session, err := store.Get(r, ddlnSessionKey)
+func flashMessageMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		bag, err := newFlashMessageBag(r, w)
+
 		if err != nil {
-			http.Error(w, "failed to get session.", http.StatusInternalServerError)
-			return
+			http.Error(w, "failed to get flash message bag.", http.StatusInternalServerError)
 		}
 
-		r = r.WithContext(context.WithValue(r.Context(), ddlnContextKeySession, session))
-		handler(w, r)
-	}
+		r = r.WithContext(context.WithValue(r.Context(), flashMessageBagContextKey, bag))
+		next.ServeHTTP(w, r)
+	})
 }
 
 func loadConfig(repo repository.ClockedRepo) error {

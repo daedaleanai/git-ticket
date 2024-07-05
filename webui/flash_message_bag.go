@@ -95,7 +95,7 @@ type FlashMessage struct {
 	Key         *string
 }
 
-func (f FlashMessage) CssClass() string {
+func (f FlashMessage) cssClass() string {
 	var s string
 	switch f.MessageType {
 	case successMsg:
@@ -104,6 +104,10 @@ func (f FlashMessage) CssClass() string {
 		s = "danger"
 	}
 	return s
+}
+
+func (f FlashMessage) isValidationError() bool {
+	return f.MessageType == validationErrorMsg
 }
 
 type flashMessageType int
