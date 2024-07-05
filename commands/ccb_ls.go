@@ -1,8 +1,6 @@
 package commands
 
 import (
-	"fmt"
-
 	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/util/colors"
 	"github.com/spf13/cobra"
@@ -35,9 +33,6 @@ func runCcbList(env *Env, args []string) error {
 				user, err := env.backend.ResolveIdentityExcerpt(member.Id)
 				if err != nil {
 					return err
-				}
-				if member.Name != user.DisplayName() {
-					return fmt.Errorf("Configured user name does not match its id. Expected %q, got %q", user.DisplayName(), member.Name)
 				}
 
 				env.out.Printf("\t%s %s\n",

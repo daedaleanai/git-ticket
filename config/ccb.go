@@ -10,8 +10,7 @@ import (
 )
 
 type CcbMember struct {
-	Name string
-	Id   entity.Id
+	Id entity.Id
 }
 
 type CcbTeam struct {
@@ -44,24 +43,12 @@ func LoadCcbConfig(repo repository.ClockedRepo) (CcbConfig, error) {
 		return nil, fmt.Errorf("unable to load ccb: %q", err)
 	}
 
-	resolver := identity.NewSimpleResolver(repo)
 	ccbTeams := []CcbTeam{}
 	for name, members := range ccbTeamsTemp.Teams {
 		ccbTeams = append(ccbTeams, CcbTeam{
 			Name:    name,
 			Members: members,
 		})
-
-		for _, member := range members {
-			id, err := resolver.ResolveIdentity(member.Id)
-			if err != nil {
-				return nil, err
-			}
-
-			if id.DisplayName() != member.Name {
-				return nil, fmt.Errorf("CCB Config is incorrect. User name does not match their ID: Got %q. Expected %q", member.Name, id.DisplayName())
-			}
-		}
 	}
 
 	return ccbTeams, nil
