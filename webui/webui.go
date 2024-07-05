@@ -85,7 +85,6 @@ var (
 
 // **Note:** we're only using sessions to show flash messages.
 // If we ever use it for auth stuff (which is probably never), this should be an env var.
-const ddlnSessionKey = "DDLN_GT_SESSION"
 const ddlnContextKeySession = "session"
 
 var store = sessions.NewCookieStore([]byte(ddlnSessionKey))
