@@ -91,7 +91,7 @@
                                         <td>
                                             {{ range $k, $v := $.Ticket.GetChecklistCompoundStates  }}
                                             <span class="badge {{ checklistStateColor $v }}">
-                                            {{ if ne $v 0 }}<a href="/checklist?id={{ $.Ticket.Id }}&checklist={{ $k }}">{{end}}
+                                            {{ if ne $v 0 }}<a href="/checklist/?id={{ $.Ticket.Id }}&checklist={{ $k }}">{{end}}
                                                 {{ checklist $k }}
                                             {{ if ne $v 0 }}</a>{{ end }}
                                         </span>
