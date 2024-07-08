@@ -53,7 +53,7 @@ func handleCreateComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.R
 	}
 
 	if err == nil {
-		bag.newSuccess("Success")
+		bag.Add(NewSuccess("Success"))
 	}
 
 	ticketRedirect(ticket.Id().String(), w, r)

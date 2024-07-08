@@ -362,6 +362,7 @@ func flashMessageMiddleware(next http.Handler) http.Handler {
 
 		if err != nil {
 			http.Error(w, "failed to get flash message bag.", http.StatusInternalServerError)
+			return
 		}
 
 		r = r.WithContext(context.WithValue(r.Context(), flashMessageBagContextKey, bag))

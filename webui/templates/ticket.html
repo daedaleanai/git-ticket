@@ -15,7 +15,7 @@
         <div class="gt-content">
             <div class="container">
                 {{ range $.FlashMessages }}
-                    {{ if not .isValidationError }}
+                    {{ if not .IsValidationError }}
                         <div class="row mt-xxl-2">
                             <div
                                 class="col mx-auto p-2 alert alert-{{ .CssClass }} d-flex align-items-center"
