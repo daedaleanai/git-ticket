@@ -3,9 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-
 	"github.com/daedaleanai/git-ticket/entity"
-	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/repository"
 )
 
@@ -55,10 +53,10 @@ func LoadCcbConfig(repo repository.ClockedRepo) (CcbConfig, error) {
 }
 
 // IsCcbMember returns a flag indicating if the user is a ccb member, as defined in the repository configuration
-func (c CcbConfig) IsCcbMember(user identity.Interface) bool {
+func (c CcbConfig) IsCcbMember(id entity.Id) bool {
 	for _, team := range c {
 		for _, member := range team.Members {
-			if member.Id == user.Id() {
+			if member.Id == id {
 				return true
 			}
 		}

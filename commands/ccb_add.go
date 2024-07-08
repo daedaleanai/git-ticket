@@ -55,7 +55,7 @@ func runCcbAdd(env *Env, args []string) error {
 	}
 
 	err = env.backend.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
-		if ok := c.IsCcbMember(userToAdd.Identity); !ok {
+		if ok := c.IsCcbMember(userToAdd.Id()); !ok {
 			return errors.New(userToAdd.DisplayName() + " is not a CCB member")
 		}
 		return nil
