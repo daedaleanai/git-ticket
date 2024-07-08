@@ -182,7 +182,7 @@ func Run(repo repository.ClockedRepo, host string, port int) error {
 		"/ticket/{ticketId:[0-9a-fA-F]{7,}}/comment/",
 		withSession(withRepoCache(repo, handleComment)),
 	).Methods(http.MethodPost)
-	r.HandleFunc("/checklist", withRepoCache(repo, handleChecklist))
+	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
 	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
 
 	http.Handle("/", r)
