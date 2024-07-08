@@ -89,7 +89,7 @@ func CreateTicketFromFormData(f url.Values) (*CreateTicketAction, map[string]*in
 
 	if f.Has(keyWorkflow) && !isValidWorkflow(f.Get(keyWorkflow)) {
 		l := bug.Label(f.Get(keyWorkflow))
-		errs[keyWorkflow] = &invalidRequestError{msg: fmt.Sprintf("%s is not a valid workflow", l.DisplayName())}
+		errs[keyWorkflow] = &invalidRequestError{msg: fmt.Sprintf("%s is not a valid workflow", l.WorkflowName())}
 	}
 
 	if len(errs) > 0 {
