@@ -41,7 +41,7 @@
             </div>
             <div class="card-body">
               <div class="mb-3">
-                <label for="title" class="form-label">Title</label>
+                <label for="title" class="form-label required">Title</label>
                 <input
                   required
                   type="text"
@@ -58,7 +58,7 @@
               </div>
 
               <div class="mb-3">
-                <label for="workflow" class="form-label">Workflow</label>
+                <label for="workflow" class="form-label required">Workflow</label>
                 <select
                   class="form-control form-select {{ if .ValidationErrors.workflow }}is-invalid{{ end }} choices"
                   name="workflow"
@@ -84,7 +84,7 @@
               </div>
 
               <div class="mb-3">
-                <label for="repo" class="form-label">Repo</label>
+                <label for="repo" class="form-label required">Repo</label>
                 <select
                   class="form-control form-select {{ if .ValidationErrors.repo }}is-invalid{{ end }} choices"
                   name="repo"
@@ -129,7 +129,7 @@
               </div>
 
               <div class="mb-3">
-                <label for="description" class="form-label">Description</label>
+                <label for="description" class="form-label required">Description</label>
                 <textarea
                   class="form-control {{ if .ValidationErrors.title }}is-description{{ end }}"
                   rows="6"
