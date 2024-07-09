@@ -36,7 +36,7 @@ func handleCreateComment(w http.ResponseWriter, r *http.Request) {
 	ticketId := vars["ticketId"]
 	action, err := submitCommentFromFormData(ticketId, r.Form)
 	if err != nil {
-		bag.Add(NewError(err.Error()))
+		bag.AddMessage(NewError(err.Error()))
 		ticketRedirect(ticketId, w, r)
 		return
 	}
@@ -47,9 +47,9 @@ func handleCreateComment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := addComment(ticket, action); err != nil {
-		bag.Add(NewError(fmt.Sprintf("Something went wrong: %s", err)))
+		bag.AddMessage(NewError(fmt.Sprintf("Something went wrong: %s", err)))
 	} else {
-		bag.Add(NewSuccess("Success"))
+		bag.AddMessage(NewSuccess("Success"))
 	}
 
 	ticketRedirect(ticket.Id().String(), w, r)

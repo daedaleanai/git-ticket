@@ -3,6 +3,7 @@ package webui
 import (
 	"encoding/json"
 	"fmt"
+	http2 "github.com/daedaleanai/git-ticket/webui/http"
 	"github.com/gorilla/sessions"
 	"net/http"
 )
@@ -19,22 +20,35 @@ func (b *FlashMessageBag) ContextKey() string {
 
 // **Note:** we're only using sessions to show flash messages.
 // If we ever use it for auth stuff (which is probably never), this should be an env var.
-const ddlnSessionKey = "DDLN_GT_SESSION"
+const ddlnSessionKey = "ddln_gt_session"
 
-func (b *FlashMessageBag) Add(messages ...FlashMessage) {
-	defer func() {
-		if err := b.session.Save(b.request, b.writer); err != nil {
-			panic(fmt.Sprintf("failed to save flash messages to session: %s", err))
-		}
-	}()
+const validationErrorFlashKey = "validation_errors"
+const miscellaneousFlashKey = "misc"
 
-	for _, message := range messages {
-		m, err := json.Marshal(message)
+func (b *FlashMessageBag) AddValidationErrors(errors ...FlashValidationError) {
+	defer b.save()
+
+	for _, e := range errors {
+		m, err := json.Marshal(e)
 		if err != nil {
-			panic(fmt.Sprintf("failed to create new flash message '%s': %s", message.Message, err))
+			panic(fmt.Sprintf("failed to create new flash message '%s': %s", e.Message, err))
 		}
 
-		b.session.AddFlash(m)
+		b.session.AddFlash(m, validationErrorFlashKey)
+	}
+}
+
+func (b *FlashMessageBag) AddMessage(message FlashMessage) {
+	m, err := json.Marshal(message)
+	if err != nil {
+		panic(fmt.Sprintf("failed to create new flash message '%s': %s", message.Message, err))
+	}
+	b.session.AddFlash(m, miscellaneousFlashKey)
+}
+
+func (b *FlashMessageBag) save() {
+	if err := b.session.Save(b.request, b.writer); err != nil {
+		panic(fmt.Sprintf("failed to save flash messages to session: %s", err))
 	}
 }
 
@@ -66,37 +80,57 @@ func NewSuccess(msg string) FlashMessage {
 	}
 }
 
-func NewValidationError(key string, msg string) FlashMessage {
-	return FlashMessage{
-		MessageType: validationErrorMsg,
-		Key:         &key,
-		Message:     msg,
+func NewValidationError(field string, err http2.ValidationError) FlashValidationError {
+	return FlashValidationError{
+		Field:   field,
+		Message: err.Error(),
 	}
 }
 
 func (b *FlashMessageBag) Messages() []FlashMessage {
 	var flashes []FlashMessage
-	for _, v := range b.session.Flashes() {
-		s := fmt.Sprintf("%s", v)
+
+	for _, v := range b.session.Flashes(miscellaneousFlashKey) {
 		var m FlashMessage
-
-		if err := json.Unmarshal([]byte(s), &m); err != nil {
-			panic(fmt.Sprintf("failed to clear flash messages: %s", s))
-		} else {
-			flashes = append(flashes, m)
-		}
+		unmarshalMessage(v, &m)
+		flashes = append(flashes, m)
 	}
 
-	if err := b.session.Save(b.request, b.writer); err != nil {
-		panic(fmt.Sprintf("failed to clear flash messages: %s", err))
-	}
 	return flashes
+}
+
+func unmarshalMessage[M *FlashMessage | *FlashValidationError](b interface{}, m M) {
+	s := fmt.Sprintf("%s", b)
+
+	if err := json.Unmarshal([]byte(s), m); err != nil {
+		panic(fmt.Sprintf("failed to clear flash messages: %s", s))
+	}
+}
+
+func (b *FlashMessageBag) ValidationErrors() map[string]FlashValidationError {
+	var flashes []FlashValidationError
+
+	for _, v := range b.session.Flashes(validationErrorFlashKey) {
+		var m FlashValidationError
+		unmarshalMessage(v, &m)
+		flashes = append(flashes, m)
+	}
+
+	errors := make(map[string]FlashValidationError)
+	for _, f := range flashes {
+		errors[f.Field] = f
+	}
+	return errors
 }
 
 type FlashMessage struct {
 	MessageType flashMessageType
 	Message     interface{}
-	Key         *string
+}
+
+type FlashValidationError struct {
+	Field   string
+	Message string
 }
 
 func (f *FlashMessage) CssClass() string {
@@ -104,14 +138,10 @@ func (f *FlashMessage) CssClass() string {
 	switch f.MessageType {
 	case successMsg:
 		s = "success"
-	case errorMsg, validationErrorMsg:
+	case errorMsg:
 		s = "danger"
 	}
 	return s
-}
-
-func (f *FlashMessage) IsValidationError() bool {
-	return f.MessageType == validationErrorMsg
 }
 
 type flashMessageType int
@@ -119,5 +149,4 @@ type flashMessageType int
 const (
 	errorMsg flashMessageType = iota
 	successMsg
-	validationErrorMsg
 )

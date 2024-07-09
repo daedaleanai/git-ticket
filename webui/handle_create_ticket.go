@@ -37,15 +37,15 @@ func handleCreateTicket(w http.ResponseWriter, r *http.Request) {
 				Repo:     fmt.Sprintf("%s%s", bug.RepoPrefix, action.Repo),
 			})
 			if err != nil {
-				bag.Add(NewError(fmt.Sprintf("Failed to create ticket: %s", err.Error())))
+				bag.AddMessage(NewError(fmt.Sprintf("Failed to create ticket: %s", err.Error())))
 			} else {
-				bag.Add(NewSuccess("Ticket created"))
+				bag.AddMessage(NewSuccess("Ticket created"))
 				http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticket.Id()), http.StatusSeeOther)
 			}
 		}
 
 		if err != nil {
-			bag.Add(NewError(fmt.Sprintf("Failed to create ticket: %s", err.Error())))
+			bag.AddMessage(NewError(fmt.Sprintf("Failed to create ticket: %s", err.Error())))
 		}
 	}
 
