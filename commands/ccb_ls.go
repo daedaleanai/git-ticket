@@ -1,9 +1,6 @@
 package commands
 
 import (
-	"sort"
-
-	"github.com/daedaleanai/git-ticket/cache"
 	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/util/colors"
 	"github.com/spf13/cobra"
@@ -27,30 +24,24 @@ func newCcbListCommand() *cobra.Command {
 }
 
 func runCcbList(env *Env, args []string) error {
-	var users []*cache.IdentityExcerpt
+	return env.backend.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
+		for _, team := range c.CcbConfig {
+			env.out.Printf("Team: %s \n",
+				colors.WhiteBold(team.Name),
+			)
+			for _, member := range team.Members {
+				user, err := env.backend.ResolveIdentityExcerpt(member.Id)
+				if err != nil {
+					return err
+				}
 
-	err := env.backend.DoWithLockedConfigCache(func(c *config.ConfigCache) error {
-		for _, id := range c.CcbConfig {
-			user, err := env.backend.ResolveIdentityExcerpt(id)
-			if err != nil {
-				return err
+				env.out.Printf("\t%s %s\n",
+					colors.Cyan(member.Id.Human()),
+					user.DisplayName(),
+				)
 			}
-			users = append(users, user)
 		}
+
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-
-	sort.Sort(byDisplayName(users))
-
-	for _, member := range users {
-		env.out.Printf("%s %s\n",
-			colors.Cyan(member.Id.Human()),
-			member.DisplayName(),
-		)
-	}
-
-	return nil
 }
