@@ -17,7 +17,7 @@ type submitCommentAction struct {
 
 func submitCommentFromFormData(ticketId string, f url.Values) (*submitCommentAction, error) {
 	if !f.Has("comment") {
-		return nil, &invalidRequestError{msg: "missing required field [comment]"}
+		return nil, &http_webui.InvalidRequestError{Msg: "missing required field [comment]"}
 	}
 
 	return &submitCommentAction{ticketId, f.Get("comment")}, nil
@@ -29,7 +29,7 @@ func handleCreateComment(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	if err := r.ParseForm(); err != nil {
-		ErrorIntoResponse(&malformedRequestError{prev: err}, w)
+		http_webui.ErrorIntoResponse(&http_webui.MalformedRequestError{Prev: err}, w)
 		return
 	}
 
@@ -42,7 +42,7 @@ func handleCreateComment(w http.ResponseWriter, r *http.Request) {
 	}
 	ticket, err := repo.ResolveBug(entity.Id(action.Ticket))
 	if err != nil {
-		ErrorIntoResponse(&invalidRequestError{msg: fmt.Sprintf("invalid ticket id: %s", action.Ticket)}, w)
+		http_webui.ErrorIntoResponse(&http_webui.InvalidRequestError{Msg: fmt.Sprintf("invalid ticket id: %s", action.Ticket)}, w)
 		return
 	}
 

@@ -1,22 +1,26 @@
-package webui
+package http
 
 import (
 	"fmt"
 	"net/http"
 )
 
-type invalidRequestError struct {
-	msg string
+type InvalidRequestError struct {
+	Msg string
 }
 
-func (e *invalidRequestError) Error() string { return e.msg }
+type ValidationError InvalidRequestError
 
-type malformedRequestError struct {
-	prev error
+func (e *ValidationError) Error() string { return e.Msg }
+
+func (e *InvalidRequestError) Error() string { return e.Msg }
+
+type MalformedRequestError struct {
+	Prev error
 }
 
-func (e *malformedRequestError) Error() string {
-	return fmt.Errorf("failed to decode body: %w", e.prev).Error()
+func (e *MalformedRequestError) Error() string {
+	return fmt.Errorf("failed to decode body: %w", e.Prev).Error()
 }
 
 type notFoundError struct {
@@ -25,7 +29,7 @@ type notFoundError struct {
 
 func (e *notFoundError) Error() string { return e.msg }
 
-func ticketNotFound(ticketId string) *notFoundError {
+func TicketNotFound(ticketId string) *notFoundError {
 	return &notFoundError{msg: fmt.Sprintf("unable to find ticket with id [%s]", ticketId)}
 }
 
@@ -34,7 +38,7 @@ func ErrorIntoResponse(e error, w http.ResponseWriter) {
 	default:
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("An unknown error occurred: "))
-	case *invalidRequestError:
+	case *InvalidRequestError, *ValidationError, *MalformedRequestError:
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Invalid request: "))
 	case *notFoundError:

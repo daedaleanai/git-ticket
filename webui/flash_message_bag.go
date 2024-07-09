@@ -103,7 +103,7 @@ func unmarshalMessage[M *FlashMessage | *FlashValidationError](b interface{}, m 
 	s := fmt.Sprintf("%s", b)
 
 	if err := json.Unmarshal([]byte(s), m); err != nil {
-		panic(fmt.Sprintf("failed to clear flash messages: %s", s))
+		panic(fmt.Sprintf("failed to read flash messages: %s", s))
 	}
 }
 
