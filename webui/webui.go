@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"net/url"
 	"regexp"
 	"sort"
 	"strings"
@@ -61,112 +60,6 @@ type WebUiConfig struct {
 	BookmarkGroups []BookmarkGroup
 }
 
-type CreateTicketAction struct {
-	Title      string
-	Message    string
-	Workflow   string
-	Repo       string
-	AssignedTo identity.Interface
-	Ccb        []string
-	Labels     []string
-	Checklists []string
-}
-
-const keyTitle = "title"
-const keyWorkflow = "workflow"
-const keyRepo = "repo"
-const keyAssignee = "assignee"
-const keyMessage = "description"
-
-func createTicketFromFormData(f url.Values, c *cache.RepoCache) (*CreateTicketAction, map[string]*invalidRequestError, error) {
-	required := [4]string{keyTitle, keyWorkflow, keyRepo, keyMessage}
-	var validationErrors = make(map[string]*invalidRequestError)
-
-	for k := range f {
-		// Unset any empty values
-		if len(f.Get(k)) == 0 {
-			f.Del(k)
-		}
-	}
-
-	for _, v := range required {
-		if !f.Has(v) {
-			validationErrors[v] = &invalidRequestError{msg: fmt.Sprintf("%s is required", v)}
-		}
-	}
-
-	if f.Has(keyWorkflow) && !isValidWorkflow(f.Get(keyWorkflow)) {
-		l := bug.Label(f.Get(keyWorkflow))
-		validationErrors[keyWorkflow] = &invalidRequestError{msg: fmt.Sprintf("%s is not a valid workflow", l.WorkflowName())}
-	}
-
-	var assignee identity.Interface
-	if f.Has(keyAssignee) {
-		var err error
-		assignee, err = resolveIdentityFromFormValue(c, f.Get(keyAssignee), validationErrors)
-		if err != nil {
-			return nil, validationErrors, err
-		}
-	}
-
-	if len(validationErrors) > 0 {
-		return nil, validationErrors, nil
-	}
-
-	return &CreateTicketAction{
-		Title:      f.Get(keyTitle),
-		Message:    f.Get(keyMessage),
-		Workflow:   f.Get(keyWorkflow),
-		Repo:       f.Get(keyRepo),
-		AssignedTo: assignee,
-		Ccb:        nil,
-		Labels:     nil,
-		Checklists: nil,
-	}, nil, nil
-}
-
-func resolveIdentityFromFormValue(
-	c *cache.RepoCache,
-	value string, validationErrors map[string]*invalidRequestError,
-) (identity.Interface, error) {
-	id, err := c.ResolveIdentity(entity.Id(value))
-
-	if err == identity.ErrIdentityNotExist {
-		validationErrors[keyAssignee] = &invalidRequestError{msg: fmt.Sprintf("user %s does not exist", value)}
-		return nil, nil
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return id.Identity, nil
-}
-
-func isValidWorkflow(s string) bool {
-	for _, l := range bug.GetWorkflowLabels() {
-		label := bug.Label(s)
-		if l == label {
-			return true
-		}
-	}
-
-	return false
-}
-
-type SubmitCommentAction struct {
-	Ticket  string
-	Comment string
-}
-
-func SubmitCommentFromFormData(ticketId string, f url.Values) (*SubmitCommentAction, error) {
-	if !f.Has("comment") {
-		return nil, &invalidRequestError{msg: "missing required field [comment]"}
-	}
-
-	return &SubmitCommentAction{ticketId, f.Get("comment")}, nil
-}
-
 type ApiActionSetStatus struct {
 	Ticket string
 	Status string
@@ -210,12 +103,12 @@ func Run(repo repository.ClockedRepo, host string, port int) error {
 	r.HandleFunc("/", withRepoCache(repo, handleIndex))
 	r.HandleFunc(
 		"/ticket/new/",
-		withSession(withRepoCache(repo, handleCreate)),
+		withSession(withRepoCache(repo, handleCreateTicket)),
 	).Methods(http.MethodGet, http.MethodPost)
 	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", withSession(withRepoCache(repo, handleTicket))).Methods(http.MethodGet)
 	r.HandleFunc(
 		"/ticket/{ticketId:[0-9a-fA-F]{7,}}/comment/",
-		withSession(withRepoCache(repo, handleComment)),
+		withSession(withRepoCache(repo, handleCreateComment)),
 	).Methods(http.MethodPost)
 	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
 	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
@@ -297,73 +190,6 @@ func renderTemplate(w http.ResponseWriter, name string, data interface{}) error 
 
 	w.Write(buf.Bytes())
 	return nil
-}
-
-func handleCreate(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
-	session := r.Context().Value(ddlnContextKeySession).(*sessions.Session)
-	defer session.Save(r, w)
-
-	var err error
-	var validationErrors = make(map[string]*invalidRequestError)
-	var formData url.Values
-
-	if r.Method == http.MethodPost {
-		if err = r.ParseForm(); err != nil {
-			return fmt.Errorf("failed to parse form data: %w", err)
-		}
-
-		var action *CreateTicketAction
-		formData = r.Form
-		action, validationErrors, err := createTicketFromFormData(formData, repo)
-
-		if err != nil {
-			session.AddFlash(fmt.Sprintf("Failed to create ticket: %s", err))
-		} else if len(validationErrors) == 0 {
-			ticket, _, err := repo.NewBug(cache.NewBugOpts{
-				Title:    action.Title,
-				Message:  action.Message,
-				Workflow: action.Workflow,
-				Assignee: action.AssignedTo,
-				Repo:     fmt.Sprintf("%s%s", bug.RepoPrefix, action.Repo),
-			})
-			if err != nil {
-				session.AddFlash(fmt.Sprintf("Failed to create ticket: %s", err))
-			} else {
-				http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticket.Id()), http.StatusSeeOther)
-				return nil
-			}
-		}
-	}
-
-	flashes := session.Flashes()
-
-	repoLabels, err := repo.ListRepoLabels()
-	if err != nil {
-		return err
-	}
-
-	data := struct {
-		SideBar          SideBarData
-		WorkflowLabels   []bug.Label
-		RepoLabels       []string
-		ValidationErrors map[string]*invalidRequestError
-		FlashErrors      []interface{}
-		FormData         url.Values
-		UserOptions      []*cache.IdentityExcerpt
-	}{
-		SideBar: SideBarData{
-			BookmarkGroups: webUiConfig.BookmarkGroups,
-			ColorKey:       map[string]string{},
-		},
-		WorkflowLabels:   bug.GetWorkflowLabels(),
-		ValidationErrors: validationErrors,
-		RepoLabels:       repoLabels,
-		FormData:         formData,
-		FlashErrors:      flashes,
-		UserOptions:      repo.AllIdentityExcerpts(),
-	}
-
-	return renderTemplate(w, "create.html", data)
 }
 
 func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
@@ -477,45 +303,6 @@ func handleApiSetStatus(repo *cache.RepoCache, w http.ResponseWriter, r *http.Re
 
 	fmt.Fprintln(w, "Success.")
 	return nil
-}
-
-func handleComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
-	session := r.Context().Value(ddlnContextKeySession).(*sessions.Session)
-	defer session.Save(r, w)
-
-	vars := mux.Vars(r)
-	if err := r.ParseForm(); err != nil {
-		return &malformedRequestError{prev: err}
-	}
-
-	ticketId := vars["ticketId"]
-	action, err := SubmitCommentFromFormData(ticketId, r.Form)
-	if err != nil {
-		session.AddFlash(err.Error())
-		ticketRedirect(ticketId, w, r)
-		return nil
-	}
-
-	ticket, err := repo.ResolveBug(entity.Id(action.Ticket))
-	if err != nil {
-		return &invalidRequestError{msg: fmt.Sprintf("invalid ticket id: %s", action.Ticket)}
-	}
-
-	_, err = ticket.AddComment(action.Comment)
-	if err != nil {
-		session.AddFlash(fmt.Sprintf("Something went wrong: %s", err))
-	}
-
-	if err := ticket.CommitAsNeeded(); err != nil {
-		session.AddFlash(fmt.Sprintf("Something went wrong: %s", err))
-	}
-
-	ticketRedirect(ticket.Id().String(), w, r)
-	return nil
-}
-
-func ticketRedirect(ticketId string, w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticketId), http.StatusSeeOther)
 }
 
 type deferredResponseWriter struct {
