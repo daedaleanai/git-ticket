@@ -399,7 +399,12 @@ func executeFilter(filter query.FilterNode, resolver resolver, b *BugExcerpt) bo
 	}
 }
 
-func ExecuteMatcherOnIdentity(matcher query.LiteralMatcherNode, ident *IdentityExcerpt) bool {
+func ExecuteMatcherOnIdentity(matcher query.LiteralMatcherNode, resolver resolver, userId entity.Id) bool {
+	ident, err := resolver.ResolveIdentityExcerpt(userId)
+	if err != nil {
+		panic(fmt.Sprintf("Error resolving identity %q for filtering: %v", userId, err))
+	}
+
 	switch matcher := matcher.(type) {
 	case *query.LiteralNode:
 		lit := strings.ToLower(matcher.Token.Literal)
@@ -425,12 +430,7 @@ func executeAuthorFilter(filter *query.AuthorFilter, resolver resolver, b *BugEx
 	if b.AuthorId == "" {
 		log.Fatal("Ticket does not have an author: ", b.Id.Human())
 	}
-
-	author, err := resolver.ResolveIdentityExcerpt(b.AuthorId)
-	if err != nil {
-		panic(err)
-	}
-	return ExecuteMatcherOnIdentity(filter.Author, author)
+	return ExecuteMatcherOnIdentity(filter.Author, resolver, b.AuthorId)
 }
 
 func executeAssigneeFilter(filter *query.AssigneeFilter, resolver resolver, b *BugExcerpt) bool {
@@ -439,22 +439,12 @@ func executeAssigneeFilter(filter *query.AssigneeFilter, resolver resolver, b *B
 		return false
 	}
 
-	assignee, err := resolver.ResolveIdentityExcerpt(b.AssigneeId)
-	if err != nil {
-		panic(fmt.Sprintf("%v: %s", err, b.AssigneeId))
-	}
-
-	return ExecuteMatcherOnIdentity(filter.Assignee, assignee)
+	return ExecuteMatcherOnIdentity(filter.Assignee, resolver, b.AssigneeId)
 }
 
 func executeCcbFilter(filter *query.CcbFilter, resolver resolver, b *BugExcerpt) bool {
 	for _, id := range b.Ccb {
-		identityExcerpt, err := resolver.ResolveIdentityExcerpt(id.User)
-		if err != nil {
-			panic(err)
-		}
-
-		if ExecuteMatcherOnIdentity(filter.Ccb, identityExcerpt) {
+		if ExecuteMatcherOnIdentity(filter.Ccb, resolver, id.User) {
 			return true
 		}
 	}
@@ -474,12 +464,7 @@ func executeCcbPendingFilter(filter *query.CcbPendingFilter, resolver resolver, 
 	// For each of the next possible statuses of the ticket check if there is a ccb assigned,
 	// who is the queried user and the associated state is not approved
 	for _, id := range b.Ccb {
-		identityExcerpt, err := resolver.ResolveIdentityExcerpt(id.User)
-		if err != nil {
-			panic(err)
-		}
-
-		if ExecuteMatcherOnIdentity(filter.Ccb, identityExcerpt) {
+		if ExecuteMatcherOnIdentity(filter.Ccb, resolver, id.User) {
 			for _, nextStatus := range nextStatuses {
 				if nextStatus == id.Status && id.State != bug.ApprovedCcbState {
 					return true
@@ -492,12 +477,7 @@ func executeCcbPendingFilter(filter *query.CcbPendingFilter, resolver resolver, 
 
 func executeActorFilter(filter *query.ActorFilter, resolver resolver, b *BugExcerpt) bool {
 	for _, id := range b.Actors {
-		identityExcerpt, err := resolver.ResolveIdentityExcerpt(id)
-		if err != nil {
-			panic(err)
-		}
-
-		if ExecuteMatcherOnIdentity(filter.Actor, identityExcerpt) {
+		if ExecuteMatcherOnIdentity(filter.Actor, resolver, id) {
 			return true
 		}
 	}
@@ -506,12 +486,7 @@ func executeActorFilter(filter *query.ActorFilter, resolver resolver, b *BugExce
 
 func executeParticipantFilter(filter *query.ParticipantFilter, resolver resolver, b *BugExcerpt) bool {
 	for _, id := range b.Participants {
-		identityExcerpt, err := resolver.ResolveIdentityExcerpt(id)
-		if err != nil {
-			panic(err)
-		}
-
-		if ExecuteMatcherOnIdentity(filter.Participant, identityExcerpt) {
+		if ExecuteMatcherOnIdentity(filter.Participant, resolver, id) {
 			return true
 		}
 	}
