@@ -1,4 +1,4 @@
-package webui
+package session
 
 import (
 	"bytes"
@@ -38,12 +38,12 @@ func TestFlashMessageBag_NewValidationError(t *testing.T) {
 
 	field := "fire"
 	msg := "Should be water"
-	bag.AddValidationErrors(NewValidationError(field, http2.ValidationError{Msg: msg}))
+	bag.AddValidationErrors(NewValidationError(field, &http2.ValidationError{Msg: msg}))
 
 	validationErrors := bag.ValidationErrors()
 
 	require.Len(t, validationErrors, 1)
-	require.EqualValues(t, NewValidationError(field, http2.ValidationError{Msg: msg}), validationErrors[field])
+	require.EqualValues(t, NewValidationError(field, &http2.ValidationError{Msg: msg}), validationErrors[field])
 }
 
 func TestFlashMessageBag_Read(t *testing.T) {
@@ -51,7 +51,7 @@ func TestFlashMessageBag_Read(t *testing.T) {
 
 	bag.AddMessage(NewSuccess("foo"))
 	bag.AddMessage(NewError("foo"))
-	bag.AddValidationErrors(NewValidationError("foo", http2.ValidationError{Msg: "bar"}))
+	bag.AddValidationErrors(NewValidationError("foo", &http2.ValidationError{Msg: "bar"}))
 
 	flashes := bag.Messages()
 	require.Len(t, flashes, 2)

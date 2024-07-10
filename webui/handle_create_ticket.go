@@ -7,13 +7,14 @@ import (
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	http_webui "github.com/daedaleanai/git-ticket/webui/http"
+	"github.com/daedaleanai/git-ticket/webui/session"
 	"net/http"
 	"net/url"
 )
 
 func handleCreateTicket(w http.ResponseWriter, r *http.Request) {
 	repo := http_webui.LoadFromContext(r.Context(), &http_webui.ContextualRepoCache{}).(*http_webui.ContextualRepoCache).Repo
-	bag := http_webui.LoadFromContext(r.Context(), &FlashMessageBag{}).(*FlashMessageBag)
+	bag := http_webui.LoadFromContext(r.Context(), &session.FlashMessageBag{}).(*session.FlashMessageBag)
 
 	var validationErrors = make(map[string]*http_webui.ValidationError)
 	var formData url.Values
@@ -38,16 +39,13 @@ func handleCreateTicket(w http.ResponseWriter, r *http.Request) {
 				Repo:     fmt.Sprintf("%s%s", bug.RepoPrefix, action.Repo),
 			})
 			if err != nil {
-				bag.AddMessage(NewError(fmt.Sprintf("Failed to create ticket: %s", err.Error())))
+				bag.AddMessage(session.NewError(fmt.Sprintf("Failed to create ticket: %s", err.Error())))
 			} else {
-				bag.AddMessage(NewSuccess("Ticket created"))
+				bag.AddMessage(session.NewSuccess("Ticket created"))
 				http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticket.Id()), http.StatusSeeOther)
 			}
 		}
-
-		if err != nil {
-			bag.AddMessage(NewError(fmt.Sprintf("Failed to create ticket: %s", err.Error())))
-		}
+		bag.AddMessage(session.NewError(fmt.Sprintf("Failed to create ticket: %s", err.Error())))
 	}
 
 	flashes := bag.Messages()
@@ -59,12 +57,11 @@ func handleCreateTicket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		SideBar        SideBarData
-		WorkflowLabels []bug.Label
-		RepoLabels     []string
-
+		SideBar          SideBarData
+		WorkflowLabels   []bug.Label
+		RepoLabels       []string
 		ValidationErrors map[string]*http_webui.ValidationError
-		FlashErrors      []FlashMessage
+		FlashErrors      []session.FlashMessage
 		FormData         url.Values
 		UserOptions      []*cache.IdentityExcerpt
 	}{

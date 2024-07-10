@@ -1,9 +1,8 @@
-package webui
+package session
 
 import (
 	"encoding/json"
 	"fmt"
-	http2 "github.com/daedaleanai/git-ticket/webui/http"
 	"github.com/gorilla/sessions"
 	"net/http"
 )
@@ -13,6 +12,8 @@ type FlashMessageBag struct {
 	request *http.Request
 	writer  http.ResponseWriter
 }
+
+const flashMessageBagContextKey = "flash_message_bag_context"
 
 func (b *FlashMessageBag) ContextKey() string {
 	return flashMessageBagContextKey
@@ -80,7 +81,7 @@ func NewSuccess(msg string) FlashMessage {
 	}
 }
 
-func NewValidationError(field string, err http2.ValidationError) FlashValidationError {
+func NewValidationError(field string, err error) FlashValidationError {
 	return FlashValidationError{
 		Field:   field,
 		Message: err.Error(),

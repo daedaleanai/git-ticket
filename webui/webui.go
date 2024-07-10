@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	http_webui "github.com/daedaleanai/git-ticket/webui/http"
+	"github.com/daedaleanai/git-ticket/webui/session"
 	"html/template"
 	"log"
 	"net/http"
@@ -197,7 +198,7 @@ func renderTemplate(w http.ResponseWriter, name string, data interface{}) {
 
 func handleTicket(w http.ResponseWriter, r *http.Request) {
 	repo := http_webui.LoadFromContext(r.Context(), &http_webui.ContextualRepoCache{}).(*http_webui.ContextualRepoCache).Repo
-	bag := http_webui.LoadFromContext(r.Context(), &FlashMessageBag{}).(*FlashMessageBag)
+	bag := http_webui.LoadFromContext(r.Context(), &session.FlashMessageBag{}).(*session.FlashMessageBag)
 
 	var ticket *cache.BugCache
 
@@ -215,7 +216,7 @@ func handleTicket(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "ticket.html", struct {
 		SideBar       SideBarData
 		Ticket        *bug.Snapshot
-		FlashMessages []FlashMessage
+		FlashMessages []session.FlashMessage
 	}{
 		SideBarData{
 			BookmarkGroups: webUiConfig.BookmarkGroups,
@@ -407,7 +408,7 @@ func flashMessageMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !excludeFromMiddleware(r) {
 
-			bag, err := NewFlashMessageBag(r, w)
+			bag, err := session.NewFlashMessageBag(r, w)
 
 			if err != nil {
 				http.Error(w, "failed to get flash message bag.", http.StatusInternalServerError)
