@@ -6,14 +6,12 @@ import (
 	"github.com/daedaleanai/git-ticket/cache"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
-	"github.com/gorilla/sessions"
 	"net/http"
 	"net/url"
 )
 
 func handleCreateTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
-	session := r.Context().Value(ddlnContextKeySession).(*sessions.Session)
-	defer session.Save(r, w)
+	bag := r.Context().Value(flashMessageBagContextKey).(*FlashMessageBag)
 
 	var err error
 	var validationErrors = make(map[string]*invalidRequestError)
@@ -37,19 +35,20 @@ func handleCreateTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Re
 				Repo:     fmt.Sprintf("%s%s", bug.RepoPrefix, action.Repo),
 			})
 			if err != nil {
-				session.AddFlash(fmt.Sprintf("Failed to create ticket: %s", err.Error()))
+				bag.Add(NewError(fmt.Sprintf("Failed to create ticket: %s", err.Error())))
 			} else {
+				bag.Add(NewSuccess("Ticket created"))
 				http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticket.Id()), http.StatusSeeOther)
 				return nil
 			}
 		}
 
 		if err != nil {
-			session.AddFlash(fmt.Sprintf("Failed to create ticket: %s", err.Error()))
+			bag.Add(NewError(fmt.Sprintf("Failed to create ticket: %s", err.Error())))
 		}
 	}
 
-	flashes := session.Flashes()
+	flashes := bag.Messages()
 
 	repoLabels, err := repo.ListRepoLabels()
 	if err != nil {
@@ -61,7 +60,7 @@ func handleCreateTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Re
 		WorkflowLabels   []bug.Label
 		RepoLabels       []string
 		ValidationErrors map[string]*invalidRequestError
-		FlashErrors      []interface{}
+		FlashErrors      []FlashMessage
 		FormData         url.Values
 		UserOptions      []*cache.IdentityExcerpt
 	}{

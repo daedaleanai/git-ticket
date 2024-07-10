@@ -5,7 +5,6 @@ import (
 	"github.com/daedaleanai/git-ticket/cache"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/sessions"
 	"net/http"
 	"net/url"
 )
@@ -24,8 +23,7 @@ func submitCommentFromFormData(ticketId string, f url.Values) (*submitCommentAct
 }
 
 func handleCreateComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
-	session := r.Context().Value(ddlnContextKeySession).(*sessions.Session)
-	defer session.Save(r, w)
+	bag := r.Context().Value(flashMessageBagContextKey).(*FlashMessageBag)
 
 	vars := mux.Vars(r)
 	if err := r.ParseForm(); err != nil {
@@ -35,7 +33,7 @@ func handleCreateComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.R
 	ticketId := vars["ticketId"]
 	action, err := submitCommentFromFormData(ticketId, r.Form)
 	if err != nil {
-		session.AddFlash(err.Error())
+		bag.Add(NewError(err.Error()))
 		ticketRedirect(ticketId, w, r)
 		return nil
 	}
@@ -47,11 +45,15 @@ func handleCreateComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.R
 
 	_, err = ticket.AddComment(action.Comment)
 	if err != nil {
-		session.AddFlash(fmt.Sprintf("Something went wrong: %s", err))
+		bag.Add(NewError(fmt.Sprintf("Something went wrong: %s", err)))
 	}
 
 	if err := ticket.CommitAsNeeded(); err != nil {
-		session.AddFlash(fmt.Sprintf("Something went wrong: %s", err))
+		bag.Add(NewError(fmt.Sprintf("Something went wrong: %s", err)))
+	}
+
+	if err == nil {
+		bag.Add(NewSuccess("Success"))
 	}
 
 	ticketRedirect(ticket.Id().String(), w, r)
