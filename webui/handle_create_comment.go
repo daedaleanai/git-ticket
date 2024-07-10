@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/daedaleanai/git-ticket/cache"
 	"github.com/daedaleanai/git-ticket/entity"
+	http_webui "github.com/daedaleanai/git-ticket/webui/http"
 	"github.com/gorilla/mux"
 	"net/http"
 	"net/url"
@@ -23,7 +24,7 @@ func submitCommentFromFormData(ticketId string, f url.Values) (*submitCommentAct
 }
 
 func handleCreateComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
-	bag := r.Context().Value(flashMessageBagContextKey).(*FlashMessageBag)
+	bag := http_webui.LoadFromContext(r.Context(), &FlashMessageBag{}).(*FlashMessageBag)
 
 	vars := mux.Vars(r)
 	if err := r.ParseForm(); err != nil {

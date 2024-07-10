@@ -2,10 +2,10 @@ package webui
 
 import (
 	"bytes"
-	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
+	http_webui "github.com/daedaleanai/git-ticket/webui/http"
 	"html/template"
 	"log"
 	"net/http"
@@ -190,7 +190,7 @@ func renderTemplate(w http.ResponseWriter, name string, data interface{}) error 
 }
 
 func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
-	bag := r.Context().Value(flashMessageBagContextKey).(*FlashMessageBag)
+	bag := http_webui.LoadFromContext(r.Context(), &FlashMessageBag{}).(*FlashMessageBag)
 
 	var ticket *cache.BugCache
 	var err error
@@ -375,16 +375,17 @@ func errorHandlingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// Adds a flash message bag to the request context
 func flashMessageMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		bag, err := newFlashMessageBag(r, w)
+		bag, err := NewFlashMessageBag(r, w)
 
 		if err != nil {
 			http.Error(w, "failed to get flash message bag.", http.StatusInternalServerError)
 			return
 		}
 
-		r = r.WithContext(context.WithValue(r.Context(), flashMessageBagContextKey, bag))
+		r = http_webui.LoadIntoContext(r, bag)
 		next.ServeHTTP(w, r)
 	})
 }
