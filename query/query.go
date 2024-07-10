@@ -1,6 +1,7 @@
 package query
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/daedaleanai/git-ticket/bug"
@@ -17,6 +18,30 @@ type Query struct {
 	ColorBy
 	ColorByLabelPrefix
 	ColorByCcbUserName
+}
+
+type CompiledQuery struct {
+	FilterNode FilterNode
+	OrderNode  *OrderByNode
+	ColorNode  *ColorByNode
+}
+
+func (q *CompiledQuery) String() string {
+	filter := ""
+	if q.FilterNode != nil {
+		filter = q.FilterNode.String()
+	}
+
+	order := ""
+	if q.OrderNode != nil {
+		order = q.OrderNode.String()
+	}
+
+	color := ""
+	if q.ColorNode != nil {
+		order = q.ColorNode.String()
+	}
+	return fmt.Sprintf("%s %s %s", filter, order, color)
 }
 
 // NewQuery return an identity query with the default sorting (creation-desc).
