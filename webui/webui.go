@@ -287,7 +287,12 @@ func handleApiSetStatus(repo *cache.RepoCache, w http.ResponseWriter, r *http.Re
 	}
 	_, err = ticket.SetStatus(status)
 	if err != nil {
-		return err
+		switch err.(type) {
+		case bug.InvalidTransitionError:
+			return &invalidRequestError{msg: err.Error()}
+		default:
+			return err
+		}
 	}
 
 	if err := ticket.CommitAsNeeded(); err != nil {
