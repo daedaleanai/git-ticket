@@ -13,6 +13,7 @@ import (
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/entity"
+	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/query"
 	"github.com/daedaleanai/git-ticket/repository"
 )
@@ -361,6 +362,7 @@ type NewBugOpts struct {
 	Workflow string
 	Repo     string
 	Impact   []string
+	Assignee identity.Interface
 }
 
 // NewBug create a new bug
@@ -441,6 +443,10 @@ func (c *RepoCache) NewBugRaw(author *IdentityCache, unixTime int64, opts NewBug
 	}
 
 	b.Append(bug.NewLabelChangeOperation(author.Identity, unixTime, labels, []bug.Label{}))
+
+	if opts.Assignee != nil {
+		b.Append(bug.NewSetAssigneeOp(author.Identity, unixTime, opts.Assignee))
+	}
 
 	for key, value := range metadata {
 		op.SetMetadata(key, value)

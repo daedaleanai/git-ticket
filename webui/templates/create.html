@@ -6,6 +6,12 @@
   <link href="/static/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH">
   <link href="/static/index.css" rel="stylesheet">
   <link href="/static/ticket.css" rel="stylesheet">
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"
+  />
+  <script src="/static/choices.min.js"></script>
+  <script src="/static/create.js"></script>
 </head>
 
 <body>
@@ -54,7 +60,7 @@
               <div class="mb-3">
                 <label for="workflow" class="form-label">Workflow</label>
                 <select
-                  class="form-control form-select {{ if .ValidationErrors.workflow }}is-invalid{{ end }}"
+                  class="form-control form-select {{ if .ValidationErrors.workflow }}is-invalid{{ end }} choices"
                   name="workflow"
                   id="workflow"
                   required
@@ -68,7 +74,7 @@
                       {{ if eq . $workflow }}
                         selected="selected"
                       {{ end }}
-                    >{{ .DisplayName }}</option>
+                    >{{ .WorkflowName }}</option>
                   {{ end }}
                 </select>
                 {{ if .ValidationErrors.workflow }}
@@ -80,7 +86,7 @@
               <div class="mb-3">
                 <label for="repo" class="form-label">Repo</label>
                 <select
-                  class="form-control form-select {{ if .ValidationErrors.workflow }}is-invalid{{ end }}"
+                  class="form-control form-select {{ if .ValidationErrors.repo }}is-invalid{{ end }} choices"
                   name="repo"
                   id="repo"
                   required
@@ -101,6 +107,25 @@
                   <div class="invalid-feedback">{{ .ValidationErrors.repo.Error }}</div>
                 {{ end }}
                 <div id="repoHelp" class="form-text visually-hidden">Select the repo this ticket applies to.</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="assignee" class="form-label">Assignee</label>
+                <select
+                  class="form-control form-select {{ if .ValidationErrors.assignee }}is-invalid{{ end }} choices"
+                  name="assignee"
+                  id="assignee"
+                  aria-describedby="assigneeHelp"
+                >
+                  <option value="" selected="selected" disabled>Assign a user</option>
+                  {{ range $.UserOptions}}
+                    <option value="{{ .Id }}">{{ .Name }}</option>
+                  {{ end }}
+                </select>
+                {{ if .ValidationErrors.assignee }}
+                  <div class="invalid-feedback">{{ .ValidationErrors.assignee.Error }}</div>
+                {{ end }}
+              <div id="assigneeHelp" class="form-text visually-hidden">Assign a user to this ticket.</div>
               </div>
 
               <div class="mb-3">

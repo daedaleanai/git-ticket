@@ -66,7 +66,7 @@ type CreateTicketAction struct {
 	Message    string
 	Workflow   string
 	Repo       string
-	AssignedTo *string
+	AssignedTo identity.Interface
 	Ccb        []string
 	Labels     []string
 	Checklists []string
@@ -75,25 +75,42 @@ type CreateTicketAction struct {
 const keyTitle = "title"
 const keyWorkflow = "workflow"
 const keyRepo = "repo"
+const keyAssignee = "assignee"
 const keyMessage = "description"
 
-func CreateTicketFromFormData(f url.Values) (*CreateTicketAction, map[string]*invalidRequestError) {
+func createTicketFromFormData(f url.Values, c *cache.RepoCache) (*CreateTicketAction, map[string]*invalidRequestError, error) {
 	required := [4]string{keyTitle, keyWorkflow, keyRepo, keyMessage}
-	var errs = make(map[string]*invalidRequestError)
+	var validationErrors = make(map[string]*invalidRequestError)
+
+	for k := range f {
+		// Unset any empty values
+		if len(f.Get(k)) == 0 {
+			f.Del(k)
+		}
+	}
 
 	for _, v := range required {
 		if !f.Has(v) {
-			errs[v] = &invalidRequestError{msg: fmt.Sprintf("%s is required", v)}
+			validationErrors[v] = &invalidRequestError{msg: fmt.Sprintf("%s is required", v)}
 		}
 	}
 
 	if f.Has(keyWorkflow) && !isValidWorkflow(f.Get(keyWorkflow)) {
 		l := bug.Label(f.Get(keyWorkflow))
-		errs[keyWorkflow] = &invalidRequestError{msg: fmt.Sprintf("%s is not a valid workflow", l.WorkflowName())}
+		validationErrors[keyWorkflow] = &invalidRequestError{msg: fmt.Sprintf("%s is not a valid workflow", l.WorkflowName())}
 	}
 
-	if len(errs) > 0 {
-		return nil, errs
+	var assignee identity.Interface
+	if f.Has(keyAssignee) {
+		var err error
+		assignee, err = resolveIdentityFromFormValue(c, f.Get(keyAssignee), validationErrors)
+		if err != nil {
+			return nil, validationErrors, err
+		}
+	}
+
+	if len(validationErrors) > 0 {
+		return nil, validationErrors, nil
 	}
 
 	return &CreateTicketAction{
@@ -101,11 +118,29 @@ func CreateTicketFromFormData(f url.Values) (*CreateTicketAction, map[string]*in
 		Message:    f.Get(keyMessage),
 		Workflow:   f.Get(keyWorkflow),
 		Repo:       f.Get(keyRepo),
-		AssignedTo: nil,
+		AssignedTo: assignee,
 		Ccb:        nil,
 		Labels:     nil,
 		Checklists: nil,
-	}, nil
+	}, nil, nil
+}
+
+func resolveIdentityFromFormValue(
+	c *cache.RepoCache,
+	value string, validationErrors map[string]*invalidRequestError,
+) (identity.Interface, error) {
+	id, err := c.ResolveIdentity(entity.Id(value))
+
+	if err == identity.ErrIdentityNotExist {
+		validationErrors[keyAssignee] = &invalidRequestError{msg: fmt.Sprintf("user %s does not exist", value)}
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return id.Identity, nil
 }
 
 func isValidWorkflow(s string) bool {
@@ -201,7 +236,7 @@ func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) 
 	qParam := r.URL.Query().Get("q")
 	q, err := query.Parse(qParam)
 	if err != nil {
-		return &invalidRequestError{msg: fmt.Sprintf("unable to parse query: %s", err.Error())}
+		return &invalidRequestError{msg: fmt.Sprintf("unable to parse query: %s", err)}
 	}
 
 	tickets := map[bug.Status][]*cache.BugExcerpt{}
@@ -279,17 +314,20 @@ func handleCreate(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request)
 
 		var action *CreateTicketAction
 		formData = r.Form
-		action, validationErrors = CreateTicketFromFormData(formData)
+		action, validationErrors, err := createTicketFromFormData(formData, repo)
 
-		if len(validationErrors) == 0 {
+		if err != nil {
+			session.AddFlash(fmt.Sprintf("Failed to create ticket: %s", err))
+		} else if len(validationErrors) == 0 {
 			ticket, _, err := repo.NewBug(cache.NewBugOpts{
 				Title:    action.Title,
 				Message:  action.Message,
 				Workflow: action.Workflow,
+				Assignee: action.AssignedTo,
 				Repo:     fmt.Sprintf("%s%s", bug.RepoPrefix, action.Repo),
 			})
 			if err != nil {
-				session.AddFlash(fmt.Sprintf("Failed to create ticket: %s", err.Error()))
+				session.AddFlash(fmt.Sprintf("Failed to create ticket: %s", err))
 			} else {
 				http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticket.Id()), http.StatusSeeOther)
 				return nil
@@ -311,6 +349,7 @@ func handleCreate(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request)
 		ValidationErrors map[string]*invalidRequestError
 		FlashErrors      []interface{}
 		FormData         url.Values
+		UserOptions      []*cache.IdentityExcerpt
 	}{
 		SideBar: SideBarData{
 			BookmarkGroups: webUiConfig.BookmarkGroups,
@@ -321,6 +360,7 @@ func handleCreate(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request)
 		RepoLabels:       repoLabels,
 		FormData:         formData,
 		FlashErrors:      flashes,
+		UserOptions:      repo.AllIdentityExcerpts(),
 	}
 
 	return renderTemplate(w, "create.html", data)
