@@ -11,16 +11,17 @@ import (
 	"net/url"
 )
 
-func handleCreateTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
+func handleCreateTicket(w http.ResponseWriter, r *http.Request) {
+	repo := http_webui.LoadFromContext(r.Context(), &http_webui.ContextualRepoCache{}).(*http_webui.ContextualRepoCache).Repo
 	bag := http_webui.LoadFromContext(r.Context(), &FlashMessageBag{}).(*FlashMessageBag)
 
-	var err error
 	var validationErrors = make(map[string]*invalidRequestError)
 	var formData url.Values
 
 	if r.Method == http.MethodPost {
-		if err = r.ParseForm(); err != nil {
-			return fmt.Errorf("failed to parse form data: %w", err)
+		if err := r.ParseForm(); err != nil {
+			ErrorIntoResponse(fmt.Errorf("failed to parse form data: %w", err), w)
+			return
 		}
 
 		var action *CreateTicketAction
@@ -40,7 +41,6 @@ func handleCreateTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Re
 			} else {
 				bag.Add(NewSuccess("Ticket created"))
 				http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticket.Id()), http.StatusSeeOther)
-				return nil
 			}
 		}
 
@@ -53,7 +53,8 @@ func handleCreateTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Re
 
 	repoLabels, err := repo.ListRepoLabels()
 	if err != nil {
-		return err
+		ErrorIntoResponse(err, w)
+		return
 	}
 
 	data := struct {
@@ -77,7 +78,7 @@ func handleCreateTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Re
 		UserOptions:      repo.AllIdentityExcerpts(),
 	}
 
-	return renderTemplate(w, "create.html", data)
+	renderTemplate(w, "create.html", data)
 }
 
 type CreateTicketAction struct {

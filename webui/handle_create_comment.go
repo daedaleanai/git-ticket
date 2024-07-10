@@ -23,12 +23,14 @@ func submitCommentFromFormData(ticketId string, f url.Values) (*submitCommentAct
 	return &submitCommentAction{ticketId, f.Get("comment")}, nil
 }
 
-func handleCreateComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
+func handleCreateComment(w http.ResponseWriter, r *http.Request) {
+	repo := http_webui.LoadFromContext(r.Context(), &http_webui.ContextualRepoCache{}).(*http_webui.ContextualRepoCache).Repo
 	bag := http_webui.LoadFromContext(r.Context(), &FlashMessageBag{}).(*FlashMessageBag)
 
 	vars := mux.Vars(r)
 	if err := r.ParseForm(); err != nil {
-		return &malformedRequestError{prev: err}
+		ErrorIntoResponse(&malformedRequestError{prev: err}, w)
+		return
 	}
 
 	ticketId := vars["ticketId"]
@@ -36,28 +38,32 @@ func handleCreateComment(repo *cache.RepoCache, w http.ResponseWriter, r *http.R
 	if err != nil {
 		bag.Add(NewError(err.Error()))
 		ticketRedirect(ticketId, w, r)
-		return nil
+		return
 	}
-
 	ticket, err := repo.ResolveBug(entity.Id(action.Ticket))
 	if err != nil {
-		return &invalidRequestError{msg: fmt.Sprintf("invalid ticket id: %s", action.Ticket)}
+		ErrorIntoResponse(&invalidRequestError{msg: fmt.Sprintf("invalid ticket id: %s", action.Ticket)}, w)
+		return
 	}
 
-	_, err = ticket.AddComment(action.Comment)
-	if err != nil {
+	if err := addComment(ticket, action); err != nil {
 		bag.Add(NewError(fmt.Sprintf("Something went wrong: %s", err)))
-	}
-
-	if err := ticket.CommitAsNeeded(); err != nil {
-		bag.Add(NewError(fmt.Sprintf("Something went wrong: %s", err)))
-	}
-
-	if err == nil {
+	} else {
 		bag.Add(NewSuccess("Success"))
 	}
 
 	ticketRedirect(ticket.Id().String(), w, r)
+}
+
+func addComment(ticket *cache.BugCache, action *submitCommentAction) error {
+	if _, err := ticket.AddComment(action.Comment); err != nil {
+		return err
+	}
+
+	if err := ticket.CommitAsNeeded(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
