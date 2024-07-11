@@ -367,6 +367,7 @@ type NewBugOpts struct {
 	Repo     string
 	Impact   []string
 	Assignee identity.Interface
+	Ccb      []identity.Interface
 }
 
 // NewBug create a new bug
@@ -450,6 +451,14 @@ func (c *RepoCache) NewBugRaw(author *IdentityCache, unixTime int64, opts NewBug
 
 	if opts.Assignee != nil {
 		b.Append(bug.NewSetAssigneeOp(author.Identity, unixTime, opts.Assignee))
+	}
+
+	for _, ccb := range opts.Ccb {
+		user, err := c.ResolveIdentity(ccb)
+		if err != nil {
+			return nil, nil, err
+		}
+		b.Append(bug.NewSetCcbOp(author.Identity, unixTime, user.Identity, bug.ProposedStatus, bug.AddedCcbState))
 	}
 
 	for key, value := range metadata {

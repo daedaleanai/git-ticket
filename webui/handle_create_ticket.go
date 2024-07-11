@@ -46,6 +46,7 @@ func handleCreateTicket(w http.ResponseWriter, r *http.Request) {
 		FlashErrors      []session.FlashMessage
 		FormData         url.Values
 		UserOptions      []*cache.IdentityExcerpt
+		CcbOptions       []*cache.IdentityExcerpt
 	}{
 		SideBar: SideBarData{
 			BookmarkGroups: webUiConfig.BookmarkGroups,
@@ -57,6 +58,7 @@ func handleCreateTicket(w http.ResponseWriter, r *http.Request) {
 		FormData:         r.Form,
 		FlashErrors:      flashes,
 		UserOptions:      repo.AllIdentityExcerpts(),
+		CcbOptions:       repo.AllCcbExcerpts(),
 	}
 
 	renderTemplate(w, "create.html", data)
@@ -82,6 +84,7 @@ func createTicket(r *http.Request, repo *cache.RepoCache) (*cache.BugCache, erro
 			Workflow: action.Workflow,
 			Assignee: assignee,
 			Repo:     fmt.Sprintf("%s%s", bug.RepoPrefix, action.Repo),
+			Ccb:      action.Ccb,
 		})
 
 		return ticket, err
@@ -133,6 +136,10 @@ func (c CreateTicketAction) FromValues(values url.Values) http_webui.ValidatedPa
 		c.AssignedTo = &id
 	}
 
+	for _, id := range values[keyCcb] {
+		c.Ccb = append(c.Ccb, entity.Id(id))
+	}
+
 	return c
 }
 
@@ -159,6 +166,12 @@ func (c CreateTicketAction) Validate(repo *cache.RepoCache) map[string]http_webu
 		}
 	}
 
+	for _, c := range c.Ccb {
+		if _, err := repo.ResolveIdentity(c); err != nil {
+			validationErrors[keyCcb] = http_webui.ValidationError{Msg: fmt.Sprintf("%s is not a valid user", c)}
+		}
+	}
+
 	return validationErrors
 }
 
@@ -167,6 +180,7 @@ const keyWorkflow = "workflow"
 const keyRepo = "repo"
 const keyAssignee = "assignee"
 const keyMessage = "description"
+const keyCcb = "ccb"
 
 func isValidWorkflow(s string) bool {
 	for _, l := range bug.GetWorkflowLabels() {
