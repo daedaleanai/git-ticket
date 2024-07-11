@@ -54,7 +54,10 @@ git ticket ls all(status(vetted), label(r"repo:.*")) sort(edit-desc)
 }
 
 func runLs(env *Env, opts lsOptions, args []string) error {
-	q := &query.Query{}
+	q := &query.Query{
+		OrderBy:        query.OrderByEdit,
+		OrderDirection: query.OrderDescending,
+	}
 	var err error
 
 	if len(args) >= 1 {
