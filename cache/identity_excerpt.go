@@ -57,9 +57,9 @@ func (i *IdentityExcerpt) DisplayName() string {
 
 // Match matches a query with the identity name, login and ID prefixes
 func (i *IdentityExcerpt) Match(query string) bool {
-	return i.Id.HasPrefix(query) ||
+	return len(query) != 0 && (i.Id.HasPrefix(query) ||
 		strings.Contains(strings.ToLower(i.Name), query) ||
-		strings.Contains(strings.ToLower(i.Login), query)
+		strings.Contains(strings.ToLower(i.Login), query))
 }
 
 /*
