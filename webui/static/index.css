@@ -87,3 +87,8 @@ a {
     right: 32px;
     width: 600px;
 }
+
+form label.required::after {
+    content: " *";
+    color:rgba(var(--bs-danger-rgb));
+}
