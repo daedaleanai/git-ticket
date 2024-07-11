@@ -246,6 +246,20 @@ func (c *RepoCache) AllIdentityIds() []entity.Id {
 	return result
 }
 
+func (c *RepoCache) AllCcbExcerpts() []*IdentityExcerpt {
+	config := c.configCache.CcbConfig
+	var excerpts []*IdentityExcerpt
+
+	for _, v := range c.identitiesExcerpts {
+		id := v.Id
+		if config.IsCcbMember(id) {
+			excerpts = append(excerpts, v)
+		}
+	}
+
+	return excerpts
+}
+
 func (c *RepoCache) AllIdentityExcerpts() []*IdentityExcerpt {
 	var vals []*IdentityExcerpt
 	for _, v := range c.identitiesExcerpts {
