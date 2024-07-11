@@ -110,6 +110,13 @@ type SideBarData struct {
 	ColorKey       map[string]string
 }
 
+func excludeFromMiddleware(r *http.Request) bool {
+	if strings.HasPrefix(r.URL.Path, "/static/") {
+		return true
+	}
+	return false
+}
+
 func handleIndex(w http.ResponseWriter, r *http.Request) {
 	repo := http_webui.LoadFromContext(r.Context(), &http_webui.ContextualRepoCache{}).(*http_webui.ContextualRepoCache).Repo
 
@@ -350,12 +357,14 @@ func deferWrite(next http.Handler) http.Handler {
 
 func errorHandlingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				fmt.Println("Unexpected error occurred: ", err)
-				http.Error(w, "internal server error.", http.StatusInternalServerError)
-			}
-		}()
+		if !excludeFromMiddleware(r) {
+			defer func() {
+				if err := recover(); err != nil {
+					fmt.Println("Unexpected error occurred: ", err)
+					http.Error(w, "internal server error.", http.StatusInternalServerError)
+				}
+			}()
+		}
 		next.ServeHTTP(w, r)
 	})
 }
@@ -364,26 +373,28 @@ func errorHandlingMiddleware(next http.Handler) http.Handler {
 func repoCacheMiddleware(repoDir string) func(handler http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			repo, err := repository.NewGitRepo(repoDir, []repository.ClockLoader{bug.ClockLoader, identity.ClockLoader})
-			if err != nil {
-				ErrorIntoResponse(fmt.Errorf("unable to open git repository: %w", err), w)
-				return
-			}
+			if !excludeFromMiddleware(r) {
+				repo, err := repository.NewGitRepo(repoDir, []repository.ClockLoader{bug.ClockLoader, identity.ClockLoader})
+				if err != nil {
+					ErrorIntoResponse(fmt.Errorf("unable to open git repository: %w", err), w)
+					return
+				}
 
-			if err := loadConfig(repo); err != nil {
-				ErrorIntoResponse(fmt.Errorf("unable to load webui configuration: %w", err), w)
-				return
-			}
+				if err := loadConfig(repo); err != nil {
+					ErrorIntoResponse(fmt.Errorf("unable to load webui configuration: %w", err), w)
+					return
+				}
 
-			repoCache, err := cache.NewRepoCache(repo, false)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+				repoCache, err := cache.NewRepoCache(repo, false)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
 
-			defer repoCache.Close()
-			c := http_webui.ContextualRepoCache{Repo: repoCache}
-			r = http_webui.LoadIntoContext(r, &c)
+				defer repoCache.Close()
+				c := http_webui.ContextualRepoCache{Repo: repoCache}
+				r = http_webui.LoadIntoContext(r, &c)
+			}
 
 			next.ServeHTTP(w, r)
 		})
@@ -393,14 +404,17 @@ func repoCacheMiddleware(repoDir string) func(handler http.Handler) http.Handler
 // Adds a flash message bag to the request context
 func flashMessageMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		bag, err := NewFlashMessageBag(r, w)
+		if !excludeFromMiddleware(r) {
 
-		if err != nil {
-			http.Error(w, "failed to get flash message bag.", http.StatusInternalServerError)
-			return
+			bag, err := NewFlashMessageBag(r, w)
+
+			if err != nil {
+				http.Error(w, "failed to get flash message bag.", http.StatusInternalServerError)
+				return
+			}
+
+			r = http_webui.LoadIntoContext(r, bag)
 		}
-
-		r = http_webui.LoadIntoContext(r, bag)
 		next.ServeHTTP(w, r)
 	})
 }
