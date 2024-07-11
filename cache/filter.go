@@ -533,17 +533,11 @@ func executeNotFilter(filter *query.NotFilter, resolver resolver, b *BugExcerpt)
 }
 
 func executeCreationDateFilter(filter *query.CreationDateFilter, resolver resolver, b *BugExcerpt) bool {
-	if filter.Before {
-		return b.CreateTime().Before(filter.Date)
-	}
-	return b.CreateTime().After(filter.Date)
+	return filter.Before && b.CreateTime().Before(filter.Date)
 }
 
 func executeEditDateFilter(filter *query.EditDateFilter, resolver resolver, b *BugExcerpt) bool {
-	if filter.Before {
-		return b.EditTime().Before(filter.Date)
-	}
-	return b.EditTime().After(filter.Date)
+	return filter.Before && b.EditTime().Before(filter.Date)
 }
 
 func executeAllFilter(filter *query.AllFilter, resolver resolver, b *BugExcerpt) bool {
