@@ -84,28 +84,24 @@ var (
 
 const flashMessageBagContextKey = "flash_message_context"
 
-func Run(repo repository.ClockedRepo, host string, port int) error {
-	if err := loadConfig(repo); err != nil {
-		return err
-	}
-
+func Run(repoDir, host string, port int) error {
 	r := mux.NewRouter()
 	r.Use(errorHandlingMiddleware)
 	r.Use(flashMessageMiddleware)
 
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))
-	r.HandleFunc("/", withRepoCache(repo, handleIndex))
+	r.HandleFunc("/", withRepoCache(repoDir, handleIndex))
 	r.HandleFunc(
 		"/ticket/new/",
-		withRepoCache(repo, handleCreateTicket),
+		withRepoCache(repoDir, handleCreateTicket),
 	).Methods(http.MethodGet, http.MethodPost)
-	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", withRepoCache(repo, handleTicket)).Methods(http.MethodGet)
+	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", withRepoCache(repoDir, handleTicket)).Methods(http.MethodGet)
 	r.HandleFunc(
 		"/ticket/{ticketId:[0-9a-fA-F]{7,}}/comment/",
-		withRepoCache(repo, handleCreateComment),
+		withRepoCache(repoDir, handleCreateComment),
 	).Methods(http.MethodPost)
-	r.HandleFunc("/checklist/", withRepoCache(repo, handleChecklist))
-	r.HandleFunc("/api/set-status", withRepoCache(repo, handleApiSetStatus))
+	r.HandleFunc("/checklist/", withRepoCache(repoDir, handleChecklist))
+	r.HandleFunc("/api/set-status", withRepoCache(repoDir, handleApiSetStatus))
 
 	http.Handle("/", r)
 	fmt.Printf("Running web-ui at http://%s:%d\n", host, port)
@@ -324,14 +320,25 @@ func newDeferredResponseWriter(w http.ResponseWriter) *deferredResponseWriter {
 	}
 }
 
-func withRepoCache(repo repository.ClockedRepo, handler HandlerWithRepoCache) func(http.ResponseWriter, *http.Request) {
+func withRepoCache(repoDir string, handler HandlerWithRepoCache) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		repo, err := repository.NewGitRepo(repoDir, []repository.ClockLoader{bug.ClockLoader, identity.ClockLoader})
+		if err != nil {
+			errorIntoResponse(fmt.Errorf("unable to open git repository: %w", err), w)
+			return
+		}
+
 		repoCache, err := cache.NewRepoCache(repo, false)
 		if err != nil {
 			errorIntoResponse(fmt.Errorf("unable to open git cache: %w", err), w)
 			return
 		}
 		defer repoCache.Close()
+
+		if err := loadConfig(repo); err != nil {
+			errorIntoResponse(fmt.Errorf("unable to load webui configuration: %w", err), w)
+			return
+		}
 
 		if err := handler(repoCache, w, r); err != nil {
 			errorIntoResponse(err, w)
