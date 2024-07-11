@@ -1,114 +1,93 @@
 # Searching bugs
 
-You can search bugs using a micro query language for both filtering and sorting. A query could look like this:
+You can search bugs using a query language for filtering, sorting and color-coding (on the webui). A query could look like this:
 
 ```
-status:open sort:edit
+status(open) sort(edit) color-by(ccb("John"))
 ```
 
 A few tips:
 
-- queries are case insensitive.
-- you can combine as many qualifiers as you want.
-- you can use double quotes for multi-word search terms. For example, `author:"René Descartes"` searches for bugs opened by René Descartes, whereas `author:René Descartes` will throw an error since full-text search is not yet supported.
-- instead of a complete ID, you can use any prefix length. For example `participant=9ed1a`.
+- queries are case insensitive, except for:
+  - Regular expressions, which are case sensitive/insensitive based on the given regular expression.
+  - `label()` filters, which are always case sensitive.
+- you can combine as many qualifiers as you want using grouping expressions like `all(...)` and `any(...)`.
+- filter expressions can be nested: `all(any(label(a), label(b)), label(r"workflow"))`.
+- filter expressions can contain regular expressions of the form `r"..."`.
+- you can use double quotes for multi-word search terms. For example, `author("René Descartes")` searches for bugs opened by René Descartes.
+- instead of a complete ID, you can use any prefix length (except 0). For example `participant(9ed1a)`. 
 
+## Literal matcher types
+
+The following types of literal matchers are supported:
+
+| Literal matchers | Description                                                                                       | Example                                                 |
+| ---              | ---                                                                                               | ---                                                     |
+| `Identifier`     | Text identifier that cannot contain parenthesis, commas, double-quotes or whitespaces.            | `identifier:example`                                    |
+| `String`         | Text string delimited by double-quotes. Cannot contain double-quotes.                             | `"identifier:example with spaces and parenthesis()"`    |
+| `Regexp`         | Regular expresion delimited by double-quotes and precided by an `r`. Cannot contain double-quotes.| `r"repo:.*"`                                            |
 
 ## Filtering
 
-### Filtering by status
+The following filters are available:
 
-You can filter bugs based on their status.
-
-| Qualifier       | Example                             |
-| ---             | ---                                 |
-| `status:open`   | `status:open` matches open bugs     |
-| `status:closed` | `status:closed` matches closed bugs |
-
-### Filtering by author
-
-You can filter based on the person who opened the bug.
-
-| Qualifier      | Example                                                                          |
-| ---            | ---                                                                              |
-| `author:QUERY` | `author:descartes` matches bugs opened by `René Descartes` or `Robert Descartes` |
-|                | `author:"rené descartes"` matches bugs opened by `René Descartes`                |
-
-### Filtering by participant
-
-You can filter based on the person who participated in any activity related to the bug (Opened bug or added a comment).
-
-| Qualifier           | Example                                                                                            |
-| ---                 | ---                                                                                                |
-| `participant:QUERY` | `participant:descartes` matches bugs opened or commented by `René Descartes` or `Robert Descartes` |
-|                     | `participant:"rené descartes"` matches bugs opened or commented by `René Descartes`                |
-
-### Filtering by actor
-
-You can filter based on the person who interacted with the bug.
-
-| Qualifier     | Example                                                                         |
-| ---           | ---                                                                             |
-| `actor:QUERY` | `actor:descartes` matches bugs edited by `René Descartes` or `Robert Descartes` |
-|               | `actor:"rené descartes"` matches bugs edited by `René Descartes`                |
-| `
-
-**NOTE**: interaction with bugs include: opening the bug, adding comments, adding/removing labels etc...
-
-### Filtering by label
-
-You can filter based on the bug's label.
-
-| Qualifier     | Example                                                                   |
-| ---           | ---                                                                       |
-| `label:LABEL` | `label:prod` matches bugs with the label `prod`                           |
-|               | `label:"Good first issue"` matches bugs with the label `Good first issue` |
-
-### Filtering by title
-
-You can filter based on the bug's title.
-
-| Qualifier     | Example                                                                        |
-| ---           | ---                                                                            |
-| `title:TITLE` | `title:Critical` matches bugs with a title containing `Critical`               |
-|               | `title:"Typo in string"` matches bugs with a title containing `Typo in string` |
-
-
-### Filtering by missing feature
-
-You can filter bugs based on the absence of something.
-
-| Qualifier  | Example                                |
-| ---        | ---                                    |
-| `no:label` | `no:label` matches bugs with no labels |
+| Filter nodes     | Arguments                                                            | Example                                                                                               |
+| ---              | ---                                                                  | ---                                                                                                   |
+| `status`         | Comma separated list of statuses. May be surrounded in double-quotes | `status(proposed, vetted)` matches tickets in either the proposed or vetted status                    |
+| `author`         | A literal matcher                                                    | `author(r"John|Jane")` matches tickets authored by either John or Jane                                |
+| `assignee`       | A literal matcher                                                    | `assignee(r"John|Jane")` matches tickets assigned to either John or Jane                              |
+| `ccb`            | A literal matcher                                                    | `ccb(john)` matches tickets where John is assigned as a CCB member                                    |
+| `ccb-pending`    | A literal matcher                                                    | `ccb-pending(john)` matches tickets where John is assigned as CCB and a CCB action is pending         |
+| `actor`          | A literal matcher                                                    | `actor(r"John|Jane")` matches tickets in which either John or Jane are actors                         |
+| `participant`    | A literal matcher                                                    | `participant(r"John|Jane")` matches tickets in which either John or Jane are participants             |
+| `label`          | A literal matcher                                                    | `label(r"^repo:.*")` matches tickets with labels that start with `repo:`                              |
+| `title`          | A literal matcher                                                    | `title(r"^\[QA\].*")` matches tickets in which their title starts with `[QA]`                         |
+| `not`            | A nested filter                                                      | `not(title(r"^\[QA\].*"))` matches tickets that do not have titles starting with `[QA]`               |
+| `any`            | A comma-separated list of nested filters                             | `any(ccb(john), status(vetted))` matches tickets that are CCB'ed by John or are in the vetted status  |
+| `all`            | A comma-separated list of nested filters                             | `all(ccb(john), status(vetted))` matches tickets that are CCB'ed by John and are in the vetted status |
+| `created-before` | Identifier or string with format 2006-01-02T15:04:05 or 2006-01-02   | `created-before(2006-01-02)` matches tickets created before the given date                            |
+| `created-after`  | Identifier or string with format 2006-01-02T15:04:05 or 2006-01-02   | `created-after(2006-01-02)` matches tickets created before the given date                             |
+| `edit-before`    | Identifier or string with format 2006-01-02T15:04:05 or 2006-01-02   | `edit-before(2006-01-02)` matches tickets were last edited before the given date                      |
+| `edit-after`     | Identifier or string with format 2006-01-02T15:04:05 or 2006-01-02   | `edit-after(2006-01-02)` matches tickets were last edited after the given date                        |
 
 ## Sorting
 
-You can sort results by adding a `sort:` qualifier to your query. “Descending” means most recent time or largest ID first, whereas “Ascending” means oldest time or smallest ID first.
+You can sort results by adding a `sort()` expression to your query. “Descending” means most recent time or largest ID first, whereas “Ascending” means oldest time or smallest ID first.
 
 Note: to deal with differently-set clocks on distributed computers, `git-ticket` uses a logical clock internally rather than timestamps to order bug changes over time. That means that the timestamps recorded might not match the returned ordering. More on that in [the documentation](model.md#you-cant-rely-on-the-time-provided-by-other-people-their-clock-might-by-off-for-anything-other-than-just-display)
 
 ### Sort by Id
 
-| Qualifier                  | Example                                              |
-| ---                        | ---                                                  |
-| `sort:id-desc`             | `sort:id-desc` will sort bugs by their descending Ids |
-| `sort:id` or `sort:id-asc` | `sort:id` will sort bugs by their ascending Ids       |
+| Sort nodes                   | Example                                     |
+| ---                          | ---                                         |
+| `sort(id-desc)`              | will sort bugs by their descending Ids      |
+| `sort(id)` or `sort(id-asc)` | will sort bugs by their ascending Ids       |
 
 ### Sort by Creation time
 
 You can sort bugs by their creation time.
 
-| Qualifier                               | Example                                                            |
-| ---                                     | ---                                                                |
-| `sort:creation` or `sort:creation-desc` | `sort:creation` will sort bugs by their descending creation time    |
-| `sort:creation-asc`                     | `sort:creation-asc` will sort bugs by their ascending creation time |
+| Sort nodes                   | Example                                     |
+| ---                                       | ---                                              |
+| `sort(creation)` or `sort(creation-desc)` | will sort bugs by their descending creation time |
+| `sort(creation-asc)`                      | will sort bugs by their ascending creation time  |
 
 ### Sort by Edit time
 
 You can sort bugs by their edit time.
 
-| Qualifier                       | Example                                                            |
-| ---                             | ---                                                                |
-| `sort:edit` or `sort:edit-desc` | `sort:edit` will sort bugs by their descending last edition time    |
-| `sort:edit-asc`                 | `sort:edit-asc` will sort bugs by their ascending last edition time |
+| Sort nodes                        | Example                                              |
+| ---                               | ---                                                  |
+| `sort(edit)` or `sort(edit-desc)` | will sort bugs by their descending last edition time |
+| `sort(edit-asc)`                  | will sort bugs by their ascending last edition time  |
+
+## Coloring
+
+The webui can color tickets that match a certain criteria. All coloring nodes start with `color-by()` and contain a single argument, which must be one of:
+
+| Color-by nodes   | Arguments                                                            | Example                                                                                                                                           |
+| ---              | ---                                                                  | ---                                                                                                                                               |
+| `author`         | A literal matcher                                                    | `color-by(author(r"John|Jane"))` matches tickets authored by either John or Jane, coloring the tickets that were authored by them.                |
+| `assignee`       | A literal matcher                                                    | `color-by(assignee(r"John|Jane"))` matches tickets assigned to either John or Jane, coloring the tickets that are assigned to them.               |
+| `ccb-pending`    | A literal matcher                                                    | `color-by(ccb-pending(john))` matches tickets CCB'ed by John in which a CCB action is pending, coloring the tickets that are pending CCB by John. |
+| `label`          | A literal matcher                                                    | `color-by(label(r"^repo:.*"))` matches tickets with labels that start with `repo:`, assigning a color to each of the different matched labels.    |
