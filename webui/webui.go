@@ -93,7 +93,7 @@ func Run(repo, host string, port int) error {
 
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))
 	r.HandleFunc("/", handleIndex)
-	r.HandleFunc("/ticket/new/", handleCreateTicket).Methods(http.MethodGet, http.MethodPost)
+	r.HandleFunc("/ticket/new/", http_webui.ValidatePayload(&CreateTicketAction{}, handleCreateTicket)).Methods(http.MethodGet, http.MethodPost)
 	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", handleTicket).Methods(http.MethodGet)
 	r.HandleFunc("/ticket/{ticketId:[0-9a-fA-F]{7,}}/comment/", handleCreateComment).Methods(http.MethodPost)
 	r.HandleFunc("/checklist/", handleChecklist)
