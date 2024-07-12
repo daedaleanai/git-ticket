@@ -1,6 +1,7 @@
 package webui
 
 import (
+	"errors"
 	"fmt"
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
@@ -10,42 +11,23 @@ import (
 	"github.com/daedaleanai/git-ticket/webui/session"
 	"net/http"
 	"net/url"
+	"reflect"
 )
 
 func handleCreateTicket(w http.ResponseWriter, r *http.Request) {
 	repo := http_webui.LoadFromContext(r.Context(), &http_webui.ContextualRepoCache{}).(*http_webui.ContextualRepoCache).Repo
 	bag := http_webui.LoadFromContext(r.Context(), &session.FlashMessageBag{}).(*session.FlashMessageBag)
 
-	var validationErrors = make(map[string]*http_webui.ValidationError)
-	var formData url.Values
-
 	if r.Method == http.MethodPost {
-		if err := r.ParseForm(); err != nil {
-			http_webui.ErrorIntoResponse(fmt.Errorf("failed to parse form data: %w", err), w)
+		ticket, err := createTicket(r, repo)
+
+		if err != nil {
+			bag.AddMessage(session.NewError(fmt.Sprintf("Failed to create ticket: %s", err)))
+		} else {
+			bag.AddMessage(session.NewSuccess("Ticket created"))
+			http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticket.Id()), http.StatusSeeOther)
 			return
 		}
-
-		var action *CreateTicketAction
-		var err error
-		formData = r.Form
-		action, validationErrors, err = createTicketFromFormData(formData, repo)
-
-		if len(validationErrors) == 0 && err == nil {
-			ticket, _, err := repo.NewBug(cache.NewBugOpts{
-				Title:    action.Title,
-				Message:  action.Message,
-				Workflow: action.Workflow,
-				Assignee: action.AssignedTo,
-				Repo:     fmt.Sprintf("%s%s", bug.RepoPrefix, action.Repo),
-			})
-			if err != nil {
-				bag.AddMessage(session.NewError(fmt.Sprintf("Failed to create ticket: %s", err.Error())))
-			} else {
-				bag.AddMessage(session.NewSuccess("Ticket created"))
-				http.Redirect(w, r, fmt.Sprintf("/ticket/%s/", ticket.Id()), http.StatusSeeOther)
-			}
-		}
-		bag.AddMessage(session.NewError(fmt.Sprintf("Failed to create ticket: %s", err.Error())))
 	}
 
 	flashes := bag.Messages()
@@ -60,7 +42,7 @@ func handleCreateTicket(w http.ResponseWriter, r *http.Request) {
 		SideBar          SideBarData
 		WorkflowLabels   []bug.Label
 		RepoLabels       []string
-		ValidationErrors map[string]*http_webui.ValidationError
+		ValidationErrors map[string]session.FlashValidationError
 		FlashErrors      []session.FlashMessage
 		FormData         url.Values
 		UserOptions      []*cache.IdentityExcerpt
@@ -70,9 +52,9 @@ func handleCreateTicket(w http.ResponseWriter, r *http.Request) {
 			ColorKey:       map[string]string{},
 		},
 		WorkflowLabels:   bug.GetWorkflowLabels(),
-		ValidationErrors: validationErrors,
+		ValidationErrors: bag.ValidationErrors(),
 		RepoLabels:       repoLabels,
-		FormData:         formData,
+		FormData:         r.Form,
 		FlashErrors:      flashes,
 		UserOptions:      repo.AllIdentityExcerpts(),
 	}
@@ -80,15 +62,105 @@ func handleCreateTicket(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "create.html", data)
 }
 
+func createTicket(r *http.Request, repo *cache.RepoCache) (*cache.BugCache, error) {
+	if err := r.ParseForm(); err != nil {
+		return nil, err
+	}
+
+	action := createTicketActionFromValues(r.Form).(CreateTicketAction)
+
+	if !http_webui.IsValid(action, repo) {
+		return nil, errors.New("ticket action is invalid")
+	}
+
+	assignee, err := action.getAssignee(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	ticket, _, err := repo.NewBug(cache.NewBugOpts{
+		Title:    action.Title,
+		Message:  action.Message,
+		Workflow: action.Workflow,
+		Assignee: assignee,
+		Repo:     fmt.Sprintf("%s%s", bug.RepoPrefix, action.Repo),
+	})
+
+	return ticket, err
+}
+
+func (a CreateTicketAction) getAssignee(repo *cache.RepoCache) (identity.Interface, error) {
+	if a.AssignedTo == nil {
+		return nil, nil
+	}
+
+	assignee, err := repo.ResolveIdentity(*a.AssignedTo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve assignee: %w", err)
+	}
+
+	return assignee.Identity, nil
+}
+
 type CreateTicketAction struct {
 	Title      string
 	Message    string
 	Workflow   string
 	Repo       string
-	AssignedTo identity.Interface
+	AssignedTo *entity.Id
 	Ccb        []string
 	Labels     []string
 	Checklists []string
+}
+
+func createTicketActionFromValues(values url.Values) http_webui.ValidatedPayload {
+	for k := range values {
+		// Unset any empty values, so we can evaluate with `values.Has`
+		// Empty string values will always evaluate `values.Has` to `true` otherwise which doesn't make much sense.
+		if len(values.Get(k)) == 0 {
+			values.Del(k)
+		}
+	}
+
+	c := CreateTicketAction{
+		Title:    values.Get(keyTitle),
+		Message:  values.Get(keyMessage),
+		Workflow: values.Get(keyWorkflow),
+		Repo:     values.Get(keyRepo),
+	}
+
+	if values.Has(keyAssignee) {
+		id := entity.Id(values.Get(keyAssignee))
+		c.AssignedTo = &id
+	}
+
+	return c
+}
+
+func (c CreateTicketAction) Validate(repo *cache.RepoCache) map[string]http_webui.ValidationError {
+	required := [4]string{"Title", "Workflow", "Repo", "Message"}
+	var validationErrors = make(map[string]http_webui.ValidationError)
+	action := reflect.ValueOf(c)
+
+	for _, v := range required {
+		val := action.FieldByName(v)
+		if val.String() == "" {
+			validationErrors[v] = http_webui.ValidationError{Msg: fmt.Sprintf("%s is required", v)}
+		}
+	}
+
+	if !isValidWorkflow(c.Workflow) {
+		l := bug.Label(c.Workflow)
+		validationErrors[keyWorkflow] = http_webui.ValidationError{Msg: fmt.Sprintf("%s is not a valid workflow", l.WorkflowName())}
+	}
+
+	if c.AssignedTo != nil {
+		if _, err := repo.ResolveIdentity(*c.AssignedTo); err != nil {
+			validationErrors[keyWorkflow] = http_webui.ValidationError{Msg: fmt.Sprintf("%s is not a valid user", c.AssignedTo)}
+		}
+	}
+
+	return validationErrors
 }
 
 const keyTitle = "title"
@@ -96,71 +168,6 @@ const keyWorkflow = "workflow"
 const keyRepo = "repo"
 const keyAssignee = "assignee"
 const keyMessage = "description"
-
-func createTicketFromFormData(f url.Values, c *cache.RepoCache) (*CreateTicketAction, map[string]*http_webui.ValidationError, error) {
-	for k := range f {
-		// Unset any empty values
-		if len(f.Get(k)) == 0 {
-			f.Del(k)
-		}
-	}
-
-	required := [4]string{keyTitle, keyWorkflow, keyRepo, keyMessage}
-	var validationErrors = make(map[string]*http_webui.ValidationError)
-
-	for _, v := range required {
-		if !f.Has(v) {
-			validationErrors[v] = &http_webui.ValidationError{Msg: fmt.Sprintf("%s is required", v)}
-		}
-	}
-
-	if f.Has(keyWorkflow) && !isValidWorkflow(f.Get(keyWorkflow)) {
-		l := bug.Label(f.Get(keyWorkflow))
-		validationErrors[keyWorkflow] = &http_webui.ValidationError{Msg: fmt.Sprintf("%s is not a valid workflow", l.WorkflowName())}
-	}
-
-	var assignee identity.Interface
-	if f.Has(keyAssignee) {
-		var err error
-		assignee, err = resolveIdentityFromFormValue(c, f.Get(keyAssignee), validationErrors)
-		if err != nil {
-			return nil, validationErrors, err
-		}
-	}
-
-	if len(validationErrors) > 0 {
-		return nil, validationErrors, nil
-	}
-
-	return &CreateTicketAction{
-		Title:      f.Get(keyTitle),
-		Message:    f.Get(keyMessage),
-		Workflow:   f.Get(keyWorkflow),
-		Repo:       f.Get(keyRepo),
-		AssignedTo: assignee,
-		Ccb:        nil,
-		Labels:     nil,
-		Checklists: nil,
-	}, nil, nil
-}
-
-func resolveIdentityFromFormValue(
-	c *cache.RepoCache,
-	value string, validationErrors map[string]*http_webui.ValidationError,
-) (identity.Interface, error) {
-	id, err := c.ResolveIdentity(entity.Id(value))
-
-	if err == identity.ErrIdentityNotExist {
-		validationErrors[keyAssignee] = &http_webui.ValidationError{Msg: fmt.Sprintf("user %s does not exist", value)}
-		return nil, nil
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return id.Identity, nil
-}
 
 func isValidWorkflow(s string) bool {
 	for _, l := range bug.GetWorkflowLabels() {
