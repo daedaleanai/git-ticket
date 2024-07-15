@@ -25,13 +25,13 @@ type Env struct {
 func newEnv() *Env {
 	return &Env{
 		repo: nil,
-		out:  out{Writer: os.Stdout},
-		err:  out{Writer: os.Stderr},
+		out:  out{WriteCloser: os.Stdout},
+		err:  out{WriteCloser: os.Stderr},
 	}
 }
 
 type out struct {
-	io.Writer
+	io.WriteCloser
 }
 
 func (o out) Printf(format string, a ...interface{}) {

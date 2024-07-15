@@ -361,12 +361,13 @@ func (c *RepoCache) ValidLabels() ([]bug.Label, error) {
 }
 
 type NewBugOpts struct {
-	Title    string
-	Message  string
-	Workflow string
-	Repo     string
-	Impact   []string
-	Assignee identity.Interface
+	Title      string
+	Message    string
+	Workflow   string
+	Repo       string
+	Impact     []string
+	Checklists []string
+	Assignee   identity.Interface
 }
 
 // NewBug create a new bug
@@ -425,6 +426,19 @@ func (c *RepoCache) validateNewBugOptions(opts NewBugOpts) ([]bug.Label, error) 
 				return fmt.Errorf("Invalid impact label: %s", impactLabel)
 			}
 			labels = append(labels, impactLabel)
+		}
+
+		// Validate checklists
+		for _, checklist := range opts.Checklists {
+			checklistLabel := bug.Label(checklist)
+			if !checklistLabel.IsChecklist() {
+				return fmt.Errorf("Invalid checklist label: %s", checklistLabel)
+			}
+
+			if _, err := configCache.GetChecklist(config.Label(checklistLabel)); err != nil {
+				return err
+			}
+			labels = append(labels, checklistLabel)
 		}
 
 		return nil
