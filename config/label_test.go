@@ -75,6 +75,40 @@ func TestLabelConfigUnmarshall(t *testing.T) {
 	assert.Equal(t, innerItem2.DeprecationMessage, "")
 }
 
+func TestLabelMappingConfigUnmarshall(t *testing.T) {
+	labelConfigJson := `
+{
+    "labelMapping": {
+		"impact:psac" : { "pCCB": ["swTeam"], "sCCB": ["certTeam"], "checklists": ["checklist:swplan"] },
+		"impact:sdd" : { "pCCB": ["swTeam"], "sCCB": ["swTeam", "hwTeam"], "checklists": ["checklist:swdesign"] }
+    }
+}
+`
+
+	config, err := parseLabelConfig([]byte(labelConfigJson))
+	if err != nil {
+		t.Fatal("Unable to unmarshall label configuration: ", err)
+	}
+
+	impact := config.serialized.LabelMapping
+
+	assert.Len(t, impact, 2)
+	assert.Contains(t, impact, Label("impact:psac"))
+	assert.Contains(t, impact, Label("impact:sdd"))
+
+	assert.Equal(t, CcbAndChecklistConfig{
+		PrimaryCcbTeams:    []string{"swTeam"},
+		SecondaryCcbTeams:  []string{"certTeam"},
+		RequiredChecklists: []string{"checklist:swplan"},
+	}, impact["impact:psac"])
+
+	assert.Equal(t, CcbAndChecklistConfig{
+		PrimaryCcbTeams:    []string{"swTeam"},
+		SecondaryCcbTeams:  []string{"swTeam", "hwTeam"},
+		RequiredChecklists: []string{"checklist:swdesign"},
+	}, impact["impact:sdd"])
+}
+
 func TestLabelConfigPlainMap(t *testing.T) {
 	labelConfigJson := `
 {

@@ -19,6 +19,14 @@ type LabelConfig struct {
 	serialized serializedLabelConfig
 }
 
+type CcbAndChecklistConfig struct {
+	PrimaryCcbTeams    []string `json:"pCCB"`
+	SecondaryCcbTeams  []string `json:"sCCB"`
+	RequiredChecklists []string `json:"checklists"`
+}
+
+type LabelMapping map[Label]CcbAndChecklistConfig
+
 // LoadLabelConfig attempts to read the labels out of the given repository and store it in configuredLabels
 func LoadLabelConfig(repo repository.ClockedRepo) (*LabelConfig, error) {
 	labelData, err := GetConfig(repo, "labels")
@@ -175,6 +183,11 @@ func (c *LabelConfig) ListLabelsWithNamespace(namespaces ...string) ([]string, e
 	return results, nil
 }
 
+// LabelMapping returns the mapping between impact labels and checklists and CCB members
+func (c *LabelConfig) LabelMapping() LabelMapping {
+	return c.serialized.LabelMapping
+}
+
 type labelConfigInterface interface {
 	// Returns an array of simpleLabelConfig's by recursively expanding all compoundlabelConfig's.
 	Labels() []simpleLabelConfig
@@ -195,7 +208,8 @@ type compoundLabelConfig struct {
 // for convenience it is converted to a LabelConfigMap for consumption within
 // the rest of the git-ticket code.
 type serializedLabelConfig struct {
-	Labels []labelConfigInterface `json:"labels"`
+	Labels       []labelConfigInterface `json:"labels"`
+	LabelMapping LabelMapping           `json:"labelMapping"`
 }
 
 func (l *compoundLabelConfig) Labels() []simpleLabelConfig {
@@ -272,7 +286,8 @@ func (simple simpleLabelConfig) MarshalJSON() ([]byte, error) {
 
 func (c *serializedLabelConfig) UnmarshalJSON(data []byte) error {
 	var raw struct {
-		Labels []json.RawMessage
+		Labels       []json.RawMessage
+		LabelMapping LabelMapping
 	}
 
 	err := json.Unmarshal(data, &raw)
@@ -289,6 +304,7 @@ func (c *serializedLabelConfig) UnmarshalJSON(data []byte) error {
 		c.Labels = append(c.Labels, config)
 	}
 
+	c.LabelMapping = raw.LabelMapping
 	return nil
 }
 
