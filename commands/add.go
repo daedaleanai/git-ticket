@@ -93,6 +93,7 @@ func queryImpact(configCache *config.ConfigCache) ([]string, error) {
 
 func runAdd(env *Env, opts addOptions) error {
 	var selectedImpact []string
+	var selectedChecklists []string
 	err := env.backend.DoWithLockedConfigCache(func(configCache *config.ConfigCache) error {
 		var err error
 		if opts.messageFile != "" && opts.message == "" {
