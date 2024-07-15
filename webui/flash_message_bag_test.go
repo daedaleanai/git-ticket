@@ -70,7 +70,7 @@ func createBag(t *testing.T) *FlashMessageBag {
 	r, err := http.NewRequest(http.MethodGet, "example.com", bytes.NewReader([]byte("")))
 	require.NoError(t, err)
 
-	bag, err := newFlashMessageBag(r, httptest.NewRecorder())
+	bag, err := NewFlashMessageBag(r, httptest.NewRecorder())
 	require.NoError(t, err)
 
 	return bag

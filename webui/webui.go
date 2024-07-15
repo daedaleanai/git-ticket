@@ -2,10 +2,10 @@ package webui
 
 import (
 	"bytes"
-	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
+	http_webui "github.com/daedaleanai/git-ticket/webui/http"
 	"html/template"
 	"log"
 	"net/http"
@@ -66,8 +66,6 @@ type ApiActionSetStatus struct {
 	Status string
 }
 
-type HandlerWithRepoCache = func(*cache.RepoCache, http.ResponseWriter, *http.Request) error
-
 var (
 	//go:embed static
 	staticFs embed.FS
@@ -86,24 +84,19 @@ var (
 
 const flashMessageBagContextKey = "flash_message_context"
 
-func Run(repoDir, host string, port int) error {
+func Run(repo, host string, port int) error {
 	r := mux.NewRouter()
 	r.Use(errorHandlingMiddleware)
+	r.Use(repoCacheMiddleware(repo))
 	r.Use(flashMessageMiddleware)
 
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))
-	r.HandleFunc("/", withRepoCache(repoDir, handleIndex))
-	r.HandleFunc(
-		"/ticket/new/",
-		withRepoCache(repoDir, handleCreateTicket),
-	).Methods(http.MethodGet, http.MethodPost)
-	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", withRepoCache(repoDir, handleTicket)).Methods(http.MethodGet)
-	r.HandleFunc(
-		"/ticket/{ticketId:[0-9a-fA-F]{7,}}/comment/",
-		withRepoCache(repoDir, handleCreateComment),
-	).Methods(http.MethodPost)
-	r.HandleFunc("/checklist/", withRepoCache(repoDir, handleChecklist))
-	r.HandleFunc("/api/set-status", withRepoCache(repoDir, handleApiSetStatus))
+	r.HandleFunc("/", handleIndex)
+	r.HandleFunc("/ticket/new/", handleCreateTicket).Methods(http.MethodGet, http.MethodPost)
+	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", handleTicket).Methods(http.MethodGet)
+	r.HandleFunc("/ticket/{ticketId:[0-9a-fA-F]{7,}}/comment/", handleCreateComment).Methods(http.MethodPost)
+	r.HandleFunc("/checklist/", handleChecklist)
+	r.HandleFunc("/api/set-status", handleApiSetStatus)
 
 	http.Handle("/", r)
 	fmt.Printf("Running web-ui at http://%s:%d\n", host, port)
@@ -117,16 +110,27 @@ type SideBarData struct {
 	ColorKey       map[string]string
 }
 
-func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
+func excludeFromMiddleware(r *http.Request) bool {
+	if strings.HasPrefix(r.URL.Path, "/static/") {
+		return true
+	}
+	return false
+}
+
+func handleIndex(w http.ResponseWriter, r *http.Request) {
+	repo := http_webui.LoadFromContext(r.Context(), &http_webui.ContextualRepoCache{}).(*http_webui.ContextualRepoCache).Repo
+
 	qParam := r.URL.Query().Get("q")
 	parser, err := query.NewParser(qParam)
 	if err != nil {
-		return fmt.Errorf("unable to parse query: %w", err)
+		ErrorIntoResponse(fmt.Errorf("unable to parse query: %w", err), w)
+		return
 	}
 
 	q, err := parser.Parse()
 	if err != nil {
-		return &invalidRequestError{msg: fmt.Sprintf("unable to parse query: %s", err)}
+		ErrorIntoResponse(&invalidRequestError{msg: fmt.Sprintf("unable to parse query: %s", err)}, w)
+		return
 	}
 
 	tickets := map[bug.Status][]*cache.BugExcerpt{}
@@ -137,7 +141,8 @@ func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) 
 	for _, id := range repo.QueryBugs(q) {
 		ticket, err := repo.ResolveBugExcerpt(id)
 		if err != nil {
-			return ticketNotFound(string(id))
+			ErrorIntoResponse(ticketNotFound(string(id)), w)
+			return
 		}
 		tickets[ticket.Status] = append(tickets[ticket.Status], ticket)
 
@@ -149,7 +154,8 @@ func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) 
 
 		key, err := getTicketColorKey(repo, q, ticket)
 		if err != nil {
-			return fmt.Errorf("failed to determine ticket color: %w", err)
+			ErrorIntoResponse(fmt.Errorf("failed to determine ticket color: %w", err), w)
+			return
 		}
 		if key != "" {
 			if _, ok := colorKey[key]; !ok {
@@ -161,7 +167,7 @@ func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) 
 
 	ticketStatuses := determineWorkflowStatuses(workflows)
 
-	return renderTemplate(w, "index.html", struct {
+	renderTemplate(w, "index.html", struct {
 		Statuses []bug.Status
 		Tickets  map[bug.Status][]*cache.BugExcerpt
 		Colors   map[entity.Id]string
@@ -178,35 +184,35 @@ func handleIndex(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) 
 	})
 }
 
-func renderTemplate(w http.ResponseWriter, name string, data interface{}) error {
+func renderTemplate(w http.ResponseWriter, name string, data interface{}) {
 	buf := &bytes.Buffer{}
 
 	if err := templates.ExecuteTemplate(buf, name, data); err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	w.Write(buf.Bytes())
-	return nil
 }
 
-func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
-	bag := r.Context().Value(flashMessageBagContextKey).(*FlashMessageBag)
+func handleTicket(w http.ResponseWriter, r *http.Request) {
+	repo := http_webui.LoadFromContext(r.Context(), &http_webui.ContextualRepoCache{}).(*http_webui.ContextualRepoCache).Repo
+	bag := http_webui.LoadFromContext(r.Context(), &FlashMessageBag{}).(*FlashMessageBag)
 
 	var ticket *cache.BugCache
-	var err error
 
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	ticket, err = repo.ResolveBugPrefix(id)
+	ticket, err := repo.ResolveBugPrefix(id)
 
 	if err != nil {
-		return ticketNotFound(id)
+		ErrorIntoResponse(ticketNotFound(id), w)
+		return
 	}
 
 	flashes := bag.Messages()
-
-	return renderTemplate(w, "ticket.html", struct {
+	renderTemplate(w, "ticket.html", struct {
 		SideBar       SideBarData
 		Ticket        *bug.Snapshot
 		FlashMessages []FlashMessage
@@ -220,24 +226,27 @@ func handleTicket(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request)
 	})
 }
 
-func handleChecklist(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
+func handleChecklist(w http.ResponseWriter, r *http.Request) {
+	repo := http_webui.LoadFromContext(r.Context(), &http_webui.ContextualRepoCache{}).(*http_webui.ContextualRepoCache).Repo
 	id := r.URL.Query().Get("id")
 
 	checklist := bug.Label(r.URL.Query().Get("checklist"))
 	if !checklist.IsChecklist() {
-		return &invalidRequestError{msg: fmt.Sprintf("requested checklist %s is not a checklist", checklist)}
+		ErrorIntoResponse(&invalidRequestError{msg: fmt.Sprintf("requested checklist %s is not a checklist", checklist)}, w)
 	}
 
 	ticket, err := repo.ResolveBugPrefix(id)
 	if err != nil {
-		return ticketNotFound(id)
+		ErrorIntoResponse(ticketNotFound(id), w)
+		return
 	}
 
 	snap := ticket.Snapshot()
 	// only display checklists which are currently associated with the ticket
 	clMap, present := snap.Checklists[checklist]
 	if !present {
-		return &invalidRequestError{msg: fmt.Sprintf("checklist %s is not part of ticket %s", checklist, id)}
+		ErrorIntoResponse(&invalidRequestError{msg: fmt.Sprintf("checklist %s is not part of ticket %s", checklist, id)}, w)
+		return
 	}
 
 	type checklistItem struct {
@@ -245,11 +254,12 @@ func handleChecklist(repo *cache.RepoCache, w http.ResponseWriter, r *http.Reque
 		Checklist bug.ChecklistSnapshot
 	}
 
-	clList := []checklistItem{}
+	var clList []checklistItem
 	for k, v := range clMap {
 		id, err := repo.ResolveIdentity(k)
 		if err != nil {
-			return err
+			ErrorIntoResponse(err, w)
+			return
 		}
 		clList = append(clList, checklistItem{
 			Ident:     id.Identity,
@@ -262,7 +272,7 @@ func handleChecklist(repo *cache.RepoCache, w http.ResponseWriter, r *http.Reque
 		return clList[i].Ident.Id() < clList[j].Ident.Id()
 	})
 
-	return renderTemplate(w, "checklist.html", struct {
+	renderTemplate(w, "checklist.html", struct {
 		Ticket         *bug.Snapshot
 		ChecklistLabel bug.Label
 		Checklists     []checklistItem
@@ -273,12 +283,22 @@ func handleChecklist(repo *cache.RepoCache, w http.ResponseWriter, r *http.Reque
 	})
 }
 
-func handleApiSetStatus(repo *cache.RepoCache, w http.ResponseWriter, r *http.Request) error {
+func handleApiSetStatus(w http.ResponseWriter, r *http.Request) {
+	repo := http_webui.LoadFromContext(r.Context(), &http_webui.ContextualRepoCache{}).(*http_webui.ContextualRepoCache).Repo
+
+	if err := setStatus(repo, r); err != nil {
+		ErrorIntoResponse(err, w)
+		return
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func setStatus(repo *cache.RepoCache, r *http.Request) error {
 	action := ApiActionSetStatus{}
 	if err := json.NewDecoder(r.Body).Decode(&action); err != nil {
 		return &malformedRequestError{prev: err}
 	}
-
 	ticket, err := repo.ResolveBug(entity.Id(action.Ticket))
 	if err != nil {
 		return &invalidRequestError{msg: fmt.Sprintf("invalid ticket id: %s", action.Ticket)}
@@ -302,7 +322,6 @@ func handleApiSetStatus(repo *cache.RepoCache, w http.ResponseWriter, r *http.Re
 		return fmt.Errorf("failed to commit changes: %w", err)
 	}
 
-	fmt.Fprintln(w, "Success.")
 	return nil
 }
 
@@ -327,33 +346,6 @@ func newDeferredResponseWriter(w http.ResponseWriter) *deferredResponseWriter {
 	}
 }
 
-func withRepoCache(repoDir string, handler HandlerWithRepoCache) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		repo, err := repository.NewGitRepo(repoDir, []repository.ClockLoader{bug.ClockLoader, identity.ClockLoader})
-		if err != nil {
-			errorIntoResponse(fmt.Errorf("unable to open git repository: %w", err), w)
-			return
-		}
-
-		repoCache, err := cache.NewRepoCache(repo, false)
-		if err != nil {
-			errorIntoResponse(fmt.Errorf("unable to open git cache: %w", err), w)
-			return
-		}
-		defer repoCache.Close()
-
-		if err := loadConfig(repo); err != nil {
-			errorIntoResponse(fmt.Errorf("unable to load webui configuration: %w", err), w)
-			return
-		}
-
-		if err := handler(repoCache, w, r); err != nil {
-			errorIntoResponse(err, w)
-			return
-		}
-	}
-}
-
 func deferWrite(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		dw := newDeferredResponseWriter(w)
@@ -365,26 +357,64 @@ func deferWrite(next http.Handler) http.Handler {
 
 func errorHandlingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				fmt.Println("Unexpected error occurred: ", err)
-				http.Error(w, "internal server error.", http.StatusInternalServerError)
-			}
-		}()
+		if !excludeFromMiddleware(r) {
+			defer func() {
+				if err := recover(); err != nil {
+					fmt.Println("Unexpected error occurred: ", err)
+					http.Error(w, "internal server error.", http.StatusInternalServerError)
+				}
+			}()
+		}
 		next.ServeHTTP(w, r)
 	})
 }
 
+// Adds the repo cache into the request context
+func repoCacheMiddleware(repoDir string) func(handler http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !excludeFromMiddleware(r) {
+				repo, err := repository.NewGitRepo(repoDir, []repository.ClockLoader{bug.ClockLoader, identity.ClockLoader})
+				if err != nil {
+					ErrorIntoResponse(fmt.Errorf("unable to open git repository: %w", err), w)
+					return
+				}
+
+				if err := loadConfig(repo); err != nil {
+					ErrorIntoResponse(fmt.Errorf("unable to load webui configuration: %w", err), w)
+					return
+				}
+
+				repoCache, err := cache.NewRepoCache(repo, false)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+
+				defer repoCache.Close()
+				c := http_webui.ContextualRepoCache{Repo: repoCache}
+				r = http_webui.LoadIntoContext(r, &c)
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// Adds a flash message bag to the request context
 func flashMessageMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		bag, err := newFlashMessageBag(r, w)
+		if !excludeFromMiddleware(r) {
 
-		if err != nil {
-			http.Error(w, "failed to get flash message bag.", http.StatusInternalServerError)
-			return
+			bag, err := NewFlashMessageBag(r, w)
+
+			if err != nil {
+				http.Error(w, "failed to get flash message bag.", http.StatusInternalServerError)
+				return
+			}
+
+			r = http_webui.LoadIntoContext(r, bag)
 		}
-
-		r = r.WithContext(context.WithValue(r.Context(), flashMessageBagContextKey, bag))
 		next.ServeHTTP(w, r)
 	})
 }

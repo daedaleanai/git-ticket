@@ -13,11 +13,15 @@ type FlashMessageBag struct {
 	writer  http.ResponseWriter
 }
 
+func (b *FlashMessageBag) ContextKey() string {
+	return flashMessageBagContextKey
+}
+
 // **Note:** we're only using sessions to show flash messages.
 // If we ever use it for auth stuff (which is probably never), this should be an env var.
 const ddlnSessionKey = "DDLN_GT_SESSION"
 
-func (b FlashMessageBag) Add(messages ...FlashMessage) {
+func (b *FlashMessageBag) Add(messages ...FlashMessage) {
 	defer func() {
 		if err := b.session.Save(b.request, b.writer); err != nil {
 			panic(fmt.Sprintf("failed to save flash messages to session: %s", err))
@@ -34,7 +38,7 @@ func (b FlashMessageBag) Add(messages ...FlashMessage) {
 	}
 }
 
-func newFlashMessageBag(r *http.Request, w http.ResponseWriter) (*FlashMessageBag, error) {
+func NewFlashMessageBag(r *http.Request, w http.ResponseWriter) (*FlashMessageBag, error) {
 	store := sessions.NewCookieStore([]byte(ddlnSessionKey))
 	session, err := store.Get(r, ddlnSessionKey)
 	if err != nil {
@@ -70,7 +74,7 @@ func NewValidationError(key string, msg string) FlashMessage {
 	}
 }
 
-func (b FlashMessageBag) Messages() []FlashMessage {
+func (b *FlashMessageBag) Messages() []FlashMessage {
 	var flashes []FlashMessage
 	for _, v := range b.session.Flashes() {
 		s := fmt.Sprintf("%s", v)
@@ -95,7 +99,7 @@ type FlashMessage struct {
 	Key         *string
 }
 
-func (f FlashMessage) CssClass() string {
+func (f *FlashMessage) CssClass() string {
 	var s string
 	switch f.MessageType {
 	case successMsg:
@@ -106,7 +110,7 @@ func (f FlashMessage) CssClass() string {
 	return s
 }
 
-func (f FlashMessage) IsValidationError() bool {
+func (f *FlashMessage) IsValidationError() bool {
 	return f.MessageType == validationErrorMsg
 }
 

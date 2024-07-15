@@ -29,7 +29,7 @@ func ticketNotFound(ticketId string) *notFoundError {
 	return &notFoundError{msg: fmt.Sprintf("unable to find ticket with id [%s]", ticketId)}
 }
 
-func errorIntoResponse(e error, w http.ResponseWriter) {
+func ErrorIntoResponse(e error, w http.ResponseWriter) {
 	switch e.(type) {
 	default:
 		w.WriteHeader(http.StatusInternalServerError)
