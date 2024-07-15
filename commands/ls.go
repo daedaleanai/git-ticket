@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -54,27 +53,19 @@ git ticket ls all(status(vetted), label(r"repo:.*")) sort(edit-desc)
 }
 
 func runLs(env *Env, opts lsOptions, args []string) error {
-	q := &query.Query{
-		OrderBy:        query.OrderByEdit,
-		OrderDirection: query.OrderDescending,
-	}
-	var err error
+	q := &query.CompiledQuery{}
 
 	if len(args) >= 1 {
 		// construct filter from query language
-		q, err = query.Parse(strings.Join(args, " "))
-
+		parser, err := query.NewParser(strings.Join(args, " "))
 		if err != nil {
 			return err
 		}
-	}
 
-	if reflect.ValueOf(q.Filters).IsZero() {
-		// If no filters are set then default to active tickets
-		q.Status = bug.ActiveStatuses()
-	} else if len(q.Status) == 0 {
-		// If filters are set but not on status then apply to all tickets
-		q.Status = bug.AllStatuses()
+		q, err = parser.Parse()
+		if err != nil {
+			return err
+		}
 	}
 
 	allIds := env.backend.QueryBugs(q)

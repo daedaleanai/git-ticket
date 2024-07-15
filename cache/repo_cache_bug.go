@@ -246,7 +246,7 @@ func (c *RepoCache) resolveBugMatcher(f func(*BugExcerpt) bool) (entity.Id, erro
 }
 
 // QueryBugs return the id of all Bug matching the given Query
-func (c *RepoCache) QueryBugs(q *query.Query) []entity.Id {
+func (c *RepoCache) QueryBugs(q *query.CompiledQuery) []entity.Id {
 	c.muBug.RLock()
 	defer c.muBug.RUnlock()
 
@@ -254,19 +254,23 @@ func (c *RepoCache) QueryBugs(q *query.Query) []entity.Id {
 		return c.AllBugsIds()
 	}
 
-	matcher := compileMatcher(q.Filters)
-
 	var filtered []*BugExcerpt
 
 	for _, excerpt := range c.bugExcerpts {
-		if matcher.Match(excerpt, c) {
+		if q.FilterNode == nil || executeFilter(q.FilterNode, c, excerpt) {
 			filtered = append(filtered, excerpt)
 		}
 	}
 
+	if q.OrderNode == nil {
+		q.OrderNode = &query.OrderByNode{
+			OrderBy:        query.OrderByEdit,
+			OrderDirection: query.OrderDescending,
+		}
+	}
 	var sorter sort.Interface
 
-	switch q.OrderBy {
+	switch q.OrderNode.OrderBy {
 	case query.OrderById:
 		sorter = BugsById(filtered)
 	case query.OrderByCreation:
@@ -277,7 +281,7 @@ func (c *RepoCache) QueryBugs(q *query.Query) []entity.Id {
 		panic("missing sort type")
 	}
 
-	switch q.OrderDirection {
+	switch q.OrderNode.OrderDirection {
 	case query.OrderAscending:
 		// Nothing to do
 	case query.OrderDescending:
