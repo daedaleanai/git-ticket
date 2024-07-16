@@ -32,7 +32,8 @@ func newLsCommand() *cobra.Command {
 		Short: "List tickets.",
 		Long: `Display a summary of each ticket. By default shows only "active" tickets, i.e. In Progress, In Review, Reviewed and Accepted.
 
-You can pass an additional query to filter and order the list. This query can be expressed either with a simple query language.`,
+You can pass an additional query to filter and order the list. This query can be expressed with a simple query language.
+See https://github.com/daedaleanai/git-ticket/blob/master/doc/queries.md`,
 		Example: `List vetted tickets sorted by last edition with a query:
 git ticket ls all(status(vetted), label(r"repo:.*")) sort(edit-desc)
 `,
@@ -66,6 +67,9 @@ func runLs(env *Env, opts lsOptions, args []string) error {
 		if err != nil {
 			return err
 		}
+	} else {
+		// If no query is given, show by default only active tickets
+		q.FilterNode = &query.StatusFilter{Statuses: bug.ActiveStatuses()}
 	}
 
 	allIds := env.backend.QueryBugs(q)
