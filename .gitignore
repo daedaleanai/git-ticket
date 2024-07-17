@@ -9,3 +9,4 @@ coverage.txt
 .idea/
 doc/man/
 doc/md/
+webui/node_modules
