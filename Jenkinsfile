@@ -18,6 +18,22 @@ pipeline {
     }
 
     stages {
+        stage('Build') {
+            agent {
+                label "prod-docker-builder"
+            }
+            steps {
+                echo 'Checking Web UI build'
+                inDocker() {
+                    sh '''
+                    go generate
+
+                    git diff --quiet || (echo "The generated web-ui assets are out of date. Please run 'go generate'" && false)
+                    echo "web-ui assets are up to date"
+                    '''
+                }
+            }
+        }
         stage('Tests') {
             agent {
                 label "prod-docker-builder"
