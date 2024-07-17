@@ -6,7 +6,6 @@ import "../styles/checklist.css"
 window.onload = function() {
     const selectReviewer = tabIdx => {
         for (const tabEl of document.getElementsByClassName('nav-link')) {
-            import "../styles/checklist.css"
             tabEl.classList.remove('active');
         }
 
