@@ -5,6 +5,7 @@ misc/powershell_completion/
 misc/zsh_completion/
 .gitkeep
 dist
+!webui/static/dist
 coverage.txt
 .idea/
 doc/man/
