@@ -123,13 +123,13 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	qParam := r.URL.Query().Get("q")
 	parser, err := query.NewParser(qParam)
 	if err != nil {
-		ErrorIntoResponse(fmt.Errorf("unable to parse query: %w", err), w)
+		http_webui.ErrorIntoResponse(fmt.Errorf("unable to parse query: %w", err), w)
 		return
 	}
 
 	q, err := parser.Parse()
 	if err != nil {
-		ErrorIntoResponse(&invalidRequestError{msg: fmt.Sprintf("unable to parse query: %s", err)}, w)
+		http_webui.ErrorIntoResponse(&http_webui.InvalidRequestError{Msg: fmt.Sprintf("unable to parse query: %s", err)}, w)
 		return
 	}
 
@@ -141,7 +141,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	for _, id := range repo.QueryBugs(q) {
 		ticket, err := repo.ResolveBugExcerpt(id)
 		if err != nil {
-			ErrorIntoResponse(ticketNotFound(string(id)), w)
+			http_webui.ErrorIntoResponse(http_webui.TicketNotFound(string(id)), w)
 			return
 		}
 		tickets[ticket.Status] = append(tickets[ticket.Status], ticket)
@@ -154,7 +154,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 
 		key, err := getTicketColorKey(repo, q, ticket)
 		if err != nil {
-			ErrorIntoResponse(fmt.Errorf("failed to determine ticket color: %w", err), w)
+			http_webui.ErrorIntoResponse(fmt.Errorf("failed to determine ticket color: %w", err), w)
 			return
 		}
 		if key != "" {
@@ -207,7 +207,7 @@ func handleTicket(w http.ResponseWriter, r *http.Request) {
 	ticket, err := repo.ResolveBugPrefix(id)
 
 	if err != nil {
-		ErrorIntoResponse(ticketNotFound(id), w)
+		http_webui.ErrorIntoResponse(http_webui.TicketNotFound(id), w)
 		return
 	}
 
@@ -232,12 +232,13 @@ func handleChecklist(w http.ResponseWriter, r *http.Request) {
 
 	checklist := bug.Label(r.URL.Query().Get("checklist"))
 	if !checklist.IsChecklist() {
-		ErrorIntoResponse(&invalidRequestError{msg: fmt.Sprintf("requested checklist %s is not a checklist", checklist)}, w)
+		http_webui.ErrorIntoResponse(&http_webui.InvalidRequestError{Msg: fmt.Sprintf("requested checklist %s is not a checklist", checklist)}, w)
+		return
 	}
 
 	ticket, err := repo.ResolveBugPrefix(id)
 	if err != nil {
-		ErrorIntoResponse(ticketNotFound(id), w)
+		http_webui.ErrorIntoResponse(http_webui.TicketNotFound(id), w)
 		return
 	}
 
@@ -245,7 +246,7 @@ func handleChecklist(w http.ResponseWriter, r *http.Request) {
 	// only display checklists which are currently associated with the ticket
 	clMap, present := snap.Checklists[checklist]
 	if !present {
-		ErrorIntoResponse(&invalidRequestError{msg: fmt.Sprintf("checklist %s is not part of ticket %s", checklist, id)}, w)
+		http_webui.ErrorIntoResponse(&http_webui.InvalidRequestError{Msg: fmt.Sprintf("checklist %s is not part of ticket %s", checklist, id)}, w)
 		return
 	}
 
@@ -258,7 +259,7 @@ func handleChecklist(w http.ResponseWriter, r *http.Request) {
 	for k, v := range clMap {
 		id, err := repo.ResolveIdentity(k)
 		if err != nil {
-			ErrorIntoResponse(err, w)
+			http_webui.ErrorIntoResponse(err, w)
 			return
 		}
 		clList = append(clList, checklistItem{
@@ -287,7 +288,7 @@ func handleApiSetStatus(w http.ResponseWriter, r *http.Request) {
 	repo := http_webui.LoadFromContext(r.Context(), &http_webui.ContextualRepoCache{}).(*http_webui.ContextualRepoCache).Repo
 
 	if err := setStatus(repo, r); err != nil {
-		ErrorIntoResponse(err, w)
+		http_webui.ErrorIntoResponse(err, w)
 		return
 	} else {
 		w.WriteHeader(http.StatusOK)
@@ -297,22 +298,22 @@ func handleApiSetStatus(w http.ResponseWriter, r *http.Request) {
 func setStatus(repo *cache.RepoCache, r *http.Request) error {
 	action := ApiActionSetStatus{}
 	if err := json.NewDecoder(r.Body).Decode(&action); err != nil {
-		return &malformedRequestError{prev: err}
+		return &http_webui.MalformedRequestError{Prev: err}
 	}
 	ticket, err := repo.ResolveBug(entity.Id(action.Ticket))
 	if err != nil {
-		return &invalidRequestError{msg: fmt.Sprintf("invalid ticket id: %s", action.Ticket)}
+		return &http_webui.InvalidRequestError{Msg: fmt.Sprintf("invalid ticket id: %s", action.Ticket)}
 	}
 
 	status, err := bug.StatusFromString(action.Status)
 	if err != nil {
-		return &invalidRequestError{msg: fmt.Sprintf("invalid status %s", action.Status)}
+		return &http_webui.InvalidRequestError{Msg: fmt.Sprintf("invalid status %s", action.Status)}
 	}
 	_, err = ticket.SetStatus(status)
 	if err != nil {
 		switch err.(type) {
 		case bug.InvalidTransitionError:
-			return &invalidRequestError{msg: err.Error()}
+			return &http_webui.InvalidRequestError{Msg: err.Error()}
 		default:
 			return err
 		}
@@ -376,12 +377,12 @@ func repoCacheMiddleware(repoDir string) func(handler http.Handler) http.Handler
 			if !excludeFromMiddleware(r) {
 				repo, err := repository.NewGitRepo(repoDir, []repository.ClockLoader{bug.ClockLoader, identity.ClockLoader})
 				if err != nil {
-					ErrorIntoResponse(fmt.Errorf("unable to open git repository: %w", err), w)
+					http_webui.ErrorIntoResponse(fmt.Errorf("unable to open git repository: %w", err), w)
 					return
 				}
 
 				if err := loadConfig(repo); err != nil {
-					ErrorIntoResponse(fmt.Errorf("unable to load webui configuration: %w", err), w)
+					http_webui.ErrorIntoResponse(fmt.Errorf("unable to load webui configuration: %w", err), w)
 					return
 				}
 

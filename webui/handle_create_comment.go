@@ -17,7 +17,7 @@ type submitCommentAction struct {
 
 func submitCommentFromFormData(ticketId string, f url.Values) (*submitCommentAction, error) {
 	if !f.Has("comment") {
-		return nil, &invalidRequestError{msg: "missing required field [comment]"}
+		return nil, &http_webui.InvalidRequestError{Msg: "missing required field [comment]"}
 	}
 
 	return &submitCommentAction{ticketId, f.Get("comment")}, nil
@@ -29,27 +29,27 @@ func handleCreateComment(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	if err := r.ParseForm(); err != nil {
-		ErrorIntoResponse(&malformedRequestError{prev: err}, w)
+		http_webui.ErrorIntoResponse(&http_webui.MalformedRequestError{Prev: err}, w)
 		return
 	}
 
 	ticketId := vars["ticketId"]
 	action, err := submitCommentFromFormData(ticketId, r.Form)
 	if err != nil {
-		bag.Add(NewError(err.Error()))
+		bag.AddMessage(NewError(err.Error()))
 		ticketRedirect(ticketId, w, r)
 		return
 	}
 	ticket, err := repo.ResolveBug(entity.Id(action.Ticket))
 	if err != nil {
-		ErrorIntoResponse(&invalidRequestError{msg: fmt.Sprintf("invalid ticket id: %s", action.Ticket)}, w)
+		http_webui.ErrorIntoResponse(&http_webui.InvalidRequestError{Msg: fmt.Sprintf("invalid ticket id: %s", action.Ticket)}, w)
 		return
 	}
 
 	if err := addComment(ticket, action); err != nil {
-		bag.Add(NewError(fmt.Sprintf("Something went wrong: %s", err)))
+		bag.AddMessage(NewError(fmt.Sprintf("Something went wrong: %s", err)))
 	} else {
-		bag.Add(NewSuccess("Success"))
+		bag.AddMessage(NewSuccess("Success"))
 	}
 
 	ticketRedirect(ticket.Id().String(), w, r)

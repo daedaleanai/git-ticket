@@ -2,6 +2,7 @@ package webui
 
 import (
 	"bytes"
+	http2 "github.com/daedaleanai/git-ticket/webui/http"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
@@ -12,7 +13,7 @@ func TestFlashMessageBag_NewError(t *testing.T) {
 	bag := createBag(t)
 
 	msg := "help! I'm on fire!"
-	bag.Add(NewError(msg))
+	bag.AddMessage(NewError(msg))
 
 	assertSingleMessage(t, FlashMessage{
 		MessageType: errorMsg,
@@ -24,7 +25,7 @@ func TestFlashMessageBag_NewSuccess(t *testing.T) {
 	bag := createBag(t)
 
 	msg := "phew! The fire brigade showed up"
-	bag.Add(NewSuccess(msg))
+	bag.AddMessage(NewSuccess(msg))
 
 	assertSingleMessage(t, FlashMessage{
 		MessageType: successMsg,
@@ -35,22 +36,35 @@ func TestFlashMessageBag_NewSuccess(t *testing.T) {
 func TestFlashMessageBag_NewValidationError(t *testing.T) {
 	bag := createBag(t)
 
-	key := "fire"
+	field := "fire"
 	msg := "Should be water"
-	bag.Add(NewValidationError(key, msg))
+	bag.AddValidationErrors(NewValidationError(field, http2.ValidationError{Msg: msg}))
 
-	assertSingleMessage(t, FlashMessage{
-		MessageType: validationErrorMsg,
-		Key:         &key,
-		Message:     msg,
-	}, bag)
+	validationErrors := bag.ValidationErrors()
+
+	require.Len(t, validationErrors, 1)
+	require.EqualValues(t, NewValidationError(field, http2.ValidationError{Msg: msg}), validationErrors[field])
+}
+
+func TestFlashMessageBag_Read(t *testing.T) {
+	bag := createBag(t)
+
+	bag.AddMessage(NewSuccess("foo"))
+	bag.AddMessage(NewError("foo"))
+	bag.AddValidationErrors(NewValidationError("foo", http2.ValidationError{Msg: "bar"}))
+
+	flashes := bag.Messages()
+	require.Len(t, flashes, 2)
+
+	validationErrors := bag.ValidationErrors()
+	require.Len(t, validationErrors, 1)
 }
 
 func TestFlashMessageBag_MessagesClearsAfterRead(t *testing.T) {
 	bag := createBag(t)
 
-	bag.Add(NewError("foo"))
-	bag.Add(NewError("bar"))
+	bag.AddMessage(NewError("foo"))
+	bag.AddMessage(NewError("bar"))
 
 	flashes := bag.Messages()
 	require.Len(t, flashes, 2)
