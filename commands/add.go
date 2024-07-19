@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/manifoldco/promptui"
@@ -9,7 +10,9 @@ import (
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
 	"github.com/daedaleanai/git-ticket/config"
+	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/input"
+	"github.com/daedaleanai/git-ticket/util/colors"
 
 	_select "github.com/daedaleanai/git-ticket/commands/select"
 )
@@ -128,9 +131,142 @@ func queryRepo(configCache *config.ConfigCache, env *Env) (string, error) {
 	return bug.RepoPrefix + string(repoLabels[selectedItem]), nil
 }
 
+func queryCcbMemberFromTeam(configCache *config.ConfigCache, env *Env, teamName string, excludedUserId *entity.Id) (*cache.IdentityExcerpt, error) {
+	team, err := configCache.GetCcbTeam(teamName)
+	if err != nil {
+		return nil, err
+	}
+
+	var items []*cache.IdentityExcerpt
+	for _, member := range team.Members {
+		if excludedUserId != nil && member.Id == *excludedUserId {
+			continue
+		}
+
+		id, err := env.backend.ResolveIdentityExcerpt(member.Id)
+		if err != nil {
+			return nil, err
+		}
+
+		items = append(items, id)
+	}
+	items = append(items, nil)
+
+	m := promptui.FuncMap
+	m["DisplayName"] = func(ident *cache.IdentityExcerpt) string {
+		if ident == nil {
+			return "<None>"
+		}
+		return ident.DisplayName()
+	}
+	m["Details"] = func(ident *cache.IdentityExcerpt) string {
+		if ident == nil {
+			return colors.Red("Select this if you are sure that this CCB review is not required")
+		}
+		return ""
+	}
+
+	prompt := promptui.Select{
+		Label: fmt.Sprintf("Select CCB member from %s", teamName),
+		Items: items,
+		Templates: &promptui.SelectTemplates{
+			Active:   fmt.Sprintf("%s {{ . | DisplayName | underline }}", promptui.IconSelect),
+			Inactive: "  {{ . | DisplayName }}",
+			Selected: fmt.Sprintf(`{{ "%s" | green }} {{ . | DisplayName | faint }}`, promptui.IconGood),
+			Details:  "{{ . | Details }}",
+			FuncMap:  m,
+		},
+		Stdout: env.err.WriteCloser,
+	}
+
+	selectedItem, _, err := prompt.Run()
+	if err != nil {
+		return nil, err
+	}
+
+	return items[selectedItem], nil
+}
+
+func queryCCBMembers(configCache *config.ConfigCache, env *Env, selectedImpact []string, repo string) (map[bug.Status][]entity.Id, error) {
+	// The keys to these maps is the CCB team. The values are the identities selected for each team.
+	// In principle there is no reason to have more than one person from a given team CCB'ing the change,
+	// other than the fact that they may be different between primary and secondary, which is already handled
+	// by having separate data structures for each.
+	primaryCCBPerTeam := map[string]entity.Id{}
+	secondaryCCBPerTeam := map[string]entity.Id{}
+
+	labelMapping := configCache.LabelMapping()
+
+	handleLabel := func(label string) error {
+		handleCcbGroup := func(requiredTeams []string, ccbGroup map[string]entity.Id, otherGroup map[string]entity.Id, groupName string) error {
+			for _, team := range requiredTeams {
+				if selectedUser, ok := ccbGroup[team]; ok {
+					env.out.Printf("Label %q requires %s CCB from team %q. A CCB user has been added already from this team: %q\n",
+						label, groupName, team, selectedUser)
+				} else {
+					env.out.Printf("Label %q requires %s CCB from team %q\n",
+						label, groupName, team)
+
+					var excludedMember *entity.Id = nil
+					if secondaryCcbMember, ok := otherGroup[team]; ok {
+						excludedMember = &secondaryCcbMember
+					}
+
+					ident, err := queryCcbMemberFromTeam(configCache, env, team, excludedMember)
+					if err != nil {
+						return err
+					}
+					if ident != nil {
+						ccbGroup[team] = ident.Id
+					}
+				}
+			}
+			return nil
+		}
+
+		if mapping, ok := labelMapping[config.Label(label)]; ok {
+			if err := handleCcbGroup(mapping.PrimaryCcbTeams, primaryCCBPerTeam, secondaryCCBPerTeam, "primary"); err != nil {
+				return err
+			}
+			if err := handleCcbGroup(mapping.SecondaryCcbTeams, secondaryCCBPerTeam, primaryCCBPerTeam, "secondary"); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	for _, impact := range selectedImpact {
+		err := handleLabel(impact)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err := handleLabel(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	ccbMembers := map[bug.Status][]entity.Id{
+		bug.VettedStatus:   make([]entity.Id, 0),
+		bug.AcceptedStatus: make([]entity.Id, 0),
+	}
+	for _, member := range primaryCCBPerTeam {
+		ccbMembers[bug.VettedStatus] = append(ccbMembers[bug.VettedStatus], member)
+		ccbMembers[bug.AcceptedStatus] = append(ccbMembers[bug.AcceptedStatus], member)
+	}
+
+	for _, member := range secondaryCCBPerTeam {
+		ccbMembers[bug.VettedStatus] = append(ccbMembers[bug.VettedStatus], member)
+	}
+
+	return ccbMembers, nil
+}
+
 func runAdd(env *Env, opts addOptions) error {
 	var selectedImpact []string
-	var selectedChecklists []string
+	var selectedCcbMembers map[bug.Status][]entity.Id
+
 	err := env.backend.DoWithLockedConfigCache(func(configCache *config.ConfigCache) error {
 		var err error
 		if opts.messageFile != "" && opts.message == "" {
@@ -175,36 +311,17 @@ func runAdd(env *Env, opts addOptions) error {
 			selectedImpact = strings.Split(opts.impact, ",")
 		}
 
-		checklistSet := make(map[string]struct{})
-		labelMapping := configCache.LabelMapping()
-		for _, impact := range selectedImpact {
-			if mapping, ok := labelMapping[config.Label(impact)]; ok {
-				env.out.Printf("Impact label %q automatically selects the following checklists: %q\n",
-					impact, strings.Join(mapping.RequiredChecklists, ","))
-				for _, checklist := range mapping.RequiredChecklists {
-					checklistSet[checklist] = struct{}{}
-				}
-			} else {
-				env.out.Printf("Impact label %q does not require any checklists\n", impact)
-			}
-		}
-
-		if mapping, ok := labelMapping[config.Label(opts.repo)]; ok {
-			env.out.Printf("Repo label %q automatically selects the following checklists: %q\n",
-				opts.repo, strings.Join(mapping.RequiredChecklists, ","))
-			for _, checklist := range mapping.RequiredChecklists {
-				checklistSet[checklist] = struct{}{}
-			}
-		}
-
-		for checklist := range checklistSet {
-			selectedChecklists = append(selectedChecklists, checklist)
-		}
-
-		return nil
+		selectedCcbMembers, err = queryCCBMembers(configCache, env, selectedImpact, opts.repo)
+		return err
 	})
 	if err != nil {
 		return err
+	}
+
+	labels := append([]string{opts.repo}, selectedImpact...)
+	selectedChecklists, checklistMessages := env.backend.FindChecklists(labels)
+	for _, message := range checklistMessages {
+		env.out.Print(message)
 	}
 
 	b, _, err := env.backend.NewBug(cache.NewBugOpts{
@@ -214,6 +331,7 @@ func runAdd(env *Env, opts addOptions) error {
 		Repo:       opts.repo,
 		Impact:     selectedImpact,
 		Checklists: selectedChecklists,
+		CcbMembers: selectedCcbMembers,
 	})
 	if err != nil {
 		return err
