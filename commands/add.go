@@ -25,6 +25,7 @@ type addOptions struct {
 	repo        string
 	impact      string
 	noSelect    bool
+	simple      bool
 }
 
 func newAddCommand() *cobra.Command {
@@ -58,6 +59,8 @@ func newAddCommand() *cobra.Command {
 		"Provide the impact labels, using commas as separators")
 	flags.BoolVarP(&options.noSelect, "noselect", "n", false,
 		"Do not automatically select the new ticket once it's created")
+	flags.BoolVarP(&options.simple, "simple", "s", false,
+		"Do not prompt the user to get any additional information")
 
 	return cmd
 }
@@ -297,56 +300,58 @@ func runAdd(env *Env, opts addOptions) error {
 	var selectedChecklists []string
 	var selectedCcbMembers map[bug.Status][]entity.Id
 
-	err := env.backend.DoWithLockedConfigCache(func(configCache *config.ConfigCache) error {
-		var err error
-		if opts.messageFile != "" && opts.message == "" {
-			opts.title, opts.message, err = input.BugCreateFileInput(opts.messageFile)
-			if err != nil {
-				return err
+	if !opts.simple {
+		err := env.backend.DoWithLockedConfigCache(func(configCache *config.ConfigCache) error {
+			var err error
+			if opts.messageFile != "" && opts.message == "" {
+				opts.title, opts.message, err = input.BugCreateFileInput(opts.messageFile)
+				if err != nil {
+					return err
+				}
 			}
+
+			if opts.messageFile == "" && (opts.message == "" || opts.title == "") {
+				opts.title, opts.message, err = input.BugCreateEditorInput(env.backend, opts.title, opts.message)
+
+				if err == input.ErrEmptyTitle {
+					env.out.Println("Empty title, aborting.")
+					return nil
+				}
+				if err != nil {
+					return err
+				}
+			}
+
+			if opts.workflow == "" {
+				opts.workflow, err = queryWorkflow(env)
+				if err != nil {
+					return err
+				}
+			}
+
+			if opts.repo == "" {
+				opts.repo, err = queryRepo(configCache, env)
+				if err != nil {
+					return err
+				}
+			}
+
+			if opts.impact == "" {
+				selectedImpact, err = queryImpact(configCache, env)
+				if err != nil {
+					return err
+				}
+			} else {
+				selectedImpact = strings.Split(opts.impact, ",")
+			}
+
+			selectedChecklists = findChecklists(configCache, env, selectedImpact, opts.repo)
+			selectedCcbMembers, err = queryCCBMembers(configCache, env, selectedImpact, opts.repo)
+			return err
+		})
+		if err != nil {
+			return err
 		}
-
-		if opts.messageFile == "" && (opts.message == "" || opts.title == "") {
-			opts.title, opts.message, err = input.BugCreateEditorInput(env.backend, opts.title, opts.message)
-
-			if err == input.ErrEmptyTitle {
-				env.out.Println("Empty title, aborting.")
-				return nil
-			}
-			if err != nil {
-				return err
-			}
-		}
-
-		if opts.workflow == "" {
-			opts.workflow, err = queryWorkflow(env)
-			if err != nil {
-				return err
-			}
-		}
-
-		if opts.repo == "" {
-			opts.repo, err = queryRepo(configCache, env)
-			if err != nil {
-				return err
-			}
-		}
-
-		if opts.impact == "" {
-			selectedImpact, err = queryImpact(configCache, env)
-			if err != nil {
-				return err
-			}
-		} else {
-			selectedImpact = strings.Split(opts.impact, ",")
-		}
-
-		selectedChecklists = findChecklists(configCache, env, selectedImpact, opts.repo)
-		selectedCcbMembers, err = queryCCBMembers(configCache, env, selectedImpact, opts.repo)
-		return err
-	})
-	if err != nil {
-		return err
 	}
 
 	b, _, err := env.backend.NewBug(cache.NewBugOpts{
