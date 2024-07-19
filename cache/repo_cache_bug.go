@@ -365,7 +365,9 @@ type NewBugOpts struct {
 	Message    string
 	Workflow   string
 	Repo       string
+	Milestone  string
 	Impact     []string
+	Scope      []string
 	Checklists []string
 	CcbMembers map[bug.Status][]entity.Id
 	Assignee   identity.Interface
@@ -422,6 +424,15 @@ func (c *RepoCache) validateNewBugOptions(opts NewBugOpts) ([]bug.Label, map[bug
 		}
 		labels = append(labels, repoLabel)
 
+		// Validate Milestone
+		milestoneLabel := bug.Label(opts.Milestone)
+		if milestoneLabel != "" {
+			if !milestoneLabel.IsMilestone() || !isInListOfConfiguredLabels(milestoneLabel) {
+				return fmt.Errorf("Invalid milestone label: %s", milestoneLabel)
+			}
+			labels = append(labels, milestoneLabel)
+		}
+
 		// Validate impact labels
 		for _, impact := range opts.Impact {
 			impactLabel := bug.Label(impact)
@@ -429,6 +440,15 @@ func (c *RepoCache) validateNewBugOptions(opts NewBugOpts) ([]bug.Label, map[bug
 				return fmt.Errorf("Invalid impact label: %s", impactLabel)
 			}
 			labels = append(labels, impactLabel)
+		}
+
+		// Validate scope labels
+		for _, scope := range opts.Scope {
+			scopeLabel := bug.Label(scope)
+			if !scopeLabel.IsScope() || !isInListOfConfiguredLabels(scopeLabel) {
+				return fmt.Errorf("Invalid scope label: %s", scopeLabel)
+			}
+			labels = append(labels, scopeLabel)
 		}
 
 		// Validate checklists

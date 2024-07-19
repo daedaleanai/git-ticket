@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/manifoldco/promptui"
@@ -23,8 +24,11 @@ type addOptions struct {
 	messageFile string
 	workflow    string
 	repo        string
+	milestone   string
 	impact      string
+	scope       string
 	noSelect    bool
+	simple      bool
 }
 
 func newAddCommand() *cobra.Command {
@@ -54,10 +58,17 @@ func newAddCommand() *cobra.Command {
 		"Provide a workflow to apply to this ticket")
 	flags.StringVarP(&options.repo, "repo", "r", "",
 		"Provide the repository affected by this ticket")
+	flags.StringVarP(&options.milestone, "milestone", "", "",
+		"Provide the milestone for this ticket")
 	flags.StringVarP(&options.impact, "impact", "i", "",
 		"Provide the impact labels, using commas as separators")
+	flags.StringVarP(&options.scope, "scope", "", "",
+		"Provide the scope labels, using commas as separators")
 	flags.BoolVarP(&options.noSelect, "noselect", "n", false,
 		"Do not automatically select the new ticket once it's created")
+	flags.BoolVarP(&options.simple, "simple", "s", false,
+		`Do not prompt the user to select labels or CCB members. Do not auto-assign checklists
+IMPORTANT: Do not use this option unless you really know what you are doing.`)
 
 	return cmd
 }
@@ -72,6 +83,7 @@ func queryImpact(configCache *config.ConfigCache, env *Env) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	sort.Slice(availableImpactLabels, func(i, j int) bool { return availableImpactLabels[i] < availableImpactLabels[j] })
 
 	availableImpactLabels = append([]string{"<Exit>"}, availableImpactLabels...)
 
@@ -117,6 +129,7 @@ func queryRepo(configCache *config.ConfigCache, env *Env) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	sort.Slice(repoLabels, func(i, j int) bool { return repoLabels[i] < repoLabels[j] })
 
 	prompt := promptui.Select{
 		Label:  "Select repository",
@@ -129,6 +142,59 @@ func queryRepo(configCache *config.ConfigCache, env *Env) (string, error) {
 		return "", err
 	}
 	return bug.RepoPrefix + string(repoLabels[selectedItem]), nil
+}
+
+func queryMilestone(configCache *config.ConfigCache, env *Env) (string, error) {
+	milestoneLabels, err := configCache.ListLabelsWithNamespace("milestone")
+	if err != nil {
+		return "", err
+	}
+	sort.Slice(milestoneLabels, func(i, j int) bool { return milestoneLabels[i] < milestoneLabels[j] })
+
+	milestoneLabels = append([]string{"<None>"}, milestoneLabels...)
+
+	prompt := promptui.Select{
+		Label:  "Select milestone",
+		Items:  milestoneLabels,
+		Stdout: env.err.WriteCloser,
+	}
+
+	selectedItem, _, err := prompt.Run()
+	if err != nil || selectedItem == 0 {
+		return "", err
+	}
+	return bug.MilestonePrefix + string(milestoneLabels[selectedItem]), nil
+}
+
+func queryScope(configCache *config.ConfigCache, env *Env) ([]string, error) {
+	availableScopeLabels, err := configCache.ListLabelsWithNamespace("scope")
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(availableScopeLabels, func(i, j int) bool { return availableScopeLabels[i] < availableScopeLabels[j] })
+
+	availableScopeLabels = append([]string{"<Exit>"}, availableScopeLabels...)
+
+	selectedScope := []string{}
+	for {
+		prompt := promptui.Select{
+			Label:  "Select scope. Select `<Exit>` to finish inserting entries",
+			Items:  availableScopeLabels,
+			Stdout: env.out.WriteCloser,
+		}
+
+		selectedItem, _, err := prompt.Run()
+		if err != nil {
+			return nil, err
+		}
+
+		if selectedItem == 0 {
+			return selectedScope, nil
+		}
+
+		selectedScope = append(selectedScope, bug.ScopePrefix+availableScopeLabels[selectedItem])
+		availableScopeLabels = removeFromSlice(availableScopeLabels, selectedItem)
+	}
 }
 
 func queryCcbMemberFromTeam(configCache *config.ConfigCache, env *Env, teamName string, excludedUserId *entity.Id) (*cache.IdentityExcerpt, error) {
@@ -265,29 +331,30 @@ func queryCCBMembers(configCache *config.ConfigCache, env *Env, selectedImpact [
 
 func runAdd(env *Env, opts addOptions) error {
 	var selectedImpact []string
+	var selectedScope []string
 	var selectedCcbMembers map[bug.Status][]entity.Id
 
-	err := env.backend.DoWithLockedConfigCache(func(configCache *config.ConfigCache) error {
-		var err error
-		if opts.messageFile != "" && opts.message == "" {
-			opts.title, opts.message, err = input.BugCreateFileInput(opts.messageFile)
-			if err != nil {
-				return err
-			}
+	var err error
+	if opts.messageFile != "" && opts.message == "" {
+		opts.title, opts.message, err = input.BugCreateFileInput(opts.messageFile)
+		if err != nil {
+			return err
 		}
+	}
 
-		if opts.messageFile == "" && (opts.message == "" || opts.title == "") {
-			opts.title, opts.message, err = input.BugCreateEditorInput(env.backend, opts.title, opts.message)
+	if opts.messageFile == "" && (opts.message == "" || opts.title == "") {
+		opts.title, opts.message, err = input.BugCreateEditorInput(env.backend, opts.title, opts.message)
 
-			if err == input.ErrEmptyTitle {
-				env.out.Println("Empty title, aborting.")
-				return nil
-			}
-			if err != nil {
-				return err
-			}
+		if err == input.ErrEmptyTitle {
+			env.out.Println("Empty title, aborting.")
+			return nil
 		}
+		if err != nil {
+			return err
+		}
+	}
 
+	if !opts.simple {
 		if opts.workflow == "" {
 			opts.workflow, err = queryWorkflow(env)
 			if err != nil {
@@ -295,27 +362,45 @@ func runAdd(env *Env, opts addOptions) error {
 			}
 		}
 
-		if opts.repo == "" {
-			opts.repo, err = queryRepo(configCache, env)
-			if err != nil {
-				return err
+		err := env.backend.DoWithLockedConfigCache(func(configCache *config.ConfigCache) error {
+			if opts.repo == "" {
+				opts.repo, err = queryRepo(configCache, env)
+				if err != nil {
+					return err
+				}
 			}
-		}
 
-		if opts.impact == "" {
-			selectedImpact, err = queryImpact(configCache, env)
-			if err != nil {
-				return err
+			if opts.milestone == "" {
+				opts.milestone, err = queryMilestone(configCache, env)
+				if err != nil {
+					return err
+				}
 			}
-		} else {
-			selectedImpact = strings.Split(opts.impact, ",")
-		}
 
-		selectedCcbMembers, err = queryCCBMembers(configCache, env, selectedImpact, opts.repo)
-		return err
-	})
-	if err != nil {
-		return err
+			if opts.impact == "" {
+				selectedImpact, err = queryImpact(configCache, env)
+				if err != nil {
+					return err
+				}
+			} else {
+				selectedImpact = strings.Split(opts.impact, ",")
+			}
+
+			if opts.scope == "" {
+				selectedScope, err = queryScope(configCache, env)
+				if err != nil {
+					return err
+				}
+			} else {
+				selectedScope = strings.Split(opts.scope, ",")
+			}
+
+			selectedCcbMembers, err = queryCCBMembers(configCache, env, selectedImpact, opts.repo)
+			return err
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	labels := append([]string{opts.repo}, selectedImpact...)
@@ -329,7 +414,9 @@ func runAdd(env *Env, opts addOptions) error {
 		Message:    opts.message,
 		Workflow:   opts.workflow,
 		Repo:       opts.repo,
+		Milestone:  opts.milestone,
 		Impact:     selectedImpact,
+		Scope:      selectedScope,
 		Checklists: selectedChecklists,
 		CcbMembers: selectedCcbMembers,
 	})
