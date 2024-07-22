@@ -11,10 +11,10 @@ func LoadIntoContext(r *http.Request, l ContextLoadable) *http.Request {
 }
 
 func LoadFromContext(ctx context.Context, l ContextLoadable) ContextLoadable {
-	if loadable, ok := ctx.Value(l.ContextKey()).(ContextLoadable); !ok || loadable == nil {
+	if loadable := ctx.Value(l.ContextKey()); loadable == nil {
 		panic("loadable not found in request context")
 	} else {
-		return loadable
+		return loadable.(ContextLoadable)
 	}
 }
 
