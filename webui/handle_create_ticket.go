@@ -6,7 +6,6 @@ import (
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
 	"github.com/daedaleanai/git-ticket/entity"
-	"github.com/daedaleanai/git-ticket/identity"
 	http_webui "github.com/daedaleanai/git-ticket/webui/http"
 	"github.com/daedaleanai/git-ticket/webui/session"
 	"net/http"
@@ -73,16 +72,11 @@ func createTicket(r *http.Request, repo *cache.RepoCache) (*cache.BugCache, erro
 	action = action.FromValues(r.Form).(CreateTicketAction)
 
 	if http_webui.IsValid(action, repo) {
-		assignee, err := action.getAssignee(repo)
-		if err != nil {
-			return nil, err
-		}
-
 		ticket, _, err := repo.NewBug(cache.NewBugOpts{
 			Title:    action.Title,
 			Message:  action.Message,
 			Workflow: action.Workflow,
-			Assignee: assignee,
+			Assignee: action.AssignedTo,
 			Repo:     fmt.Sprintf("%s%s", bug.RepoPrefix, action.Repo),
 			Ccb:      action.Ccb,
 		})
@@ -93,26 +87,13 @@ func createTicket(r *http.Request, repo *cache.RepoCache) (*cache.BugCache, erro
 	return nil, errors.New("ticket action is invalid")
 }
 
-func (a CreateTicketAction) getAssignee(repo *cache.RepoCache) (identity.Interface, error) {
-	if a.AssignedTo == nil {
-		return nil, nil
-	}
-
-	assignee, err := repo.ResolveIdentity(*a.AssignedTo)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve assignee: %w", err)
-	}
-
-	return assignee.Identity, nil
-}
-
 type CreateTicketAction struct {
 	Title      string
 	Message    string
 	Workflow   string
 	Repo       string
 	AssignedTo *entity.Id
-	Ccb        []string
+	Ccb        []entity.Id
 	Labels     []string
 	Checklists []string
 }
