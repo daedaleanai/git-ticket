@@ -64,35 +64,73 @@ func removeFromSlice(s []string, index int) []string {
 	return append(s[:index], s[index+1:]...)
 }
 
-func queryImpact(configCache *config.ConfigCache) ([]string, error) {
+func queryImpact(configCache *config.ConfigCache, env *Env) ([]string, error) {
 	availableImpactLabels, err := configCache.ListLabelsWithNamespace("impact")
 	if err != nil {
 		return nil, err
 	}
 
+	availableImpactLabels = append([]string{"<Exit>"}, availableImpactLabels...)
+
 	selectedImpact := []string{}
 	for {
 		prompt := promptui.Select{
-			Label: "Select impact. Use <CTRL-D> to stop submitting impact labels.",
-			Items: availableImpactLabels,
+			Label:  "Select impact. Select `<Exit>` to finish inserting entries",
+			Items:  availableImpactLabels,
+			Stdout: env.out.WriteCloser,
 		}
 
 		selectedItem, _, err := prompt.Run()
-		if err == promptui.ErrEOF {
-			break
-		}
 		if err != nil {
 			return nil, err
 		}
 
-		selectedImpact = append(selectedImpact, "impact:"+availableImpactLabels[selectedItem])
+		if selectedItem == 0 {
+			return selectedImpact, nil
+		}
+
+		selectedImpact = append(selectedImpact, bug.ImpactPrefix+availableImpactLabels[selectedItem])
 		availableImpactLabels = removeFromSlice(availableImpactLabels, selectedItem)
 	}
-	return selectedImpact, nil
+}
+
+func queryWorkflow(env *Env) (string, error) {
+	workflows := bug.GetWorkflowLabels()
+	prompt := promptui.Select{
+		Label:  "Select workflow",
+		Items:  workflows,
+		Stdout: env.out.WriteCloser,
+	}
+
+	selectedItem, _, err := prompt.Run()
+	if err != nil {
+		return "", err
+	}
+	return string(workflows[selectedItem]), err
+}
+
+func queryRepo(configCache *config.ConfigCache, env *Env) (string, error) {
+	repoLabels, err := configCache.ListLabelsWithNamespace("repo")
+	if err != nil {
+		return "", err
+	}
+
+	prompt := promptui.Select{
+		Label:  "Select repository",
+		Items:  repoLabels,
+		Stdout: env.err.WriteCloser,
+	}
+
+	selectedItem, _, err := prompt.Run()
+	if err != nil {
+		return "", err
+	}
+	return bug.RepoPrefix + string(repoLabels[selectedItem]), nil
 }
 
 func runAdd(env *Env, opts addOptions) error {
 	var selectedImpact []string
+	var selectedChecklists []string
 	err := env.backend.DoWithLockedConfigCache(func(configCache *config.ConfigCache) error {
 		var err error
 		if opts.messageFile != "" && opts.message == "" {
@@ -115,46 +153,54 @@ func runAdd(env *Env, opts addOptions) error {
 		}
 
 		if opts.workflow == "" {
-			workflows := bug.GetWorkflowLabels()
-			prompt := promptui.Select{
-				Label: "Select workflow",
-				Items: workflows,
-			}
-
-			selectedItem, _, err := prompt.Run()
+			opts.workflow, err = queryWorkflow(env)
 			if err != nil {
 				return err
 			}
-			opts.workflow = string(workflows[selectedItem])
 		}
 
 		if opts.repo == "" {
-			repoLabels, err := configCache.ListLabelsWithNamespace("repo")
+			opts.repo, err = queryRepo(configCache, env)
 			if err != nil {
 				return err
 			}
-
-			prompt := promptui.Select{
-				Label: "Select repository",
-				Items: repoLabels,
-			}
-
-			selectedItem, _, err := prompt.Run()
-			if err != nil {
-				return err
-			}
-			opts.repo = "repo:" + string(repoLabels[selectedItem])
 		}
 
 		if opts.impact == "" {
-			selectedImpact, err = queryImpact(configCache)
+			selectedImpact, err = queryImpact(configCache, env)
 			if err != nil {
 				return err
 			}
 		} else {
-			// TODO: check validity of the given impact label
 			selectedImpact = strings.Split(opts.impact, ",")
 		}
+
+		checklistSet := make(map[string]struct{})
+		labelMapping := configCache.LabelMapping()
+		for _, impact := range selectedImpact {
+			if mapping, ok := labelMapping[config.Label(impact)]; ok {
+				env.out.Printf("Impact label %q automatically selects the following checklists: %q\n",
+					impact, strings.Join(mapping.RequiredChecklists, ","))
+				for _, checklist := range mapping.RequiredChecklists {
+					checklistSet[checklist] = struct{}{}
+				}
+			} else {
+				env.out.Printf("Impact label %q does not require any checklists\n", impact)
+			}
+		}
+
+		if mapping, ok := labelMapping[config.Label(opts.repo)]; ok {
+			env.out.Printf("Repo label %q automatically selects the following checklists: %q\n",
+				opts.repo, strings.Join(mapping.RequiredChecklists, ","))
+			for _, checklist := range mapping.RequiredChecklists {
+				checklistSet[checklist] = struct{}{}
+			}
+		}
+
+		for checklist := range checklistSet {
+			selectedChecklists = append(selectedChecklists, checklist)
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -162,11 +208,12 @@ func runAdd(env *Env, opts addOptions) error {
 	}
 
 	b, _, err := env.backend.NewBug(cache.NewBugOpts{
-		Title:    opts.title,
-		Message:  opts.message,
-		Workflow: opts.workflow,
-		Repo:     opts.repo,
-		Impact:   selectedImpact,
+		Title:      opts.title,
+		Message:    opts.message,
+		Workflow:   opts.workflow,
+		Repo:       opts.repo,
+		Impact:     selectedImpact,
+		Checklists: selectedChecklists,
 	})
 	if err != nil {
 		return err
