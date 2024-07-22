@@ -55,13 +55,13 @@ func LoadCcbConfig(repo repository.ClockedRepo) (CcbConfig, error) {
 }
 
 // IsCcbMember returns a flag indicating if the user is a ccb member, as defined in the repository configuration
-func (c CcbConfig) IsCcbMember(user identity.Interface) (bool, error) {
+func (c CcbConfig) IsCcbMember(user identity.Interface) bool {
 	for _, team := range c {
 		for _, member := range team.Members {
 			if member.Id == user.Id() {
-				return true, nil
+				return true
 			}
 		}
 	}
-	return false, nil
+	return false
 }
