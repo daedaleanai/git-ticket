@@ -42,6 +42,7 @@ The following filters are available:
 | `participant`    | A literal matcher                                                    | `participant(r"John|Jane")` matches tickets in which either John or Jane are participants             |
 | `label`          | A literal matcher                                                    | `label(r"^repo:.*")` matches tickets with labels that start with `repo:`                              |
 | `title`          | A literal matcher                                                    | `title(r"^\[QA\].*")` matches tickets in which their title starts with `[QA]`                         |
+| `checklist`      | A literal matcher and zero or more checklist states                  | `checklist(r"checklist:sw-.*", failed, tbd)` matches tickets which have checklists with labels matching the given pattern and states |
 | `not`            | A nested filter                                                      | `not(title(r"^\[QA\].*"))` matches tickets that do not have titles starting with `[QA]`               |
 | `any`            | A comma-separated list of nested filters                             | `any(ccb(john), status(vetted))` matches tickets that are CCB'ed by John or are in the vetted status  |
 | `all`            | A comma-separated list of nested filters                             | `all(ccb(john), status(vetted))` matches tickets that are CCB'ed by John and are in the vetted status |
