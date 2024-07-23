@@ -65,3 +65,14 @@ func (c CcbConfig) IsCcbMember(user identity.Interface) bool {
 	}
 	return false
 }
+
+// GetCcbTeam returns the queried CCB team, or an error if the team is not found.
+func (c CcbConfig) GetCcbTeam(teamName string) (CcbTeam, error) {
+	for _, team := range c {
+		if team.Name == teamName {
+			return team, nil
+		}
+	}
+
+	return CcbTeam{}, fmt.Errorf("CCB Team not found: %q", teamName)
+}

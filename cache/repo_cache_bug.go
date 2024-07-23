@@ -367,6 +367,7 @@ type NewBugOpts struct {
 	Repo       string
 	Impact     []string
 	Checklists []string
+	CcbMembers map[bug.Status][]entity.Id
 	Assignee   identity.Interface
 }
 
@@ -387,8 +388,10 @@ func (c *RepoCache) NewBugWithFiles(opts NewBugOpts, files []repository.Hash) (*
 	return c.NewBugRaw(author, time.Now().Unix(), opts, files, nil)
 }
 
-func (c *RepoCache) validateNewBugOptions(opts NewBugOpts) ([]bug.Label, error) {
+func (c *RepoCache) validateNewBugOptions(opts NewBugOpts) ([]bug.Label, map[bug.Status][]identity.Interface, error) {
 	var labels []bug.Label
+	ccbMembers := make(map[bug.Status][]identity.Interface)
+
 	err := c.DoWithLockedConfigCache(func(configCache *config.ConfigCache) error {
 		configuredLabels := configCache.LabelConfig.FlatMap
 
@@ -441,16 +444,31 @@ func (c *RepoCache) validateNewBugOptions(opts NewBugOpts) ([]bug.Label, error) 
 			labels = append(labels, checklistLabel)
 		}
 
+		// Validate CCB
+		for status, members := range opts.CcbMembers {
+			ccbMembers[status] = []identity.Interface{}
+			for _, member := range members {
+				ident, err := c.ResolveIdentity(member)
+				if err != nil {
+					return err
+				}
+				if isCcb := configCache.IsCcbMember(ident.Identity); !isCcb {
+					return fmt.Errorf("User %s is not a CCB member", ident.DisplayName())
+				}
+				ccbMembers[status] = append(ccbMembers[status], ident.Identity)
+			}
+		}
+
 		return nil
 	})
-	return labels, err
+	return labels, ccbMembers, err
 }
 
 // NewBugWithFilesMeta create a new bug with attached files for the message, as
 // well as metadata for the Create operation.
 // The new bug is written in the repository (commit)
 func (c *RepoCache) NewBugRaw(author *IdentityCache, unixTime int64, opts NewBugOpts, files []repository.Hash, metadata map[string]string) (*BugCache, *bug.CreateOperation, error) {
-	labels, err := c.validateNewBugOptions(opts)
+	labels, ccbMembers, err := c.validateNewBugOptions(opts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -460,7 +478,21 @@ func (c *RepoCache) NewBugRaw(author *IdentityCache, unixTime int64, opts NewBug
 		return nil, nil, err
 	}
 
-	b.Append(bug.NewLabelChangeOperation(author.Identity, unixTime, labels, []bug.Label{}))
+	labelOp := bug.NewLabelChangeOperation(author.Identity, unixTime, labels, []bug.Label{})
+	if err := labelOp.Validate(); err != nil {
+		return nil, nil, err
+	}
+	b.Append(labelOp)
+
+	for status, users := range ccbMembers {
+		for _, user := range users {
+			op := bug.NewSetCcbOp(author.Identity, unixTime, user, status, bug.AddedCcbState)
+			if err := op.Validate(); err != nil {
+				return nil, nil, err
+			}
+			b.Append(op)
+		}
+	}
 
 	if opts.Assignee != nil {
 		b.Append(bug.NewSetAssigneeOp(author.Identity, unixTime, opts.Assignee))

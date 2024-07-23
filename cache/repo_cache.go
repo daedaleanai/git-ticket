@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/go-git/go-git/v5/plumbing"
@@ -343,4 +344,38 @@ func (c *RepoCache) DoWithLockedConfigCache(action func(config *config.ConfigCac
 	defer c.muConfig.Unlock()
 
 	return action(c.configCache)
+}
+
+// FindChecklists finds the checklists that are applicable for each of the given labels. Returns the checklists
+// and a list of messages to optionally show the user justifying why the checklist was added.
+func (c *RepoCache) FindChecklists(labels []string) ([]string, []string) {
+	selectedChecklists := make([]string, 0)
+	checklistSet := make(map[string]struct{})
+
+	c.muConfig.RLock()
+	defer c.muConfig.RUnlock()
+	labelMapping := c.configCache.LabelMapping()
+
+	messages := []string{}
+	handleLabel := func(label config.Label) {
+		if mapping, ok := labelMapping[label]; ok && len(mapping.RequiredChecklists) != 0 {
+			messages = append(messages, fmt.Sprintf("Label %q automatically selects the following checklists: %q\n",
+				label, strings.Join(mapping.RequiredChecklists, ",")))
+			for _, checklist := range mapping.RequiredChecklists {
+				checklistSet[checklist] = struct{}{}
+			}
+		} else {
+			messages = append(messages, fmt.Sprintf("Label %q does not require any checklists\n", label))
+		}
+	}
+
+	for _, impact := range labels {
+		handleLabel(config.Label(impact))
+	}
+
+	for checklist := range checklistSet {
+		selectedChecklists = append(selectedChecklists, checklist)
+	}
+
+	return selectedChecklists, messages
 }
