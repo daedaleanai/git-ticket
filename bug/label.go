@@ -106,6 +106,8 @@ func (t Term256) Unescape() string {
 const ChecklistPrefix string = "checklist:"
 const WorkflowPrefix string = "workflow:"
 const RepoPrefix string = "repo:"
+const MilestonePrefix string = "milestone:"
+const ScopePrefix string = "scope:"
 const ImpactPrefix string = "impact:"
 
 func (l Label) IsChecklist() bool {
@@ -114,6 +116,14 @@ func (l Label) IsChecklist() bool {
 
 func (l Label) IsWorkflow() bool {
 	return strings.HasPrefix(l.String(), WorkflowPrefix)
+}
+
+func (l Label) IsMilestone() bool {
+	return strings.HasPrefix(l.String(), MilestonePrefix)
+}
+
+func (l Label) IsScope() bool {
+	return strings.HasPrefix(l.String(), ScopePrefix)
 }
 
 func (l Label) IsRepo() bool {
