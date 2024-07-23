@@ -1,5 +1,9 @@
 'use strict';
 
+import "./shared"
+
+import "../styles/home.css"
+
 window.onload = function() {
     const alertEl = document.getElementById('alert');
     alertEl.addEventListener('click', (e) => {

@@ -67,7 +67,7 @@ type ApiActionSetStatus struct {
 }
 
 var (
-	//go:embed static
+	//go:embed static/dist
 	staticFs embed.FS
 
 	//go:embed templates
