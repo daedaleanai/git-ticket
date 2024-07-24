@@ -7,7 +7,7 @@ module.exports = {
         shared: './static/src/js/shared.js',
         home: './static/src/js/home.js',
         checklist: './static/src/js/checklist.js',
-        create: './static/src/js/create.js',
+        create: './static/src/js/create.ts',
         ticket: './static/src/js/ticket.js',
     },
     output: {
@@ -17,6 +17,11 @@ module.exports = {
     module: {
         noParse: /\/node_modules\/process\//,
         rules: [
+            {
+                test: /\.tsx?$/,
+                use: 'ts-loader',
+                exclude: /node_modules/,
+            },
             {
                 test: /\.css$/,
                 use: [ 'style-loader', 'css-loader']
@@ -40,5 +45,8 @@ module.exports = {
                 ]
             },
         ],
+    },
+    resolve: {
+        extensions: ['.tsx', '.ts', '.js'],
     },
 };
