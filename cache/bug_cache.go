@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	review2 "github.com/daedaleanai/git-ticket/bug/review"
+	"github.com/daedaleanai/git-ticket/bug/review"
 	"github.com/daedaleanai/git-ticket/config"
 
 	"github.com/daedaleanai/git-ticket/bug"
@@ -265,12 +265,12 @@ func (c *BugCache) RmReview(id string) (*bug.SetReviewOperation, error) {
 		return nil, err
 	}
 
-	review := &review2.RemoveReview{ReviewId: id}
+	review := &review.RemoveReview{ReviewId: id}
 
 	return c.SetReviewRaw(author, time.Now().Unix(), nil, review)
 }
 
-func (c *BugCache) SetReview(review review2.PullRequest) (*bug.SetReviewOperation, error) {
+func (c *BugCache) SetReview(review review.PullRequest) (*bug.SetReviewOperation, error) {
 	author, err := c.repoCache.GetUserIdentity()
 	if err != nil {
 		return nil, err
@@ -286,7 +286,7 @@ func (c *BugCache) SetReview(review review2.PullRequest) (*bug.SetReviewOperatio
 	return c.SetReviewRaw(author, time.Now().Unix(), nil, review)
 }
 
-func (c *BugCache) SetReviewRaw(author *IdentityCache, unixTime int64, metadata map[string]string, review review2.PullRequest) (*bug.SetReviewOperation, error) {
+func (c *BugCache) SetReviewRaw(author *IdentityCache, unixTime int64, metadata map[string]string, review review.PullRequest) (*bug.SetReviewOperation, error) {
 	op, err := bug.SetReview(c.bug, author.Identity, unixTime, review)
 	if err != nil {
 		return nil, err
