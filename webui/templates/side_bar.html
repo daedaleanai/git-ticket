@@ -1,4 +1,5 @@
 <div class="gt-menu bg-dark">
+  {{ if .EnableCreateTicket }}
   <div class="row mt-2">
     <a href="/ticket/new/" title="Create new ticket" class="btn btn-lg btn-dark">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" class="bi bi-plus-circle-fill" viewBox="0 0 16 16">
@@ -6,6 +7,7 @@
       </svg>
     </a>
   </div>
+  {{ end }}
 
   <div class="gt-menu-section mt-3">
     <span class="mx-3"><a href="/">HOME</a></span>

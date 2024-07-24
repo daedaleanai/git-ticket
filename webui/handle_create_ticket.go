@@ -48,8 +48,9 @@ func handleCreateTicket(w http.ResponseWriter, r *http.Request) {
 		UserOptions      []*cache.IdentityExcerpt
 	}{
 		SideBar: SideBarData{
-			BookmarkGroups: webUiConfig.BookmarkGroups,
-			ColorKey:       map[string]string{},
+			EnableCreateTicket: TicketCreate.IsEnabled(r.Context()),
+			BookmarkGroups:     webUiConfig.BookmarkGroups,
+			ColorKey:           map[string]string{},
 		},
 		WorkflowLabels:   bug.GetWorkflowLabels(),
 		ValidationErrors: bag.ValidationErrors(),

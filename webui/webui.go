@@ -96,7 +96,7 @@ func Run(repo, host string, port int, features []string) error {
 
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))
 	r.HandleFunc("/", handleIndex)
-	r.HandleFunc("/ticket/new/", http_webui.WithValidatedPayload(createTicketActionFromValues, handleCreateTicket)).Methods(http.MethodGet, http.MethodPost)
+	r.HandleFunc("/ticket/new/", handleCreateTicket).Methods(http.MethodGet, http.MethodPost).Name(TicketCreate.name())
 	r.HandleFunc("/ticket/{id:[0-9a-fA-F]{7,}}/", handleTicket).Methods(http.MethodGet)
 	r.HandleFunc("/ticket/{ticketId:[0-9a-fA-F]{7,}}/comment/", handleCreateComment).Methods(http.MethodPost)
 	r.HandleFunc("/checklist/", handleChecklist)
@@ -109,9 +109,10 @@ func Run(repo, host string, port int, features []string) error {
 }
 
 type SideBarData struct {
-	SelectedQuery  string
-	BookmarkGroups []BookmarkGroup
-	ColorKey       map[string]string
+	SelectedQuery      string
+	BookmarkGroups     []BookmarkGroup
+	ColorKey           map[string]string
+	EnableCreateTicket bool
 }
 
 func excludeFromMiddleware(r *http.Request) bool {
@@ -181,9 +182,10 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 		tickets,
 		ticketColors,
 		SideBarData{
-			SelectedQuery:  qParam,
-			BookmarkGroups: webUiConfig.BookmarkGroups,
-			ColorKey:       colorKey,
+			SelectedQuery:      qParam,
+			BookmarkGroups:     webUiConfig.BookmarkGroups,
+			ColorKey:           colorKey,
+			EnableCreateTicket: TicketCreate.IsEnabled(r.Context()),
 		},
 	})
 }
@@ -222,8 +224,9 @@ func handleTicket(w http.ResponseWriter, r *http.Request) {
 		FlashMessages []session.FlashMessage
 	}{
 		SideBarData{
-			BookmarkGroups: webUiConfig.BookmarkGroups,
-			ColorKey:       map[string]string{},
+			BookmarkGroups:     webUiConfig.BookmarkGroups,
+			ColorKey:           map[string]string{},
+			EnableCreateTicket: TicketCreate.IsEnabled(r.Context()),
 		},
 		ticket.Snapshot(),
 		flashes,

@@ -12,8 +12,11 @@ const enabledFeaturesContextKey = "feature_flags"
 
 type FeatureFlag int
 
+const nameTicketCreate = "ticket_create"
+
 const (
 	_ FeatureFlag = iota
+	TicketCreate
 )
 
 func (f FeatureFlag) name() string {
@@ -69,6 +72,7 @@ func featureFlagFromName(name string) *FeatureFlag {
 
 func featureFlagMap() FeatureList {
 	features := make(map[string]FeatureFlag)
+	features[nameTicketCreate] = TicketCreate
 
 	return features
 }
