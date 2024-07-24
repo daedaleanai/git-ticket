@@ -52,7 +52,7 @@ func (ip *inputPopup) layout(g *gocui.Gui) error {
 
 	maxX, maxY := g.Size()
 
-	width := minInt(30, maxX)
+	width := minInt(60, maxX)
 	height := 2
 	x0 := (maxX - width) / 2
 	y0 := (maxY - height) / 2
