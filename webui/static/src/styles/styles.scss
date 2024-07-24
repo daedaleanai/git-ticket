@@ -18,11 +18,10 @@ a {
   width: 800px;
   margin: 32px auto;
 
-  .card-body {
-    ::-webkit-scrollbar {
-      display: none;
-    }
-  }
+}
+
+.card-body::-webkit-scrollbar {
+    display: none;
 }
 
 .gt-container {
