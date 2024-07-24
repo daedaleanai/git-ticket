@@ -3,6 +3,7 @@ package termui
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/awesome-gocui/gocui"
 	"github.com/pkg/errors"
@@ -16,6 +17,8 @@ import (
 )
 
 var errTerminateMainloop = errors.New("terminate gocui mainloop")
+var noneString string = "<None>"
+var exitString string = "<Exit>"
 
 type termUI struct {
 	g      *gocui.Gui
@@ -181,6 +184,216 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
 }
 
+type completionCallback func(interface{}, error) error
+type uiAction func(interface{}, completionCallback) error
+
+func generateWorkflowQuery() uiAction {
+	return func(arg interface{}, cb completionCallback) error {
+		workflowLabels := bug.GetWorkflowLabels()
+		workflows := make([]string, 0, len(workflowLabels))
+
+		for _, k := range workflowLabels {
+			workflows = append(workflows, string(k))
+		}
+
+		c := ui.inputPopup.ActivateWithContent("[↓↑] Select workflows", workflows)
+		go func() {
+			selectedWorkflow := <-c
+
+			bugOpts := arg.(*cache.NewBugOpts)
+			bugOpts.Workflow = selectedWorkflow
+
+			cb(bugOpts, nil)
+		}()
+
+		return nil
+	}
+}
+
+func generateRepoQuery(repo *cache.RepoCache) uiAction {
+	return func(arg interface{}, cb completionCallback) error {
+		var repoLabels []string
+		err := repo.DoWithLockedConfigCache(func(config *config.ConfigCache) error {
+			inner, err := config.ListLabelsWithNamespace("repo")
+			repoLabels = inner
+			return err
+		})
+		if err != nil {
+			return err
+		}
+		sort.Slice(repoLabels, func(i, j int) bool { return repoLabels[i] < repoLabels[j] })
+
+		c := ui.inputPopup.ActivateWithContent("[↓↑] Select repository", repoLabels)
+		go func() {
+			selectedRepo := <-c
+
+			bugOpts := arg.(*cache.NewBugOpts)
+			bugOpts.Repo = bug.RepoPrefix + selectedRepo
+
+			cb(bugOpts, nil)
+		}()
+
+		return nil
+	}
+}
+
+func generateMilestoneQuery(repo *cache.RepoCache) uiAction {
+	return func(arg interface{}, cb completionCallback) error {
+		var milestoneLabels []string
+		err := repo.DoWithLockedConfigCache(func(config *config.ConfigCache) error {
+			inner, err := config.ListLabelsWithNamespace("milestone")
+			milestoneLabels = inner
+			return err
+		})
+		if err != nil {
+			return err
+		}
+		sort.Slice(milestoneLabels, func(i, j int) bool { return milestoneLabels[i] < milestoneLabels[j] })
+
+		milestoneLabels = append([]string{noneString}, milestoneLabels...)
+
+		c := ui.inputPopup.ActivateWithContent("[↓↑] Select milestone", milestoneLabels)
+		go func() {
+			selectedMilestone := <-c
+
+			bugOpts := arg.(*cache.NewBugOpts)
+			if selectedMilestone == noneString {
+				bugOpts.Milestone = ""
+			} else {
+				bugOpts.Milestone = bug.MilestonePrefix + selectedMilestone
+			}
+
+			cb(bugOpts, nil)
+		}()
+
+		return nil
+	}
+}
+
+var errNoMoreRepeats = errors.New("No more repeats were requested")
+
+func generateImpactQuery(repo *cache.RepoCache) uiAction {
+	return func(arg interface{}, cb completionCallback) error {
+		var allImpactLabels []string
+		err := repo.DoWithLockedConfigCache(func(config *config.ConfigCache) error {
+			inner, err := config.ListLabelsWithNamespace("impact")
+			allImpactLabels = inner
+			return err
+		})
+		if err != nil {
+			return err
+		}
+
+		bugOpts := arg.(*cache.NewBugOpts)
+
+		selectedImpactLabels := make(map[string]struct{})
+		for _, impact := range bugOpts.Impact {
+			selectedImpactLabels[impact] = struct{}{}
+		}
+
+		var impactLabels []string
+		for _, label := range allImpactLabels {
+			if _, ok := selectedImpactLabels[bug.ImpactPrefix+label]; !ok {
+				impactLabels = append(impactLabels, label)
+			}
+		}
+
+		sort.Slice(impactLabels, func(i, j int) bool { return impactLabels[i] < impactLabels[j] })
+
+		impactLabels = append([]string{exitString}, impactLabels...)
+
+		c := ui.inputPopup.ActivateWithContent("[↓↑] Select impact", impactLabels)
+		go func() {
+			selectedImpact := <-c
+
+			if selectedImpact != exitString {
+				bugOpts.Impact = append(bugOpts.Impact, bug.ImpactPrefix+selectedImpact)
+				cb(bugOpts, nil)
+			} else {
+				cb(bugOpts, errNoMoreRepeats)
+			}
+
+		}()
+
+		return nil
+	}
+}
+
+func generateScopeQuery(repo *cache.RepoCache) uiAction {
+	return func(arg interface{}, cb completionCallback) error {
+		var allScopeLabels []string
+		err := repo.DoWithLockedConfigCache(func(config *config.ConfigCache) error {
+			inner, err := config.ListLabelsWithNamespace("scope")
+			allScopeLabels = inner
+			return err
+		})
+		if err != nil {
+			return err
+		}
+
+		bugOpts := arg.(*cache.NewBugOpts)
+
+		selectedScopeLabels := make(map[string]struct{})
+		for _, scope := range bugOpts.Scope {
+			selectedScopeLabels[scope] = struct{}{}
+		}
+
+		var scopeLabels []string
+		for _, label := range allScopeLabels {
+			if _, ok := selectedScopeLabels[bug.ScopePrefix+label]; !ok {
+				scopeLabels = append(scopeLabels, label)
+			}
+		}
+
+		sort.Slice(scopeLabels, func(i, j int) bool { return scopeLabels[i] < scopeLabels[j] })
+
+		scopeLabels = append([]string{exitString}, scopeLabels...)
+
+		c := ui.inputPopup.ActivateWithContent("[↓↑] Select scope", scopeLabels)
+		go func() {
+			selectedScope := <-c
+
+			if selectedScope != exitString {
+				bugOpts.Scope = append(bugOpts.Scope, bug.ScopePrefix+selectedScope)
+				cb(bugOpts, nil)
+			} else {
+				cb(bugOpts, errNoMoreRepeats)
+			}
+		}()
+
+		return nil
+	}
+}
+
+func repeatAction(inner uiAction) uiAction {
+	return func(arg interface{}, cb completionCallback) error {
+		var innerCb func(result interface{}, err error) error
+		innerCb = func(result interface{}, err error) error {
+			if err == errNoMoreRepeats {
+				return cb(result, nil)
+			}
+			return inner(result, innerCb)
+		}
+		return inner(arg, innerCb)
+	}
+}
+
+func runChainedActions(arg interface{}, cb completionCallback, actions ...uiAction) error {
+	if len(actions) == 0 {
+		return cb(arg, nil)
+	}
+
+	actions[0](arg, func(result interface{}, err error) error {
+		if err != nil {
+			return cb(result, err)
+		}
+
+		return runChainedActions(result, cb, actions[1:]...)
+	})
+
+	return nil
+}
+
 func newBugWithEditor(repo *cache.RepoCache) error {
 	// This is somewhat hacky.
 	// As there is no way to pause gocui, run the editor and restart gocui,
@@ -207,18 +420,16 @@ func newBugWithEditor(repo *cache.RepoCache) error {
 		return errTerminateMainloop
 	} else {
 		initGui(func(ui *termUI) error {
-			workflowLabels := bug.GetWorkflowLabels()
-			workflows := make([]string, 0, len(workflowLabels))
 
-			for _, k := range workflowLabels {
-				workflows = append(workflows, string(k))
-			}
+			cb := func(result interface{}, err error) error {
+				// We have filled all the bug options at this point
+				newBugOpts := result.(*cache.NewBugOpts)
 
-			c := ui.inputPopup.ActivateWithContent("[↓↑] Select workflows", workflows)
-			go func() {
-				selectedWorkflow := <-c
+				labels := append([]string{newBugOpts.Repo}, newBugOpts.Impact...)
+				selectedChecklists, _ := repo.FindChecklists(labels)
+				newBugOpts.Checklists = selectedChecklists
 
-				b, _, err := repo.NewBug(cache.NewBugOpts{Title: title, Message: message, Workflow: selectedWorkflow})
+				b, _, err := repo.NewBug(*newBugOpts)
 
 				ui.g.Update(func(g *gocui.Gui) error {
 					if err != nil {
@@ -229,9 +440,17 @@ func newBugWithEditor(repo *cache.RepoCache) error {
 					ui.showBug.SetBug(b)
 					return ui.activateWindow(ui.showBug)
 				})
-			}()
+				return nil
+			}
 
-			return nil
+			newBugOpts := &cache.NewBugOpts{Title: title, Message: message}
+
+			return runChainedActions(newBugOpts, cb,
+				generateWorkflowQuery(),
+				generateRepoQuery(repo),
+				generateMilestoneQuery(repo),
+				repeatAction(generateImpactQuery(repo)),
+				repeatAction(generateScopeQuery(repo)))
 		})
 
 		return errTerminateMainloop
