@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/daedaleanai/git-ticket/config"
 )
 
 type keywordParser func(p *Parser) (AstNode, *ParseError)
@@ -26,6 +27,7 @@ func init() {
 		"participant": parseParticipantExpression,
 		"label":       parseLabelExpression,
 		"title":       parseTitleExpression,
+		"checklist":   parseChecklistExpression,
 		"not":         parseNotExpression,
 		"create-before": func(parser *Parser) (AstNode, *ParseError) {
 			return parseCreationDateFilter(parser, true)
@@ -503,6 +505,55 @@ func parseTitleExpression(parser *Parser) (AstNode, *ParseError) {
 
 	matcher, span, err := parser.parseDelimitedLiteralMatcher()
 	return &TitleFilter{Title: matcher, span: firstToken.Span.Extend(span)}, err
+}
+
+func parseChecklistExpression(parser *Parser) (AstNode, *ParseError) {
+	ctx := &parser.context
+	ctx.push("While parsing Checklist expression")
+	defer ctx.pop()
+
+	firstToken := parser.curToken
+	err := parser.advance()
+	if err != nil {
+		return nil, err
+	}
+
+	literals, span, err := parser.parseDelimitedExpressionList()
+	if err != nil {
+		return nil, err
+	}
+
+	span = firstToken.Span.Extend(span)
+
+	if len(literals) == 0 {
+		return nil, newParseError(ctx, span, "Expected at least a checklist literal")
+	}
+
+	checklistMatcher, ok := literals[0].(LiteralMatcherNode)
+	if !ok {
+		return nil, newParseError(ctx, literals[0].Span(), "Expected a literal matcher")
+	}
+
+	stateLiterals := literals[1:]
+
+	var states []config.ChecklistState
+	if len(stateLiterals) == 0 {
+		states = config.AllChecklistStates()
+	} else {
+		for _, node := range literals[1:] {
+			lit, ok := node.(*LiteralNode)
+			if !ok {
+				return nil, newParseError(ctx, node.Span(), "Expected a literal")
+			}
+			checklistState, err := bug.StateFromString(lit.Token.Literal)
+			if err != nil {
+				return nil, newParseError(ctx, lit.Span(), fmt.Sprintf("Unknown checklist state: %v", lit.Token.Literal))
+			}
+			states = append(states, checklistState)
+		}
+	}
+
+	return &ChecklistFilter{Checklist: checklistMatcher, States: states, span: span}, err
 }
 
 func parseNotExpression(parser *Parser) (AstNode, *ParseError) {

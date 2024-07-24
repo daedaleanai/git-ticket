@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/daedaleanai/git-ticket/config"
 )
 
 type AstNode interface {
@@ -183,6 +184,27 @@ func (f *TitleFilter) Span() Span {
 }
 func (*TitleFilter) astNode()    {}
 func (*TitleFilter) filterNode() {}
+
+// Filters a ticket label by checklist
+type ChecklistFilter struct {
+	Checklist LiteralMatcherNode
+	States    []config.ChecklistState
+	span      Span
+}
+
+func (f *ChecklistFilter) String() string {
+	var states []string
+	for _, state := range f.States {
+		states = append(states, state.String())
+	}
+	return fmt.Sprintf("checklist(%v, %v)", f.Checklist, strings.Join(states, ","))
+}
+
+func (f *ChecklistFilter) Span() Span {
+	return f.span
+}
+func (*ChecklistFilter) astNode()    {}
+func (*ChecklistFilter) filterNode() {}
 
 // Filter that inverts an inner Filter
 type NotFilter struct {
