@@ -220,8 +220,11 @@ func ChangeLabels(b Interface, author identity.Interface, c *config.ConfigCache,
 
 		// if it's a checklist, check it exists
 		if label.IsChecklist() {
-			if _, err := c.GetChecklist(config.Label(str)); err != nil {
+			if cl, err := c.GetChecklist(config.Label(str)); err != nil {
 				results = append(results, LabelChangeResult{Label: label, Status: LabelChangeInvalidChecklist})
+				continue
+			} else if (cl.Deprecated != "") && !allowDeprecated {
+				results = append(results, LabelChangeResult{Label: label, Status: LabelChangeDeprecatedLabel, AdditionalInfo: cl.Deprecated})
 				continue
 			}
 		}
