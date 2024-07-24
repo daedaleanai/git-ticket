@@ -87,10 +87,11 @@ var (
 
 const flashMessageBagContextKey = "flash_message_context"
 
-func Run(repo, host string, port int) error {
+func Run(repo, host string, port int, features []string) error {
 	r := mux.NewRouter()
 	r.Use(errorHandlingMiddleware)
 	r.Use(repoCacheMiddleware(repo))
+	r.Use(featureFlagMiddleware(features))
 	r.Use(flashMessageMiddleware)
 
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/", http.FileServer(http.FS(staticFs))))

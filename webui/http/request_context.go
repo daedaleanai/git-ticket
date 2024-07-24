@@ -11,11 +11,19 @@ func LoadIntoContext(r *http.Request, l ContextLoadable) *http.Request {
 }
 
 func LoadFromContext(ctx context.Context, l ContextLoadable) ContextLoadable {
-	if loadable := ctx.Value(l.ContextKey()); loadable == nil {
+	loadable, ok := FindInContext(l, ctx)
+	if !ok {
 		panic("loadable not found in request context")
-	} else {
-		return loadable.(ContextLoadable)
 	}
+	return loadable.(ContextLoadable)
+}
+
+func FindInContext(l ContextLoadable, ctx context.Context) (interface{}, bool) {
+	val := ctx.Value(l.ContextKey())
+	if val == nil {
+		return nil, false
+	}
+	return val, true
 }
 
 type ContextLoadable interface {
