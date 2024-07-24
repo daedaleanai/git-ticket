@@ -78,10 +78,6 @@ func (l *LabelConfig) GetLabelConfig(label Label) (*SingleLabelConfig, error) {
 	return nil, fmt.Errorf("Label %s does not exist", label)
 }
 
-func (l *LabelConfig) GetRepoLabels() ([]string, error) {
-	return l.ListLabelsWithNamespace("repo")
-}
-
 // AppendLabelToConfiguration appends a given label to the label store, turning it into a valid label.
 // Note that this function does not persistently store it in the configuration.
 // Obtain the serialized label configuration and the key in the configuration using LabelStoreData.
@@ -160,7 +156,7 @@ func (c *LabelConfig) ListLabelsWithNamespace(namespaces ...string) ([]string, e
 	for _, namespace := range namespaces {
 		var curLables []labelConfigInterface = nil
 		for _, label := range labels {
-			if complexLabel, ok := label.(*compoundLabelConfig); ok && complexLabel.Prefix == namespace {
+			if complexLabel, ok := label.(*compoundLabelConfig); ok && complexLabel.Prefix == namespace && !complexLabel.IsDeprecated() {
 				curLables = complexLabel.Inner
 				break
 			}
@@ -176,7 +172,9 @@ func (c *LabelConfig) ListLabelsWithNamespace(namespaces ...string) ([]string, e
 	results := []string{}
 	for _, labelConfig := range labels {
 		for _, label := range labelConfig.Labels() {
-			results = append(results, label.Name)
+			if !label.IsDeprecated() {
+				results = append(results, label.Name)
+			}
 		}
 	}
 
@@ -198,10 +196,18 @@ type simpleLabelConfig struct {
 	DeprecationMessage string `json:"deprecationMessage"`
 }
 
+func (labelConfig *simpleLabelConfig) IsDeprecated() bool {
+	return labelConfig.DeprecationMessage != ""
+}
+
 type compoundLabelConfig struct {
 	Prefix             string                 `json:"prefix"`
 	Inner              []labelConfigInterface `json:"labels"`
 	DeprecationMessage string                 `json:"deprecationMessage"`
+}
+
+func (labelConfig *compoundLabelConfig) IsDeprecated() bool {
+	return labelConfig.DeprecationMessage != ""
 }
 
 // This type is internal and used for the internal store of the labels.
