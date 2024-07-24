@@ -89,6 +89,7 @@ func NewValidationError(field string, err error) FlashValidationError {
 }
 
 func (b *FlashMessageBag) Messages() []FlashMessage {
+	defer b.save()
 	var flashes []FlashMessage
 
 	for _, v := range b.session.Flashes(miscellaneousFlashKey) {
@@ -109,6 +110,7 @@ func unmarshalMessage[M *FlashMessage | *FlashValidationError](b interface{}, m 
 }
 
 func (b *FlashMessageBag) ValidationErrors() map[string]FlashValidationError {
+	defer b.save()
 	var flashes []FlashValidationError
 
 	for _, v := range b.session.Flashes(validationErrorFlashKey) {
