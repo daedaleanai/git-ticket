@@ -5,8 +5,6 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	http_webui "github.com/daedaleanai/git-ticket/webui/http"
-	"github.com/daedaleanai/git-ticket/webui/session"
 	"html/template"
 	"log"
 	"net/http"
@@ -16,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"code.gitea.io/sdk/gitea"
-
 	"github.com/daedaleanai/git-ticket/bug"
 	"github.com/daedaleanai/git-ticket/cache"
 	"github.com/daedaleanai/git-ticket/config"
@@ -26,7 +22,13 @@ import (
 	"github.com/daedaleanai/git-ticket/query"
 	"github.com/daedaleanai/git-ticket/repository"
 	"github.com/daedaleanai/git-ticket/util/timestamp"
+	http_webui "github.com/daedaleanai/git-ticket/webui/http"
+	"github.com/daedaleanai/git-ticket/webui/session"
+
+	"code.gitea.io/sdk/gitea"
+
 	"github.com/gorilla/mux"
+
 	"github.com/yuin/goldmark"
 	gmast "github.com/yuin/goldmark/ast"
 	gmextension "github.com/yuin/goldmark/extension"

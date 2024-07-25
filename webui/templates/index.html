@@ -6,37 +6,47 @@
     <script src="/static/dist/home.js"></script>
 </head>
 <body>
+
 <div id="alert" class="alert" role="alert"></div>
+
 <div class="gt-container">
     {{ template "side_bar.html" $.SideBar }}
 
-    <div class="gt-content">
-        <div class="gt-buffer"></div>
+    <div class="gt-content d-flex flex-column">
+        <form action="/" method="GET" class="d-flex flex-row justify-content-center input-group m-3">
+            <span class="input-group-text">Query</span>
+            <div class="w-50"><input type="text" name="q" id="q" class="form-control" placeholder="all(status(vetted), not(assignee(john doe)))" value="{{ $.SideBar.SelectedQuery }}"></div>
+            <button type="submit" class="btn btn-primary">Search</button>
+        </form>
 
-        {{ range $.Statuses }}
-        <div class="gt-column">
-            <div class="card h-100">
-                <div class="card-header text-center">
-                    <h6 class="card-title my-2">{{ . }}</h6>
-                </div>
-                <div class="gt-column-body card-body overflow-auto" data-status="{{ . }}">
+        <div class="gt-content">
+            <div class="gt-buffer"></div>
 
-                    {{ range index $.Tickets . }}
-                    <a id="{{ .Id }}" class="gt-ticket" href="ticket/{{ .Id }}/">
-                        <div class="card px-2 py-1 my-2" {{ if index $.Colors .Id
-                             }}style="border-left-width: 8px; border-left-color: {{ index $.Colors .Id }};" {{ end }}>
-                            <span><b>{{ getRepo . }}</b> | <b>{{ slice .Id 0 7 }}</b></span>
-                            <span>{{ .Title }}</span>
-                        </div>
-                    </a>
-                    {{ end }}
+            {{ range $.Statuses }}
+            <div class="gt-column">
+                <div class="card h-100">
+                    <div class="card-header text-center">
+                        <h6 class="card-title my-2">{{ . }}</h6>
+                    </div>
+                    <div class="gt-column-body card-body overflow-auto" data-status="{{ . }}">
 
+                        {{ range index $.Tickets . }}
+                        <a id="{{ .Id }}" class="gt-ticket" href="ticket/{{ .Id }}/">
+                            <div class="card px-2 py-1 my-2" {{ if index $.Colors .Id
+                                 }}style="border-left-width: 8px; border-left-color: {{ index $.Colors .Id }};" {{ end }}>
+                                <span><b>{{ getRepo . }}</b> | <b>{{ slice .Id 0 7 }}</b></span>
+                                <span>{{ .Title }}</span>
+                            </div>
+                        </a>
+                        {{ end }}
+
+                    </div>
                 </div>
             </div>
-        </div>
-        {{ end }}
+            {{ end }}
 
-        <div class="gt-buffer"></div>
+            <div class="gt-buffer"></div>
+        </div>
     </div>
 </div>
 <div id="drag-drop-placeholder" class="card"></div>
