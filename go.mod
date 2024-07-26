@@ -10,7 +10,7 @@ require (
 	github.com/charmbracelet/glamour v0.7.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fatih/color v1.9.0
-	github.com/go-git/go-git/v5 v5.12.1-0.20240629213349-b00c68ab7140
+	github.com/go-git/go-git/v5 v5.12.1-0.20240726192550-8e2641868b50
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/sessions v1.3.0
 	github.com/hashicorp/golang-lru v0.5.4
@@ -21,7 +21,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/thought-machine/gonduit v0.2.1-0.20200511073941-6b84c545a505
 	github.com/yuin/goldmark v1.7.1
-	golang.org/x/crypto v0.24.0
+	golang.org/x/crypto v0.25.0
 	golang.org/x/text v0.16.0
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -70,20 +70,16 @@ require (
 	github.com/russross/blackfriday/v2 v2.0.1 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
-	github.com/skeema/knownhosts v1.2.2 // indirect
+	github.com/skeema/knownhosts v1.3.0 // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/yuin/goldmark-emoji v1.0.2 // indirect
 	golang.org/x/mod v0.17.0 // indirect
-	golang.org/x/net v0.26.0 // indirect
+	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
-	golang.org/x/term v0.21.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/term v0.22.0 // indirect
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-// Note that this dependency is pinned to bring a fix for certificate authorities that the upstream did not accept
-// See https://github.com/daedaleanai/knownhosts/commit/6625e6443005e6949a24c45fb75ab7bc5611910e for details
-replace github.com/skeema/knownhosts v1.2.2 => github.com/daedaleanai/knownhosts v1.2.3-0.20240628131906-a14cea484a41
