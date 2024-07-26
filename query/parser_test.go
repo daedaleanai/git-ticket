@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -116,6 +117,12 @@ func TestParseFilters(t *testing.T) {
 		{
 			`title(r"repo:.*")`,
 			&TitleFilter{Title: &RegexNode{Token{RegexToken, "repo:.*", Span{6, 16}}, *regexp.MustCompile("repo:.*")}, span: Span{0, 17}},
+			nil,
+			nil,
+		},
+		{
+			`checklist(r"checklist:sw-.*", passed, F)`,
+			&ChecklistFilter{Checklist: &RegexNode{Token{RegexToken, "checklist:sw-.*", Span{10, 28}}, *regexp.MustCompile("checklist:sw-.*")}, States: []config.ChecklistState{config.Passed, config.Failed}, span: Span{0, 40}},
 			nil,
 			nil,
 		},

@@ -33,22 +33,25 @@ pipeline {
                     '''
                 }
             }
+            post {
+                cleanup {
+                    cleanWs(disableDeferredWipeout: true, notFailBuild: true)
+                }
+            }
         }
         stage('Tests') {
             agent {
                 label "prod-docker-builder"
             }
             steps {
-                script {
-                    inDocker() {
-                        sh '''
-                            go install github.com/jstemmer/go-junit-report@latest
-                            go install github.com/t-yuki/gocover-cobertura@latest
-                            rm -f report.xml
-                            go test -v -covermode=atomic -coverprofile=coverage.out -bench=. ./... | go-junit-report -set-exit-code > report.xml
-                            gocover-cobertura < coverage.out > coverage.xml
-                        '''
-                    }
+                inDocker() {
+                    sh '''
+                        go install github.com/jstemmer/go-junit-report@latest
+                        go install github.com/t-yuki/gocover-cobertura@latest
+                        rm -f report.xml
+                        go test -v -covermode=atomic -coverprofile=coverage.out -bench=. ./... | go-junit-report -set-exit-code > report.xml
+                        gocover-cobertura < coverage.out > coverage.xml
+                    '''
                 }
             }
             post {

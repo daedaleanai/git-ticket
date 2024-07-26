@@ -334,7 +334,7 @@ func (c *RepoCache) ListRepoLabels() ([]string, error) {
 	c.muConfig.RLock()
 	defer c.muConfig.RUnlock()
 
-	return c.configCache.GetRepoLabels()
+	return c.configCache.ListLabelsWithNamespace("repo")
 }
 
 // Store the configuration data under the given name

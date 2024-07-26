@@ -378,6 +378,138 @@ func repeatAction(inner uiAction) uiAction {
 	}
 }
 
+func generateCcbQuery(repo *cache.RepoCache) uiAction {
+	type ccbArgs struct {
+		primaryCCBPerTeam   map[string]entity.Id
+		secondaryCCBPerTeam map[string]entity.Id
+		labelMapping        config.LabelMapping
+		ccbConfig           config.CcbConfig
+		labels              []string
+	}
+
+	singleCcbQuery := func(arg interface{}, cb completionCallback) error {
+		ccbArgs := arg.(*ccbArgs)
+
+		handleCcbGroup := func(requiredTeams []string, ccbGroup map[string]entity.Id, otherGroup map[string]entity.Id, groupName string) (bool, error) {
+			for _, teamName := range requiredTeams {
+				if _, alreadyChosen := ccbGroup[teamName]; !alreadyChosen {
+
+					var excludedMember *entity.Id = nil
+					if secondaryCcbMember, ok := otherGroup[teamName]; ok {
+						excludedMember = &secondaryCcbMember
+					}
+
+					ccbTeam, err := ccbArgs.ccbConfig.GetCcbTeam(teamName)
+					if err != nil {
+						return false, err
+					}
+
+					members := map[string]*cache.IdentityExcerpt{}
+					var memberNames []string
+					for _, member := range ccbTeam.Members {
+						if excludedMember != nil && member.Id == *excludedMember {
+							continue
+						}
+
+						id, err := repo.ResolveIdentityExcerpt(member.Id)
+						if err != nil {
+							return false, err
+						}
+
+						members[id.DisplayName()] = id
+						memberNames = append(memberNames, id.DisplayName())
+					}
+					memberNames = append(memberNames, "<None>")
+
+					message := fmt.Sprintf("[↓↑] Select CCB %s member for team %s", groupName, teamName)
+					c := ui.inputPopup.ActivateWithContent(message, memberNames)
+
+					go func() {
+						selectedMember := <-c
+						if member, ok := members[selectedMember]; ok {
+							ccbGroup[teamName] = member.Id
+						}
+
+						cb(ccbArgs, nil)
+					}()
+
+					return true, nil
+				}
+			}
+			return false, nil
+		}
+
+		// Take the first entry in labels that has a CCB mapping and process it
+		for len(ccbArgs.labels) != 0 {
+			label := ccbArgs.labels[0]
+			if mapping, ok := ccbArgs.labelMapping[config.Label(label)]; ok {
+				if triggeredAction, err := handleCcbGroup(mapping.PrimaryCcbTeams, ccbArgs.primaryCCBPerTeam, ccbArgs.secondaryCCBPerTeam, "primary"); err != nil || triggeredAction {
+					return err
+				}
+
+				if triggeredAction, err := handleCcbGroup(mapping.SecondaryCcbTeams, ccbArgs.secondaryCCBPerTeam, ccbArgs.primaryCCBPerTeam, "secondary"); err != nil || triggeredAction {
+					return err
+				}
+			}
+
+			// Remove label
+			ccbArgs.labels = ccbArgs.labels[1:]
+		}
+
+		return cb(ccbArgs, errNoMoreRepeats)
+	}
+
+	return func(arg interface{}, cb completionCallback) error {
+		// The keys to these maps is the CCB team. The values are the identities selected for each team.
+		// In principle there is no reason to have more than one person from a given team CCB'ing the change,
+		// other than the fact that they may be different between primary and secondary, which is already handled
+		// by having separate data structures for each.
+
+		var labelMapping config.LabelMapping
+		var ccbConfig config.CcbConfig
+		_ = repo.DoWithLockedConfigCache(func(config *config.ConfigCache) error {
+			ccbConfig = config.CcbConfig
+			labelMapping = config.LabelMapping()
+			return nil
+		})
+
+		bugOpts := arg.(*cache.NewBugOpts)
+		labels := append([]string{bugOpts.Repo}, bugOpts.Impact...)
+
+		innerArgs := &ccbArgs{
+			primaryCCBPerTeam:   map[string]entity.Id{},
+			secondaryCCBPerTeam: map[string]entity.Id{},
+			labelMapping:        labelMapping,
+			labels:              labels,
+			ccbConfig:           ccbConfig,
+		}
+
+		var innerCb func(result interface{}, err error) error
+		innerCb = func(result interface{}, err error) error {
+			if err == errNoMoreRepeats {
+				ccbArgs := result.(*ccbArgs)
+				bugOpts.CcbMembers = map[bug.Status][]entity.Id{
+					bug.VettedStatus:   make([]entity.Id, 0),
+					bug.AcceptedStatus: make([]entity.Id, 0),
+				}
+				for _, member := range ccbArgs.primaryCCBPerTeam {
+					bugOpts.CcbMembers[bug.VettedStatus] = append(bugOpts.CcbMembers[bug.VettedStatus], member)
+					bugOpts.CcbMembers[bug.AcceptedStatus] = append(bugOpts.CcbMembers[bug.AcceptedStatus], member)
+				}
+
+				for _, member := range ccbArgs.secondaryCCBPerTeam {
+					bugOpts.CcbMembers[bug.VettedStatus] = append(bugOpts.CcbMembers[bug.VettedStatus], member)
+				}
+
+				return cb(bugOpts, nil)
+			}
+			return singleCcbQuery(result, innerCb)
+		}
+
+		return singleCcbQuery(innerArgs, innerCb)
+	}
+}
+
 func runChainedActions(arg interface{}, cb completionCallback, actions ...uiAction) error {
 	if len(actions) == 0 {
 		return cb(arg, nil)
@@ -450,7 +582,9 @@ func newBugWithEditor(repo *cache.RepoCache) error {
 				generateRepoQuery(repo),
 				generateMilestoneQuery(repo),
 				repeatAction(generateImpactQuery(repo)),
-				repeatAction(generateScopeQuery(repo)))
+				repeatAction(generateScopeQuery(repo)),
+				generateCcbQuery(repo),
+			)
 		})
 
 		return errTerminateMainloop

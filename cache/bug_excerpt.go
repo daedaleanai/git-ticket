@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/identity"
 	"github.com/daedaleanai/git-ticket/util/lamport"
@@ -34,6 +35,7 @@ type BugExcerpt struct {
 	Actors       []entity.Id
 	Participants []entity.Id
 	Ccb          []CcbInfoExcerpt
+	Checklists   []ChecklistInfoExcerpt
 
 	// If author is identity.Bare, LegacyAuthor is set
 	// If author is identity.Identity, AuthorId is set and data is deported
@@ -54,6 +56,11 @@ type CcbInfoExcerpt struct {
 	User   entity.Id
 	Status bug.Status
 	State  bug.CcbState
+}
+
+type ChecklistInfoExcerpt struct {
+	Label bug.Label
+	State config.ChecklistState
 }
 
 func (l LegacyAuthorExcerpt) DisplayName() string {
@@ -96,6 +103,14 @@ func NewBugExcerpt(b bug.Interface, snap *bug.Snapshot) *BugExcerpt {
 			State:  approval.State})
 	}
 
+	checklists := make([]ChecklistInfoExcerpt, 0, len(snap.Ccb))
+	for checklistLabel, checklistState := range snap.GetChecklistCompoundStates() {
+		checklists = append(checklists, ChecklistInfoExcerpt{
+			Label: checklistLabel,
+			State: checklistState,
+		})
+	}
+
 	e := &BugExcerpt{
 		Id:                b.Id(),
 		CreateLamportTime: b.CreateLamportTime(),
@@ -108,6 +123,7 @@ func NewBugExcerpt(b bug.Interface, snap *bug.Snapshot) *BugExcerpt {
 		Actors:            actorsIds,
 		Participants:      participantsIds,
 		Ccb:               ccb,
+		Checklists:        checklists,
 		Title:             snap.Title,
 		LenComments:       len(snap.Comments),
 		CreateMetadata:    b.FirstOp().AllMetadata(),

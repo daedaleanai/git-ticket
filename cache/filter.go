@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/daedaleanai/git-ticket/bug"
+	"github.com/daedaleanai/git-ticket/config"
 	"github.com/daedaleanai/git-ticket/entity"
 	"github.com/daedaleanai/git-ticket/query"
 )
@@ -37,6 +38,8 @@ func executeFilter(filter query.FilterNode, resolver resolver, b *BugExcerpt) bo
 		return executeLabelFilter(filter, resolver, b)
 	case *query.TitleFilter:
 		return executeTitleFilter(filter, resolver, b)
+	case *query.ChecklistFilter:
+		return executeChecklistFilter(filter, resolver, b)
 	case *query.NotFilter:
 		return executeNotFilter(filter, resolver, b)
 	case *query.CreationDateFilter:
@@ -184,6 +187,37 @@ func executeTitleFilter(filter *query.TitleFilter, resolver resolver, b *BugExce
 		log.Fatal("Unhandled LiteralMatcherNode type: ", reflect.TypeOf(filter.Title))
 		return false
 	}
+}
+
+func executeChecklistFilter(filter *query.ChecklistFilter, resolver resolver, b *BugExcerpt) bool {
+	stateMatcher := func(actualState config.ChecklistState) bool {
+		for _, state := range filter.States {
+			if actualState == state {
+				return true
+			}
+		}
+		return false
+	}
+
+	labelMatcher := func(actualLabel bug.Label) bool {
+		switch matcher := filter.Checklist.(type) {
+		case *query.LiteralNode:
+			expected := strings.ToLower(matcher.Token.Literal)
+			return expected == strings.ToLower(actualLabel.String())
+		case *query.RegexNode:
+			return matcher.Match(actualLabel.String())
+		default:
+			log.Fatal("Unhandled LiteralMatcherNode type: ", reflect.TypeOf(filter.Checklist))
+			return false
+		}
+	}
+
+	for _, checklist := range b.Checklists {
+		if labelMatcher(checklist.Label) && stateMatcher(checklist.State) {
+			return true
+		}
+	}
+	return false
 }
 
 func executeNotFilter(filter *query.NotFilter, resolver resolver, b *BugExcerpt) bool {

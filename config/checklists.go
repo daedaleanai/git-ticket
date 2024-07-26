@@ -126,6 +126,10 @@ func (s ChecklistState) ColorString() string {
 	}
 }
 
+func AllChecklistStates() []ChecklistState {
+	return []ChecklistState{TBD, Passed, Failed, NotApplicable}
+}
+
 func (s ChecklistState) Validate() error {
 	if s < TBD || s > NotApplicable {
 		return fmt.Errorf("invalid")

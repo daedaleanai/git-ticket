@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	review2 "github.com/daedaleanai/git-ticket/bug/review"
+	"github.com/daedaleanai/git-ticket/bug/review"
 
 	termtext "github.com/MichaelMure/go-term-text"
 
@@ -19,7 +19,7 @@ var _ Operation = &SetReviewOperation{}
 // SetReviewOperation will update the review associated with a ticket
 type SetReviewOperation struct {
 	OpBase
-	Review review2.PullRequest `json:"review"`
+	Review review.PullRequest `json:"review"`
 }
 
 //Sign-post method for gqlgen
@@ -67,7 +67,7 @@ func (op *SetReviewOperation) removeFromTimeline(snapshot *Snapshot) {
 
 func (op *SetReviewOperation) Apply(snapshot *Snapshot) {
 
-	if _, ok := op.Review.(*review2.RemoveReview); ok {
+	if _, ok := op.Review.(*review.RemoveReview); ok {
 		// This review has been removed from the ticket
 		delete(snapshot.Reviews, op.Review.Id())
 
@@ -86,6 +86,15 @@ func (op *SetReviewOperation) Apply(snapshot *Snapshot) {
 		op.addToTimeline(snapshot)
 	}
 
+	for _, review := range snapshot.Reviews {
+		for _, status := range review.LatestUserStatuses() {
+			snapshot.addActor(status.Author())
+		}
+		for _, ev := range review.History() {
+			snapshot.addActor(ev.Author())
+		}
+	}
+
 	snapshot.addActor(op.Author)
 }
 
@@ -101,16 +110,16 @@ func (op *SetReviewOperation) Validate() error {
 func (op *SetReviewOperation) MarshalJSON() ([]byte, error) {
 	wrapper := struct {
 		OpBase
-		Phabricator *review2.PhabReviewInfo `json:"review"`
-		Gitea       *review2.GiteaInfo      `json:"reviewGitea"`
-		Remove      *review2.RemoveReview   `json:"removeReview"`
+		Phabricator *review.PhabReviewInfo `json:"review"`
+		Gitea       *review.GiteaInfo      `json:"reviewGitea"`
+		Remove      *review.RemoveReview   `json:"removeReview"`
 	}{}
 	wrapper.OpBase = op.OpBase
-	if phab, ok := op.Review.(*review2.PhabReviewInfo); ok {
+	if phab, ok := op.Review.(*review.PhabReviewInfo); ok {
 		wrapper.Phabricator = phab
-	} else if gitea, ok := op.Review.(*review2.GiteaInfo); ok {
+	} else if gitea, ok := op.Review.(*review.GiteaInfo); ok {
 		wrapper.Gitea = gitea
-	} else if remove, ok := op.Review.(*review2.RemoveReview); ok {
+	} else if remove, ok := op.Review.(*review.RemoveReview); ok {
 		wrapper.Remove = remove
 	} else {
 		panic("Unknown review info")
@@ -131,9 +140,9 @@ func (op *SetReviewOperation) UnmarshalJSON(data []byte) error {
 	}
 
 	wrapper := struct {
-		Phabricator *review2.PhabReviewInfo `json:"review"`
-		Gitea       *review2.GiteaInfo      `json:"reviewGitea"`
-		Remove      *review2.RemoveReview   `json:"removeReview"`
+		Phabricator *review.PhabReviewInfo `json:"review"`
+		Gitea       *review.GiteaInfo      `json:"reviewGitea"`
+		Remove      *review.RemoveReview   `json:"removeReview"`
 	}{}
 
 	err = json.Unmarshal(data, &wrapper)
@@ -156,7 +165,7 @@ func (op *SetReviewOperation) UnmarshalJSON(data []byte) error {
 // Sign post method for gqlgen
 func (op *SetReviewOperation) IsAuthored() {}
 
-func NewSetReviewOp(author identity.Interface, unixTime int64, review review2.PullRequest) *SetReviewOperation {
+func NewSetReviewOp(author identity.Interface, unixTime int64, review review.PullRequest) *SetReviewOperation {
 	return &SetReviewOperation{
 		OpBase: newOpBase(SetReviewOp, author, unixTime),
 		Review: review,
@@ -167,8 +176,8 @@ type SetReviewTimelineItem struct {
 	id       entity.Id
 	Author   identity.Interface
 	UnixTime timestamp.Timestamp
-	Review   review2.PullRequest
-	Event    review2.TimelineEvent
+	Review   review.PullRequest
+	Event    review.TimelineEvent
 }
 
 func (s SetReviewTimelineItem) Id() entity.Id {
@@ -191,7 +200,7 @@ func (s SetReviewTimelineItem) String() string {
 func (s *SetReviewTimelineItem) IsAuthored() {}
 
 // Convenience function to apply the operation
-func SetReview(b Interface, author identity.Interface, unixTime int64, review review2.PullRequest) (*SetReviewOperation, error) {
+func SetReview(b Interface, author identity.Interface, unixTime int64, review review.PullRequest) (*SetReviewOperation, error) {
 	setReviewOp := NewSetReviewOp(author, unixTime, review)
 
 	if err := setReviewOp.Validate(); err != nil {

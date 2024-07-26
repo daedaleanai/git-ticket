@@ -1,6 +1,10 @@
-
 #drag-drop-placeholder {
     display: none;
     background-color: #f0f0f0;
     border: none;
+}
+
+.card {
+  width: unset;
+  margin: unset;
 }
