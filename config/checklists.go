@@ -28,9 +28,10 @@ type ChecklistSection struct {
 	Questions []ChecklistQuestion
 }
 type Checklist struct {
-	Label    Label
-	Title    string
-	Sections []ChecklistSection
+	Label      Label
+	Title      string
+	Deprecated string
+	Sections   []ChecklistSection
 }
 
 type ChecklistConfig map[Label]Checklist
@@ -72,6 +73,9 @@ func (c ChecklistConfig) GetChecklistLabels() []Label {
 
 	var labels []Label
 	for _, cl := range c {
+		if cl.Deprecated != "" {
+			continue
+		}
 		labels = append(labels, cl.Label)
 	}
 	return labels

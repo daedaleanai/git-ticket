@@ -260,6 +260,10 @@ const checklistPreamble = `# %s
 // comment and status for each question, results are added to checklist.
 // Returns bool indicating if anything changed and any error value.
 func ChecklistEditorInput(repo repository.RepoCommon, checklist config.Checklist, ignoreBackup bool) (bool, error) {
+	if checklist.Deprecated != "" {
+		return false, fmt.Errorf("%s is deprecated: %s",
+			checklist.Label, checklist.Deprecated)
+	}
 
 	checklistBackupFile := ".git-ticket." + bug.Label(checklist.Label).String() + ".backup"
 
