@@ -329,6 +329,16 @@ func queryCCBMembers(configCache *config.ConfigCache, env *Env, selectedImpact [
 	return ccbMembers, nil
 }
 
+func collectCommaSeparated(s string) []string {
+	var result []string
+	for _, v := range strings.Split(s, ",") {
+		if len(v) > 0 {
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
 func runAdd(env *Env, opts addOptions) error {
 	var err error
 	if opts.messageFile != "" && opts.message == "" {
@@ -350,8 +360,8 @@ func runAdd(env *Env, opts addOptions) error {
 		}
 	}
 
-	selectedImpact := strings.Split(opts.impact, ",")
-	selectedScope := strings.Split(opts.scope, ",")
+	selectedImpact := collectCommaSeparated(opts.impact)
+	selectedScope := collectCommaSeparated(opts.scope)
 	var selectedCcbMembers map[bug.Status][]entity.Id
 
 	if !opts.simple {
