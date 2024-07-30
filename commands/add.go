@@ -330,10 +330,6 @@ func queryCCBMembers(configCache *config.ConfigCache, env *Env, selectedImpact [
 }
 
 func runAdd(env *Env, opts addOptions) error {
-	var selectedImpact []string
-	var selectedScope []string
-	var selectedCcbMembers map[bug.Status][]entity.Id
-
 	var err error
 	if opts.messageFile != "" && opts.message == "" {
 		opts.title, opts.message, err = input.BugCreateFileInput(opts.messageFile)
@@ -353,6 +349,10 @@ func runAdd(env *Env, opts addOptions) error {
 			return err
 		}
 	}
+
+	selectedImpact := strings.Split(opts.impact, ",")
+	selectedScope := strings.Split(opts.scope, ",")
+	var selectedCcbMembers map[bug.Status][]entity.Id
 
 	if !opts.simple {
 		if opts.workflow == "" {
@@ -377,22 +377,18 @@ func runAdd(env *Env, opts addOptions) error {
 				}
 			}
 
-			if opts.impact == "" {
+			if len(selectedImpact) == 0 {
 				selectedImpact, err = queryImpact(configCache, env)
 				if err != nil {
 					return err
 				}
-			} else {
-				selectedImpact = strings.Split(opts.impact, ",")
 			}
 
-			if opts.scope == "" {
+			if len(selectedScope) == 0 {
 				selectedScope, err = queryScope(configCache, env)
 				if err != nil {
 					return err
 				}
-			} else {
-				selectedScope = strings.Split(opts.scope, ",")
 			}
 
 			selectedCcbMembers, err = queryCCBMembers(configCache, env, selectedImpact, opts.repo)
