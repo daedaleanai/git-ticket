@@ -367,6 +367,8 @@ func parseStatusExpression(parser *Parser) (AstNode, *ParseError) {
 	appendStatus := func(token Token) *ParseError {
 		if strings.EqualFold(token.Literal, "ALL") {
 			node.Statuses = append(node.Statuses, bug.AllStatuses()...)
+		} else if strings.EqualFold(token.Literal, "ACTIVE") {
+			node.Statuses = append(node.Statuses, bug.ActiveStatuses()...)
 		} else {
 			status, err := bug.StatusFromString(token.Literal)
 			if err != nil {

@@ -43,6 +43,18 @@ func TestParseFilters(t *testing.T) {
 			nil,
 		},
 		{
+			`status(active)`,
+			&StatusFilter{Statuses: bug.ActiveStatuses(), span: Span{0, 14}},
+			nil,
+			nil,
+		},
+		{
+			`status(ACTIVE)`,
+			&StatusFilter{Statuses: bug.ActiveStatuses(), span: Span{0, 14}},
+			nil,
+			nil,
+		},
+		{
 			`author("John Doe")`,
 			&AuthorFilter{Author: &LiteralNode{Token{StringToken, "John Doe", Span{7, 17}}}, span: Span{0, 18}},
 			nil,
